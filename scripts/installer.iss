@@ -30,6 +30,8 @@ ArchitecturesAllowed=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog commandline
 DisableDirPage=auto
 DisableProgramGroupPage=auto
+SetupIconFile=..\lunifier\resources\icon.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

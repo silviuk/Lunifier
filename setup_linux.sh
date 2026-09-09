@@ -36,8 +36,36 @@ if ! pip3 install --user hidapi customtkinter 2>/dev/null; then
     }
 fi
 
-# 4. Create systemd user service with dynamic project directory
-echo "[4/4] Setting up systemd user service (optional autostart)..."
+# 4. Install Desktop Entry and Application Icon for current user
+echo "[4/5] Installing Application Icon & Desktop Launcher..."
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+APPS_DIR="$HOME/.local/share/applications"
+mkdir -p "$ICON_DIR" "$APPS_DIR"
+
+if [ -f "$PROJECT_DIR/lunifier/resources/icon.png" ]; then
+    cp "$PROJECT_DIR/lunifier/resources/icon.png" "$ICON_DIR/lunifier.png"
+fi
+
+cat << EOF > "$APPS_DIR/lunifier.desktop"
+[Desktop Entry]
+Name=Lunifier
+Comment=Seamless Logitech Easy-Switch Screen Flow
+Exec=python3 -m lunifier.app --gui
+Icon=lunifier
+Terminal=false
+Type=Application
+Categories=Utility;HardwareSettings;
+Keywords=logitech;flow;easy-switch;mx-keys;mouse;
+StartupNotify=true
+Path=$PROJECT_DIR
+EOF
+
+# Update desktop and icon databases if available
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS_DIR" || true
+command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
+
+# 5. Create systemd user service with dynamic project directory
+echo "[5/5] Setting up systemd user service (optional autostart)..."
 SERVICE_DIR="$HOME/.config/systemd/user"
 mkdir -p "$SERVICE_DIR"
 cat << EOF > "$SERVICE_DIR/lunifier.service"
@@ -58,6 +86,7 @@ EOF
 
 echo ""
 echo "=== Setup Completed Successfully! ==="
+echo "Application icon and desktop entry installed in your app menu."
 echo "To test device scanning: python3 -m lunifier.app --scan"
 echo "To launch settings GUI:  python3 -m lunifier.app --gui"
 echo "To enable autostart:     systemctl --user enable --now lunifier.service"

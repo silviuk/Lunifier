@@ -7,6 +7,7 @@ __pycache__/
 build/
 dist/
 *.spec
+!Lunifier.spec
 *.egg-info/
 *.zip
 

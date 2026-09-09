@@ -22,6 +22,9 @@ mkdir -p "$DEB_BUILD_DIR/usr/bin"
 mkdir -p "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier"
 mkdir -p "$DEB_BUILD_DIR/etc/udev/rules.d"
 mkdir -p "$DEB_BUILD_DIR/usr/share/applications"
+mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
+mkdir -p "$DEB_BUILD_DIR/usr/share/pixmaps"
 mkdir -p "$DEB_BUILD_DIR/usr/lib/systemd/user"
 
 # 2. Control file
@@ -49,6 +52,12 @@ if [ "$1" = "configure" ]; then
         udevadm control --reload-rules || true
         udevadm trigger || true
     fi
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    fi
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+    fi
     if command -v pip3 >/dev/null 2>&1 && ! /usr/bin/python3 -c "import customtkinter" >/dev/null 2>&1; then
         pip3 install customtkinter --break-system-packages >/dev/null 2>&1 || pip3 install customtkinter >/dev/null 2>&1 || true
     fi
@@ -64,25 +73,31 @@ exec /usr/bin/python3 -m lunifier.app "$@"
 EOF
 chmod 755 "$DEB_BUILD_DIR/usr/bin/lunifier"
 
-# 5. Copy python package files
+# 5. Copy python package files and icon assets
 cp -r "$ROOT_DIR/lunifier/"* "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/"
 rm -rf "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/__pycache__"
+
+cp "$ROOT_DIR/lunifier/resources/icon.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/256x256/apps/lunifier.png"
+cp "$ROOT_DIR/lunifier/resources/icon.png" "$DEB_BUILD_DIR/usr/share/pixmaps/lunifier.png"
+cp "$ROOT_DIR/lunifier/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/lunifier.svg"
 
 # 6. Udev rule
 cat << 'EOF' > "$DEB_BUILD_DIR/etc/udev/rules.d/99-logitech-hidpp.rules"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", MODE="0666"
 EOF
 
-# 7. Desktop entry
+# 7. Desktop entry with icon and non-terminal execution
 cat << 'EOF' > "$DEB_BUILD_DIR/usr/share/applications/lunifier.desktop"
 [Desktop Entry]
 Name=Lunifier
 Comment=Seamless Logitech Easy-Switch Screen Flow
 Exec=lunifier --gui
+Icon=lunifier
 Terminal=false
 Type=Application
 Categories=Utility;HardwareSettings;
 Keywords=logitech;flow;easy-switch;mx-keys;mouse;
+StartupNotify=true
 EOF
 
 # 8. Systemd user service

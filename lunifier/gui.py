@@ -65,12 +65,33 @@ class LunifierGUI:
         self.root.title("Lunifier - Logitech Easy-Switch Flow")
         self.root.geometry("700x780")
         self.root.minsize(620, 700)
+        self._set_app_icon()
 
         self._last_rendered_device_sig: Optional[str] = None
         self._build_ui()
         self._load_config_values()
         self._refresh_devices_async()
         self._schedule_device_poll()
+
+    def _set_app_icon(self) -> None:
+        """Sets the application icon for window title bar, Alt+Tab, and taskbar."""
+        import os
+        base_dir = os.path.dirname(__file__)
+        ico_path = os.path.join(base_dir, "resources", "icon.ico")
+        png_path = os.path.join(base_dir, "resources", "icon.png")
+
+        if sys.platform == "win32" and os.path.exists(ico_path):
+            try:
+                self.root.iconbitmap(ico_path)
+            except Exception:
+                pass
+        elif os.path.exists(png_path):
+            try:
+                import tkinter as tk
+                img = tk.PhotoImage(file=png_path)
+                self.root.iconphoto(True, img)
+            except Exception:
+                pass
 
     def _build_ui(self) -> None:
         # Main container with padding
