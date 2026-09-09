@@ -7,7 +7,7 @@ echo ===================================================
 
 set "SCRIPT_DIR=%~dp0"
 set "ROOT_DIR=%SCRIPT_DIR%.."
-set "VERSION=1.0.0"
+set "VERSION=1.0.3"
 
 echo [1/3] Compiling Python Application with PyInstaller...
 cd /d "%ROOT_DIR%"
@@ -18,15 +18,12 @@ if errorlevel 1 (
 )
 
 echo [2/3] Compiling Inno Setup Installer...
-set "ISCC=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"
-if not exist "%ISCC%" (
-    set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-)
-if not exist "%ISCC%" (
-    set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
-)
+set "ISCC="
+if exist "%LocalAppData%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
 
-if not exist "%ISCC%" (
+if not defined ISCC (
     echo [ERROR] Inno Setup compiler (ISCC.exe) not found.
     exit /b 1
 )
@@ -37,7 +34,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [3/3] Calculating SHA256 for Winget / Store Manifests...
+echo [3/3] Creating Portable Windows ZIP...
+powershell -NoProfile -Command ^
+    "Compress-Archive -Path '%ROOT_DIR%\dist\Lunifier\*' -DestinationPath '%ROOT_DIR%\dist\Lunifier-Windows-%VERSION%.zip' -Force"
+
 powershell -NoProfile -Command ^
     "$hash = (Get-FileHash '%ROOT_DIR%\dist\Lunifier-Setup-%VERSION%.exe' -Algorithm SHA256).Hash; Write-Host ' [OK] Lunifier-Setup-%VERSION%.exe SHA256:' $hash"
 
