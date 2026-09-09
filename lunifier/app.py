@@ -35,6 +35,11 @@ class LunifierApp:
         self.hidpp.connection_support = getattr(self.config, 'connection_support', 'both')
 
         # 1. Edge detector (monitors all active configured screen borders)
+        if self.edge_detector and getattr(self.edge_detector, "_running", False):
+            try:
+                self.edge_detector.stop()
+            except Exception:
+                pass
         active_edges = self.config.get_active_edges()
         self.edge_detector = ScreenEdgeDetector(
             trigger_edge=self.config.trigger_edge,

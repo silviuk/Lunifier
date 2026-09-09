@@ -32,6 +32,36 @@ else:
         except Exception:
             x11 = None
 
+    if x11:
+        if hasattr(x11, "XInitThreads"):
+            try:
+                x11.XInitThreads.restype = ctypes.c_int
+                x11.XInitThreads()
+            except Exception:
+                pass
+        try:
+            x11.XOpenDisplay.restype = ctypes.c_void_p
+            x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+            x11.XCloseDisplay.restype = ctypes.c_int
+            x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+            x11.XDefaultRootWindow.restype = ctypes.c_ulong
+            x11.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+            x11.XQueryPointer.restype = ctypes.c_int
+            x11.XQueryPointer.argtypes = [
+                ctypes.c_void_p, ctypes.c_ulong,
+                ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_ulong),
+                ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_uint)
+            ]
+            XErrorHandler = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
+            def _ignore_x_error(d, e): return 0
+            _c_err_handler = XErrorHandler(_ignore_x_error)
+            x11.XSetErrorHandler(_c_err_handler)
+            x11.XSetIOErrorHandler(_c_err_handler)
+        except Exception:
+            pass
+
 
 class ScreenEdgeDetector:
     def __init__(self,
@@ -95,24 +125,6 @@ class ScreenEdgeDetector:
         self._cursor_history: deque = deque(maxlen=60)  # ~1 second of samples at ~65Hz
         self._min_approach_displacement: int = 15       # Minimum pixels cursor must have moved toward edge
 
-        # Linux X11 display caching
-        self._x11_display = None
-        self._x11_root = None
-        if sys.platform.startswith("linux") and x11:
-            try:
-                self._x11_display = x11.XOpenDisplay(None)
-                if self._x11_display:
-                    self._x11_root = x11.XDefaultRootWindow(self._x11_display)
-            except Exception:
-                pass
-
-    def __del__(self):
-        if hasattr(self, "_x11_display") and self._x11_display and x11:
-            try:
-                x11.XCloseDisplay(self._x11_display)
-            except Exception:
-                pass
-
     def _get_monitor_config(self, monitor_id: str) -> Dict[str, Any]:
         mid = str(monitor_id)
         if self.monitor_configs and mid in self.monitor_configs:
@@ -132,37 +144,57 @@ class ScreenEdgeDetector:
     def _get_screen_bounds(self) -> Dict[str, int]:
         return get_virtual_desktop_bounds(get_monitors())
 
-    def get_cursor_pos(self) -> Tuple[int, int]:
+    def get_cursor_pos(self, dpy: Any = None, root: Any = None) -> Tuple[int, int]:
         if sys.platform == "win32":
             pt = POINT()
             user32.GetCursorPos(ctypes.byref(pt))
             return pt.x, pt.y
         else:
-            if getattr(self, "_x11_display", None) and getattr(self, "_x11_root", None) and x11:
-                try:
-                    root_return = ctypes.c_ulong()
-                    child_return = ctypes.c_ulong()
-                    root_x = ctypes.c_int()
-                    root_y = ctypes.c_int()
-                    win_x = ctypes.c_int()
-                    win_y = ctypes.c_int()
-                    mask_return = ctypes.c_uint()
+            if x11:
+                display = dpy
+                root_win = root
+                close_after = False
 
-                    ret = x11.XQueryPointer(
-                        self._x11_display,
-                        self._x11_root,
-                        ctypes.byref(root_return),
-                        ctypes.byref(child_return),
-                        ctypes.byref(root_x),
-                        ctypes.byref(root_y),
-                        ctypes.byref(win_x),
-                        ctypes.byref(win_y),
-                        ctypes.byref(mask_return)
-                    )
-                    if ret:
-                        return root_x.value, root_y.value
-                except Exception:
-                    pass
+                if not display:
+                    try:
+                        display = x11.XOpenDisplay(None)
+                        if display:
+                            root_win = x11.XDefaultRootWindow(display)
+                            close_after = True
+                    except Exception:
+                        display = None
+
+                if display and root_win:
+                    try:
+                        root_return = ctypes.c_ulong()
+                        child_return = ctypes.c_ulong()
+                        root_x = ctypes.c_int()
+                        root_y = ctypes.c_int()
+                        win_x = ctypes.c_int()
+                        win_y = ctypes.c_int()
+                        mask_return = ctypes.c_uint()
+
+                        ret = x11.XQueryPointer(
+                            display,
+                            root_win,
+                            ctypes.byref(root_return),
+                            ctypes.byref(child_return),
+                            ctypes.byref(root_x),
+                            ctypes.byref(root_y),
+                            ctypes.byref(win_x),
+                            ctypes.byref(win_y),
+                            ctypes.byref(mask_return)
+                        )
+                        if ret:
+                            return root_x.value, root_y.value
+                    except Exception:
+                        pass
+                    finally:
+                        if close_after and display:
+                            try:
+                                x11.XCloseDisplay(display)
+                            except Exception:
+                                pass
 
             # Fallback for Wayland or non-X11: xdotool
             try:
@@ -365,91 +397,108 @@ class ScreenEdgeDetector:
         log("EdgeDetector", f"Mouse return detected (entry: {entry_edge or 'unknown'}). Enforcing {self.cooldown_ms}ms return guard.")
 
     def _loop(self) -> None:
-        while self._running:
-            now = time.time()
-            x, y = self.get_cursor_pos()
+        local_dpy = None
+        local_root = None
+        if sys.platform.startswith("linux") and x11:
+            try:
+                local_dpy = x11.XOpenDisplay(None)
+                if local_dpy:
+                    local_root = x11.XDefaultRootWindow(local_dpy)
+            except Exception as e:
+                log_debug("EdgeDetector", f"Could not open thread-local X11 display: {e}")
 
-            # Anti-bounceback Return Guard:
-            # If this host is currently switched out, monitor for cursor movement.
-            # When the user physically returns to this PC and moves the mouse,
-            # activate return guard cooldown to prevent immediate ping-pong bounceback.
-            if self._is_switched_out:
-                if self._last_known_cursor_pos is not None:
-                    lx, ly = self._last_known_cursor_pos
-                    dx = x - lx
-                    dy = y - ly
-                    if (dx * dx + dy * dy) > 225:  # Movement > 15 pixels
-                        log("EdgeDetector", f"Physical mouse movement detected on host ({lx}, {ly}) -> ({x}, {y})")
-                        self.notify_switched_in(self._switched_out_edge)
+        try:
+            while self._running:
+                now = time.time()
+                x, y = self.get_cursor_pos(local_dpy, local_root)
+
+                # Anti-bounceback Return Guard:
+                # If this host is currently switched out, monitor for cursor movement.
+                # When the user physically returns to this PC and moves the mouse,
+                # activate return guard cooldown to prevent immediate ping-pong bounceback.
+                if self._is_switched_out:
+                    if self._last_known_cursor_pos is not None:
+                        lx, ly = self._last_known_cursor_pos
+                        dx = x - lx
+                        dy = y - ly
+                        if (dx * dx + dy * dy) > 225:  # Movement > 15 pixels
+                            log("EdgeDetector", f"Physical mouse movement detected on host ({lx}, {ly}) -> ({x}, {y})")
+                            self.notify_switched_in(self._switched_out_edge)
+                            self._last_known_cursor_pos = (x, y)
+                            time.sleep(0.05)
+                            continue
+                    else:
                         self._last_known_cursor_pos = (x, y)
-                        time.sleep(0.05)
-                        continue
-                else:
-                    self._last_known_cursor_pos = (x, y)
-                time.sleep(0.05)
-                continue
+                    time.sleep(0.05)
+                    continue
 
-            self._cursor_history.append((now, (x, y)))
+                self._cursor_history.append((now, (x, y)))
 
-            # If in cooldown after a recent switch or return guard, wait
-            if (now - self._last_trigger_time) * 1000 < self.cooldown_ms or now < self._return_guard_until:
-                self._hold_start_time = None
-                self._current_edge = None
-                self._current_monitor_id = None
-                time.sleep(0.05)
-                continue
+                # If in cooldown after a recent switch or return guard, wait
+                if (now - self._last_trigger_time) * 1000 < self.cooldown_ms or now < self._return_guard_until:
+                    self._hold_start_time = None
+                    self._current_edge = None
+                    self._current_monitor_id = None
+                    time.sleep(0.05)
+                    continue
 
-            # Expire stale 1st knock if outside time window
-            if self.knock_enabled and self._last_knock_edge:
-                if (now - self._last_knock_time) * 1000 > self.knock_timeout_ms:
-                    self._last_knock_edge = None
-                    self._last_knock_time = 0.0
+                # Expire stale 1st knock if outside time window
+                if self.knock_enabled and self._last_knock_edge:
+                    if (now - self._last_knock_time) * 1000 > self.knock_timeout_ms:
+                        self._last_knock_edge = None
+                        self._last_knock_time = 0.0
 
-            trigger_info = self._get_triggered_edge_info(x, y)
+                trigger_info = self._get_triggered_edge_info(x, y)
 
-            if trigger_info:
-                edge, ratio, mid, ch = trigger_info
-                key = f"{mid}_{edge}"
-                if self._current_edge != key:
-                    self._current_edge = key
-                    self._current_monitor_id = mid
-                    self._hold_start_time = now
-                else:
-                    elapsed_ms = (now - self._hold_start_time) * 1000
-                    required_hold = (min(100, self.hold_delay_ms) if self.knock_enabled else self.hold_delay_ms)
-                    if elapsed_ms >= required_hold:
-                        if self._is_approaching_edge(edge, x, y, self._hold_start_time):
-                            if self.knock_enabled:
-                                if self._last_knock_edge == key and ((now - self._last_knock_time) * 1000 <= self.knock_timeout_ms):
-                                    log("EdgeDetector", f"Border knock (2/2) on Monitor {mid} '{edge}' -> Switch to Channel {ch}")
-                                    self._last_knock_edge = None
-                                    self._last_knock_time = 0.0
+                if trigger_info:
+                    edge, ratio, mid, ch = trigger_info
+                    key = f"{mid}_{edge}"
+                    if self._current_edge != key:
+                        self._current_edge = key
+                        self._current_monitor_id = mid
+                        self._hold_start_time = now
+                    else:
+                        elapsed_ms = (now - self._hold_start_time) * 1000
+                        required_hold = (min(100, self.hold_delay_ms) if self.knock_enabled else self.hold_delay_ms)
+                        if elapsed_ms >= required_hold:
+                            if self._is_approaching_edge(edge, x, y, self._hold_start_time):
+                                if self.knock_enabled:
+                                    if self._last_knock_edge == key and ((now - self._last_knock_time) * 1000 <= self.knock_timeout_ms):
+                                        log("EdgeDetector", f"Border knock (2/2) on Monitor {mid} '{edge}' -> Switch to Channel {ch}")
+                                        self._last_knock_edge = None
+                                        self._last_knock_time = 0.0
+                                        self._last_trigger_time = now
+                                        self._hold_start_time = None
+                                        self._current_edge = None
+                                        self._current_monitor_id = None
+                                        self._cursor_history.clear()
+                                        self._invoke_callback(edge, x, y, ratio, mid, ch)
+                                    else:
+                                        log("EdgeDetector", f"Border knock (1/2) on Monitor {mid} '{edge}' at ({x}, {y})")
+                                        self._last_knock_edge = key
+                                        self._last_knock_time = now
+                                        self._hold_start_time = None
+                                        self._current_edge = None
+                                        time.sleep(0.15)
+                                else:
+                                    log("EdgeDetector", f"Edge '{edge}' on Monitor {mid} triggered at ({x}, {y}) ratio={ratio:.2f} -> Switch to Channel {ch}")
                                     self._last_trigger_time = now
                                     self._hold_start_time = None
                                     self._current_edge = None
                                     self._current_monitor_id = None
                                     self._cursor_history.clear()
                                     self._invoke_callback(edge, x, y, ratio, mid, ch)
-                                else:
-                                    log("EdgeDetector", f"Border knock (1/2) on Monitor {mid} '{edge}' at ({x}, {y})")
-                                    self._last_knock_edge = key
-                                    self._last_knock_time = now
-                                    self._hold_start_time = None
-                                    self._current_edge = None
-                                    time.sleep(0.15)
                             else:
-                                log("EdgeDetector", f"Edge '{edge}' on Monitor {mid} triggered at ({x}, {y}) ratio={ratio:.2f} -> Switch to Channel {ch}")
-                                self._last_trigger_time = now
-                                self._hold_start_time = None
-                                self._current_edge = None
-                                self._current_monitor_id = None
-                                self._cursor_history.clear()
-                                self._invoke_callback(edge, x, y, ratio, mid, ch)
-                        else:
-                            self._hold_start_time = now
-            else:
-                self._current_edge = None
-                self._current_monitor_id = None
-                self._hold_start_time = None
+                                self._hold_start_time = now
+                else:
+                    self._current_edge = None
+                    self._current_monitor_id = None
+                    self._hold_start_time = None
 
-            time.sleep(0.015)
+                time.sleep(0.015)
+        finally:
+            if local_dpy and x11:
+                try:
+                    x11.XCloseDisplay(local_dpy)
+                except Exception:
+                    pass

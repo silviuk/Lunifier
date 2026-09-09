@@ -62,6 +62,34 @@ else:
             ("height", ctypes.c_short),
         ]
 
+    if x11:
+        if hasattr(x11, "XInitThreads"):
+            try:
+                x11.XInitThreads.restype = ctypes.c_int
+                x11.XInitThreads()
+            except Exception:
+                pass
+        try:
+            x11.XOpenDisplay.restype = ctypes.c_void_p
+            x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+            x11.XCloseDisplay.restype = ctypes.c_int
+            x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+            x11.XDefaultRootWindow.restype = ctypes.c_ulong
+            x11.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+            x11.XFree.restype = ctypes.c_int
+            x11.XFree.argtypes = [ctypes.c_void_p]
+        except Exception:
+            pass
+
+    if xinerama:
+        try:
+            xinerama.XineramaIsActive.restype = ctypes.c_int
+            xinerama.XineramaIsActive.argtypes = [ctypes.c_void_p]
+            xinerama.XineramaQueryScreens.restype = ctypes.POINTER(XineramaScreenInfo)
+            xinerama.XineramaQueryScreens.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+        except Exception:
+            pass
+
 
 @dataclass
 class MonitorInfo:

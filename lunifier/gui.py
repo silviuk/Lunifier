@@ -63,8 +63,8 @@ class LunifierGUI:
         ctk.set_default_color_theme("blue")
 
         self.root.title("Lunifier - Logitech Easy-Switch Flow")
-        self.root.geometry("700x780")
-        self.root.minsize(620, 700)
+        self.root.geometry("740x940")
+        self.root.minsize(640, 750)
         self._set_app_icon()
 
         self._last_rendered_device_sig: Optional[str] = None
@@ -156,7 +156,9 @@ class LunifierGUI:
         self.tab_bt = self.tabs.add("  Bluetooth Inter-Host Link  ")
         self.tab_logs = self.tabs.add("  Live Logs  ")
 
-        self._build_flow_tab(self.tab_flow)
+        self.flow_scroll = ctk.CTkScrollableFrame(self.tab_flow, fg_color="transparent")
+        self.flow_scroll.pack(fill="both", expand=True)
+        self._build_flow_tab(self.flow_scroll)
         self._build_devices_tab(self.tab_devices)
         self._build_bt_tab(self.tab_bt)
         self._build_logs_tab(self.tab_logs)
