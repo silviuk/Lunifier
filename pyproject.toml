@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lunifier"
+version = "1.0.0"
+description = "Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Silviu Vlasceanu"}
+]
+keywords = ["logitech", "easy-switch", "mx-keys", "mx-master", "flow", "bluetooth", "unifying", "bolt"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Desktop Environment",
+    "Topic :: System :: Hardware"
+]
+dependencies = [
+    "customtkinter>=6.0.0",
+    "hidapi>=0.14.0",
+    "bleak>=0.20.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/silviuk/Lunifier"
+Repository = "https://github.com/silviuk/Lunifier.git"
+Issues = "https://github.com/silviuk/Lunifier/issues"
+
+[project.scripts]
+lunifier = "lunifier.app:main"
+lunifier-gui = "lunifier.gui:launch_gui"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lunifier*"]

@@ -1,0 +1,34 @@
+# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: silviuk
+PublisherUrl: https://github.com/silviuk/Lunifier
+PublisherSupportUrl: https://github.com/silviuk/Lunifier/issues
+Author: Silviu Vlasceanu
+PackageName: Lunifier
+PackageUrl: https://github.com/silviuk/Lunifier
+License: MIT
+LicenseUrl: https://github.com/silviuk/Lunifier/blob/master/LICENSE
+Copyright: Copyright (c) 2026 Silviu Vlasceanu
+ShortDescription: Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows and Linux.
+Description: |
+  Lunifier coordinates Logitech Easy-Switch keyboards and mice (MX Keys, MX Master 3/3S,
+  M720 Triathlon, POP Mouse, etc.) across multiple screens without requiring a local Wi-Fi/LAN connection.
+  Features include configurable central border active zones, double-touch border knocking,
+  sub-millisecond hardware switching over Bluetooth, Unifying, and Bolt receivers, and optional
+  direct Bluetooth RFCOMM clipboard/cursor sync.
+Moniker: lunifier
+Tags:
+  - logitech
+  - easy-switch
+  - mx-keys
+  - mx-master
+  - flow
+  - multi-monitor
+  - bluetooth
+  - unifying
+  - bolt
+ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v1.0.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
