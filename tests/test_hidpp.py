@@ -525,6 +525,68 @@ def test_connection_support_scan_filtering(monkeypatch):
 
 
 
+def test_solaar_confirmed_cache(monkeypatch):
+    import subprocess
+    import sys
+    master = HIDPPMaster()
+    master._solaar_path = "/usr/bin/solaar"
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    calls = []
+    def mock_run(cmd, *args, **kwargs):
+        calls.append(cmd)
+        class Res:
+            returncode = 0
+            stdout = "success"
+            stderr = ""
+        return Res()
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    dev = LogitechDevice(name="Logitech MX Master 3", path=b"/dev/hidraw1", transport=TransportType.UNIFYING)
+    
+    # 1. First switch: discovers alias and populates cache
+    ok = master._switch_via_solaar(dev, target_channel=1, channel_index=0)
+    assert ok is True
+    assert "Logitech MX Master 3" in master._solaar_confirmed_cache
+    cached_alias, cached_arg = master._solaar_confirmed_cache["Logitech MX Master 3"]
+    assert cached_arg == "1"
+
+    # 2. Second switch: should use cached alias directly
+    calls.clear()
+    ok = master._switch_via_solaar(dev, target_channel=2, channel_index=1)
+    assert ok is True
+    assert len(calls) == 1
+    assert calls[0][2] == cached_alias
+    assert calls[0][4] == "2"
+
+
+def test_solaar_offline_device_early_exit(monkeypatch):
+    import subprocess
+    import sys
+    master = HIDPPMaster()
+    master._solaar_path = "/usr/bin/solaar"
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    calls = []
+    def mock_run(cmd, *args, **kwargs):
+        calls.append(cmd)
+        class Res:
+            returncode = 1
+            stdout = ""
+            stderr = "solaar: error: Exception: no online device found matching 'Logitech MX Keys'"
+        return Res()
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    dev = LogitechDevice(name="Logitech MX Keys", path=b"/dev/hidraw1", transport=TransportType.UNIFYING)
+    
+    # Device already offline/switched: should exit immediately without trying dozens of permutations
+    ok = master._switch_via_solaar(dev, target_channel=1, channel_index=0)
+    assert ok is True  # Counted as already switched
+    assert len(calls) == 1
+
+
 def test_border_overlay_manager():
     import pytest
     tk = pytest.importorskip("tkinter")

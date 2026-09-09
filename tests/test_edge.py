@@ -77,8 +77,8 @@ def test_app_edge_triggered_steps_back_cursor(monkeypatch):
     app._handle_edge_triggered("right", 2560, 772, 0.37)
 
     assert len(cursor_moved) == 1
-    # 2560 - 80 = 2480
-    assert cursor_moved[0] == (2480, 772)
+    # 2560 - 160 = 2400
+    assert cursor_moved[0] == (2400, 772)
 
 def test_edge_detector_approach_direction():
     import time
@@ -167,4 +167,23 @@ def test_border_knock_mechanism():
 
     # Expired knock outside window:
     assert (now + 1.2 - detector._last_knock_time) * 1000 > detector.knock_timeout_ms
+
+
+def test_return_guard_state_and_anti_bounceback():
+    import time
+    detector = ScreenEdgeDetector(trigger_edge="right", cooldown_ms=2500)
+    detector._screen_bounds = {"left": 0, "top": 0, "right": 1920, "bottom": 1080}
+
+    # 1. Switched out armed
+    detector.notify_switched_out("right", 1760, 500)
+    assert detector._is_switched_out is True
+    assert detector._switched_out_edge == "right"
+    assert detector._last_known_cursor_pos == (1760, 500)
+
+    # 2. Return detection
+    now = time.time()
+    detector.notify_switched_in("left")
+    assert detector._is_switched_out is False
+    assert detector._return_guard_until >= now + 2.4
+    assert (detector._return_guard_until - now) <= 2.6
 

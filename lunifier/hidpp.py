@@ -101,6 +101,7 @@ class HIDPPMaster:
         self._scan_lock = threading.Lock()
         self._solaar_lock = threading.Lock()
         self._solaar_path = shutil.which("solaar") if sys.platform.startswith("linux") else None
+        self._solaar_confirmed_cache: Dict[str, Tuple[str, str]] = {}
         self._executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="LogiFlow_Switch")
         self.connection_support: str = "both"  # "both", "unifying", "bluetooth"
 
@@ -947,77 +948,98 @@ class HIDPPMaster:
             return False
 
         with self._solaar_lock:
-            candidate_solaar_names = []
-            if dev._confirmed_solaar_name:
-                candidate_solaar_names.append(dev._confirmed_solaar_name)
-            if dev.solaar_name and dev.solaar_name not in candidate_solaar_names:
-                candidate_solaar_names.append(dev.solaar_name)
-
-            # Solaar names frequently omit the vendor prefix "Logitech " (e.g. "Wireless Mouse MX Master 3")
-            stripped_name = re.sub(r'^(?:logitech\s+)', '', dev.name, flags=re.IGNORECASE).strip()
-            if stripped_name and stripped_name not in candidate_solaar_names:
-                candidate_solaar_names.append(stripped_name)
-
-            derived = self._derive_solaar_name(dev.name)
-            if derived and derived not in candidate_solaar_names:
-                candidate_solaar_names.append(derived)
-            if dev.name not in candidate_solaar_names:
-                candidate_solaar_names.append(dev.name)
-
-            # In Solaar CLI, receiver slot numbers 1..6 can be passed directly as device targets
-            if dev.is_receiver and 1 <= dev.device_index <= 6:
-                slot_str = str(dev.device_index)
-                if slot_str not in candidate_solaar_names:
-                    candidate_solaar_names.append(slot_str)
-            if getattr(dev, 'kind', None) in ('keyboard', 'mouse'):
-                if dev.kind not in candidate_solaar_names:
-                    candidate_solaar_names.append(dev.kind)
-            elif "mouse" in dev.name.lower() or "master" in dev.name.lower():
-                if "mouse" not in candidate_solaar_names:
-                    candidate_solaar_names.append("mouse")
-            elif "keyboard" in dev.name.lower() or "keys" in dev.name.lower():
-                if "keyboard" not in candidate_solaar_names:
-                    candidate_solaar_names.append("keyboard")
-
-            # Receiver fallback slots
-            if dev.is_receiver:
-                for slot in ["1", "2", "3"]:
-                    if slot not in candidate_solaar_names:
-                        candidate_solaar_names.append(slot)
-
             # Strip DISPLAY and WAYLAND_DISPLAY to disable Solaar's GApplication
             # remote forwarding bug which corrupts Channel 2 to Channel 1!
             clean_env = os.environ.copy()
             clean_env["DISPLAY"] = ""
             clean_env["WAYLAND_DISPLAY"] = ""
 
-            # Try candidate arguments:
-            # 1. 1-indexed target channel (e.g. "1" for Channel 1) - PRIMARY for Solaar!
-            # 2. Named host (e.g. "Host 1")
-            # 3. 0-indexed host index (e.g. "0" for Channel 1)
-            candidate_args = []
-            if getattr(dev, '_confirmed_solaar_arg', None):
-                candidate_args.append(dev._confirmed_solaar_arg)
-            for arg in [str(target_channel), f"Host {target_channel}", str(channel_index)]:
-                if arg not in candidate_args:
-                    candidate_args.append(arg)
+            # 1. Fast Path: Check persistent cache or confirmed device alias
+            confirmed = self._solaar_confirmed_cache.get(dev.name)
+            if not confirmed and getattr(dev, '_confirmed_solaar_name', None):
+                confirmed = (dev._confirmed_solaar_name, getattr(dev, '_confirmed_solaar_arg', str(target_channel)))
 
-            log("HID++", f"Solaar dispatch for '{dev.name}' -> Channel {target_channel} (candidates: {candidate_solaar_names[:5]}, args: {candidate_args})")
+            if confirmed:
+                c_name, _ = confirmed
+                # In Solaar CLI, channel index is typically the 1-indexed target channel ("1", "2", "3")
+                quick_args = [str(target_channel), str(channel_index), f"Host {target_channel}"]
+                for h_arg in quick_args:
+                    cmd = [self._solaar_path, "config", c_name, "change-host", h_arg]
+                    try:
+                        t0 = time.perf_counter()
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.2, env=clean_env)
+                        dur_ms = (time.perf_counter() - t0) * 1000.0
+                        if res.returncode == 0:
+                            dev._confirmed_solaar_name = c_name
+                            dev._confirmed_solaar_arg = h_arg
+                            self._solaar_confirmed_cache[dev.name] = (c_name, h_arg)
+                            log("HID++", f"Solaar cached switch SUCCEEDED for '{dev.name}' (as '{c_name}', arg='{h_arg}') -> Channel {target_channel} [{dur_ms:.1f}ms]")
+                            return True
+                        else:
+                            err_out = (res.stderr or res.stdout or "").strip()
+                            if "no online device found" in err_out.lower():
+                                log("HID++", f"Solaar reports '{c_name}' is offline / already switched: {err_out}")
+                                # Device has already physically switched away to target host
+                                return True
+                    except Exception as ex:
+                        log("HID++", f"Solaar cached execution exception for '{dev.name}' ({c_name}): {ex}")
+
+            # 2. Discovery Path: Build prioritized, deduplicated candidates
+            raw_candidates = []
+            if getattr(dev, '_confirmed_solaar_name', None):
+                raw_candidates.append(dev._confirmed_solaar_name)
+            if dev.solaar_name:
+                raw_candidates.append(dev.solaar_name)
+
+            # Solaar names frequently omit vendor prefix "Logitech "
+            stripped_name = re.sub(r'^(?:logitech\s+)', '', dev.name, flags=re.IGNORECASE).strip()
+            if stripped_name:
+                raw_candidates.append(stripped_name)
+
+            derived = self._derive_solaar_name(dev.name)
+            if derived:
+                raw_candidates.append(derived)
+            raw_candidates.append(dev.name)
+
+            # Solaar slot index
+            if dev.is_receiver and 1 <= dev.device_index <= 6:
+                raw_candidates.append(str(dev.device_index))
+            if getattr(dev, 'kind', None) in ('keyboard', 'mouse'):
+                raw_candidates.append(dev.kind)
+            elif "mouse" in dev.name.lower() or "master" in dev.name.lower():
+                raw_candidates.append("mouse")
+            elif "keyboard" in dev.name.lower() or "keys" in dev.name.lower():
+                raw_candidates.append("keyboard")
+
+            if dev.is_receiver:
+                for slot in ["1", "2", "3"]:
+                    raw_candidates.append(slot)
+
+            seen = set()
+            candidate_solaar_names = [n for n in raw_candidates if n and not (n in seen or seen.add(n))]
+            candidate_args = [str(target_channel), str(channel_index), f"Host {target_channel}"]
+
+            log("HID++", f"Solaar dispatch for '{dev.name}' -> Channel {target_channel} (candidates: {candidate_solaar_names[:4]}, args: {candidate_args})")
 
             for s_name in candidate_solaar_names:
                 for h_arg in candidate_args:
                     cmd = [self._solaar_path, "config", s_name, "change-host", h_arg]
                     try:
                         t0 = time.perf_counter()
-                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5, env=clean_env)
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.2, env=clean_env)
                         dur_ms = (time.perf_counter() - t0) * 1000.0
                         if res.returncode == 0:
                             dev._confirmed_solaar_name = s_name
                             dev._confirmed_solaar_arg = h_arg
+                            self._solaar_confirmed_cache[dev.name] = (s_name, h_arg)
                             log("HID++", f"Solaar switch SUCCEEDED for '{dev.name}' (as '{s_name}', arg='{h_arg}') -> Channel {target_channel} [{dur_ms:.1f}ms]")
                             return True
                         else:
                             err_out = (res.stderr or res.stdout or "").strip()
+                            if "no online device found" in err_out.lower():
+                                log("HID++", f"Solaar: device '{s_name}' is offline / already switched: {err_out}")
+                                # Target device is already switched to the other PC!
+                                return True
                             log("HID++", f"Solaar command failed: {' '.join(cmd)} (exit {res.returncode}): {err_out}")
                     except Exception as ex:
                         log("HID++", f"Solaar execution exception for '{dev.name}' ({s_name}): {ex}")
@@ -1310,34 +1332,39 @@ class HIDPPMaster:
         if self.connection_support != "both":
             devices = [d for d in devices if self.is_transport_supported(d.transport, self.connection_support)]
 
-        log("HID++", f"switch_all_to_channel: Initiating concurrent switch for {len(devices)} device(s) -> Channel {target_channel} (Backend: {backend}, Support: {self.connection_support})")
+        log("HID++", f"switch_all_to_channel: Initiating switch for {len(devices)} device(s) -> Channel {target_channel} (Backend: {backend}, Support: {self.connection_support})")
 
         results: Dict[str, bool] = {}
 
-        def do_switch(d: LogitechDevice):
-            ok = self.switch_device_host(d, target_channel, backend=backend, connection_support=self.connection_support)
-            return (f"{d.name} ({d.transport.value})", ok)
+        if backend == "solaar":
+            # Solaar CLI calls are serialized by _solaar_lock; dispatch sequentially
+            # to avoid threadpool lock contention, thread starvation, and timeout exceptions.
+            for dev in devices:
+                key = f"{dev.name} ({dev.transport.value})"
+                results[key] = self.switch_device_host(dev, target_channel, backend=backend, connection_support=self.connection_support)
+        else:
+            # Direct kernel hidraw/hidapi writes can execute concurrently
+            def do_switch(d: LogitechDevice):
+                ok = self.switch_device_host(d, target_channel, backend=backend, connection_support=self.connection_support)
+                return (f"{d.name} ({d.transport.value})", ok)
 
-        futures = [self._executor.submit(do_switch, dev) for dev in devices]
-        for f in futures:
-            try:
-                key, ok = f.result(timeout=2.5)
-                results[key] = ok
-            except Exception as ex:
-                log("HID++", f"Device switch future exception: {ex}")
+            futures = [self._executor.submit(do_switch, dev) for dev in devices]
+            dev_timeout = max(5.0, len(devices) * 3.0)
+            for f in futures:
+                try:
+                    key, ok = f.result(timeout=dev_timeout)
+                    results[key] = ok
+                except Exception as ex:
+                    log("HID++", f"Device switch future exception: {ex}")
 
-        # If any device failed to switch (e.g. connection changed between Bluetooth and Unifying),
-        # force a fresh hardware scan and retry on the new transport
+        # Quick retry for any failed device with fallback backend (NO blocking 8-second hardware rescan!)
         failed = [dev for dev in devices if not results.get(f"{dev.name} ({dev.transport.value})", False)]
         if failed:
-            log("HID++", f"Retrying switch for {[d.name for d in failed]} after fresh rescan...")
-            fresh_devices = self.scan_devices(target_keywords, force_rescan=True, connection_support=self.connection_support)
-            if self.connection_support != "both":
-                fresh_devices = [d for d in fresh_devices if self.is_transport_supported(d.transport, self.connection_support)]
-            for f_dev in fresh_devices:
+            log("HID++", f"Retrying switch for {[d.name for d in failed]} with fallback backend...")
+            fallback_backend = "direct" if backend == "solaar" else "solaar"
+            for f_dev in failed:
                 key = f"{f_dev.name} ({f_dev.transport.value})"
-                if not results.get(key, False):
-                    results[key] = self.switch_device_host(f_dev, target_channel, backend=backend, connection_support=self.connection_support)
+                results[key] = self.switch_device_host(f_dev, target_channel, backend=fallback_backend, connection_support=self.connection_support)
 
         return results
 

@@ -100,7 +100,7 @@ class LunifierApp:
             threading.Thread(target=notify_peer, daemon=True).start()
 
         # 3. Pull cursor inward from boundary to prevent ghost re-triggers while working on partner host
-        step_back = 80
+        step_back = 160
         new_x, new_y = x, y
         if edge == "right":
             new_x = x - step_back
@@ -111,6 +111,8 @@ class LunifierApp:
         elif edge == "bottom":
             new_y = y - step_back
         self.cursor_mgr.set_cursor_pos(new_x, new_y)
+        if self.edge_detector:
+            self.edge_detector.notify_switched_out(edge, new_x, new_y)
         log("Lunifier", f"Repositioned cursor {step_back}px inward to ({new_x}, {new_y}) to prevent border bounceback")
 
     def _handle_incoming_switch(self, partner_exit_edge: str, ratio: float, clipboard_text: Optional[str]) -> None:
@@ -133,6 +135,8 @@ class LunifierApp:
             entry_edge = opposites.get(partner_exit_edge, "left")
 
         self.cursor_mgr.position_cursor_at_entry(entry_edge, ratio, bounds)
+        if self.edge_detector:
+            self.edge_detector.notify_switched_in(entry_edge)
 
     def _handle_peer_status_changed(self, connected: bool) -> None:
         status = "CONNECTED" if connected else "DISCONNECTED"

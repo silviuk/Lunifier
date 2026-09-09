@@ -1,4 +1,4 @@
-﻿"""
+"""
 Precision Screen Edge Detector for Windows and Linux with Multi-Monitor Support.
 Monitors cursor position and triggers a switch event when the cursor dwells at configured
 screen edges on designated monitors, correctly handling different resolutions and side-by-side/stacked layouts.
@@ -84,6 +84,12 @@ class ScreenEdgeDetector:
         # Knock state tracking: (edge, timestamp of 1st knock)
         self._last_knock_edge: Optional[str] = None
         self._last_knock_time: float = 0.0
+
+        # Anti-bounceback Return Guard tracking
+        self._is_switched_out: bool = False
+        self._switched_out_edge: Optional[str] = None
+        self._last_known_cursor_pos: Optional[Tuple[int, int]] = None
+        self._return_guard_until: float = 0.0
 
         # Motion tracking: stores recent (timestamp, x, y) tuples to verify cursor approached the edge
         self._cursor_history: deque = deque(maxlen=60)  # ~1 second of samples at ~65Hz
@@ -322,14 +328,71 @@ class ScreenEdgeDetector:
         except Exception as e:
             log("EdgeDetector", f"Callback error: {e}")
 
+    def notify_switched_out(self, edge: str, cursor_x: int, cursor_y: int) -> None:
+        """
+        Called when this host initiates a switch out to another PC.
+        Parks detection state and watches for physical cursor movement upon return.
+        """
+        self._is_switched_out = True
+        self._switched_out_edge = edge
+        self._last_known_cursor_pos = (cursor_x, cursor_y)
+        self._last_trigger_time = time.time()
+        self._return_guard_until = 0.0
+        self._last_knock_edge = None
+        self._last_knock_time = 0.0
+        self._hold_start_time = None
+        self._current_edge = None
+        self._current_monitor_id = None
+        self._cursor_history.clear()
+        log("EdgeDetector", f"Switched out via '{edge}'. Cursor parked at ({cursor_x}, {cursor_y}). Return guard armed.")
+
+    def notify_switched_in(self, entry_edge: Optional[str] = None) -> None:
+        """
+        Called when physical mouse movement returns to this host, or when
+        an incoming switch notification arrives over Bluetooth.
+        Activates cooldown return guard to prevent immediate bounceback.
+        """
+        now = time.time()
+        self._is_switched_out = False
+        self._last_trigger_time = now
+        self._return_guard_until = now + (self.cooldown_ms / 1000.0)
+        self._last_knock_edge = None
+        self._last_knock_time = 0.0
+        self._hold_start_time = None
+        self._current_edge = None
+        self._current_monitor_id = None
+        self._cursor_history.clear()
+        log("EdgeDetector", f"Mouse return detected (entry: {entry_edge or 'unknown'}). Enforcing {self.cooldown_ms}ms return guard.")
+
     def _loop(self) -> None:
         while self._running:
             now = time.time()
             x, y = self.get_cursor_pos()
+
+            # Anti-bounceback Return Guard:
+            # If this host is currently switched out, monitor for cursor movement.
+            # When the user physically returns to this PC and moves the mouse,
+            # activate return guard cooldown to prevent immediate ping-pong bounceback.
+            if self._is_switched_out:
+                if self._last_known_cursor_pos is not None:
+                    lx, ly = self._last_known_cursor_pos
+                    dx = x - lx
+                    dy = y - ly
+                    if (dx * dx + dy * dy) > 225:  # Movement > 15 pixels
+                        log("EdgeDetector", f"Physical mouse movement detected on host ({lx}, {ly}) -> ({x}, {y})")
+                        self.notify_switched_in(self._switched_out_edge)
+                        self._last_known_cursor_pos = (x, y)
+                        time.sleep(0.05)
+                        continue
+                else:
+                    self._last_known_cursor_pos = (x, y)
+                time.sleep(0.05)
+                continue
+
             self._cursor_history.append((now, (x, y)))
 
-            # If in cooldown after a recent switch, wait
-            if (now - self._last_trigger_time) * 1000 < self.cooldown_ms:
+            # If in cooldown after a recent switch or return guard, wait
+            if (now - self._last_trigger_time) * 1000 < self.cooldown_ms or now < self._return_guard_until:
                 self._hold_start_time = None
                 self._current_edge = None
                 self._current_monitor_id = None
