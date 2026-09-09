@@ -1,13 +1,15 @@
-"""
-Visual Screen Border Overlay for Lunifier.
-Draws 4-6px vibrant orange lines along screen edges to highlight the active switch zones
-when adjusting the active border percentage slider or scrolling.
+﻿"""
+Visual Screen Border Overlay for Lunifier with Multi-Monitor Support.
+Draws 4-6px vibrant orange lines along screen edges to highlight active switch zones
+on designated monitors when adjusting the active border percentage slider or scrolling.
 Automatically dismisses 1 second after user interaction.
 """
 
 import sys
 import tkinter as tk
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Tuple
+
+from .monitors import MonitorInfo, get_monitors
 
 if sys.platform == "win32":
     import ctypes
@@ -18,7 +20,7 @@ if sys.platform == "win32":
 class BorderOverlayManager:
     """
     Manages non-intrusive, topmost, click-through overlay windows that visually highlight
-    the active border switching areas along physical screen edges.
+    the active border switching areas along physical monitor edges.
     """
     LINE_THICKNESS: int = 5       # 4-6px thickness
     LINE_COLOR: str = "#FF5722"    # Vibrant, high-visibility orange
@@ -29,41 +31,7 @@ class BorderOverlayManager:
         self._hide_timer_id: Optional[str] = None
         self._is_visible: bool = False
 
-    def _get_screen_bounds(self) -> Dict[str, int]:
-        bounds = {"left": 0, "top": 0, "right": 1920, "bottom": 1080}
-        if sys.platform == "win32":
-            try:
-                SM_XVIRTUALSCREEN = 76
-                SM_YVIRTUALSCREEN = 77
-                SM_CXVIRTUALSCREEN = 78
-                SM_CYVIRTUALSCREEN = 79
-
-                vx = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
-                vy = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
-                vw = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
-                vh = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
-
-                if vw > 0 and vh > 0:
-                    return {
-                        "left": vx,
-                        "top": vy,
-                        "right": vx + vw,
-                        "bottom": vy + vh
-                    }
-            except Exception:
-                pass
-
-        try:
-            return {
-                "left": 0,
-                "top": 0,
-                "right": self.parent.winfo_screenwidth(),
-                "bottom": self.parent.winfo_screenheight()
-            }
-        except Exception:
-            return bounds
-
-    def _create_overlay_window(self, edge: str) -> tk.Toplevel:
+    def _create_overlay_window(self, win_key: str) -> tk.Toplevel:
         win = tk.Toplevel(self.parent)
         win.overrideredirect(True)
         try:
@@ -101,9 +69,16 @@ class BorderOverlayManager:
 
         return win
 
-    def show(self, active_zone_pct: int, edges: Optional[List[str]] = None) -> None:
+    def show(self,
+             active_zone_pct: int,
+             edges: Optional[Union[List[str], Dict[str, List[str]]]] = None,
+             monitor_id: Optional[str] = None) -> None:
         """
         Displays 5px orange lines along the active border zones for the specified percentage.
+        Supports:
+          - Dict of {monitor_id: [edges]}: displays borders on respective monitors.
+          - List of edges + optional monitor_id: displays on specified or primary monitor.
+          - Defaults to all 4 borders across monitors if not specified.
         Resets the 1.0 second auto-dismiss timer.
         """
         # Cancel any pending hide
@@ -115,39 +90,58 @@ class BorderOverlayManager:
             self._hide_timer_id = None
 
         pct = max(10, min(100, int(active_zone_pct)))
-        target_edges = [e.lower() for e in edges] if edges else ["left", "right", "top", "bottom"]
-        if not target_edges:
-            target_edges = ["left", "right", "top", "bottom"]
+        monitors = get_monitors()
+        mon_map: Dict[str, MonitorInfo] = {str(m.id): m for m in monitors}
 
-        bounds = self._get_screen_bounds()
-        w = max(1, bounds["right"] - bounds["left"])
-        h = max(1, bounds["bottom"] - bounds["top"])
+        # Normalize target borders into list of (monitor_id, edge) tuples
+        target_items: List[Tuple[str, str]] = []
+
+        if isinstance(edges, dict):
+            for mid, m_edges in edges.items():
+                if str(mid) in mon_map:
+                    for e in m_edges:
+                        target_items.append((str(mid), e.lower()))
+        elif isinstance(edges, (list, tuple)):
+            target_mid = str(monitor_id) if monitor_id is not None and str(monitor_id) in mon_map else "0"
+            for e in edges:
+                target_items.append((target_mid, e.lower()))
+        else:
+            # None provided -> default to all 4 borders on specified or primary monitor
+            target_mid = str(monitor_id) if monitor_id is not None and str(monitor_id) in mon_map else "0"
+            for e in ["left", "right", "top", "bottom"]:
+                target_items.append((target_mid, e))
+
+        if not target_items:
+            for e in ["left", "right", "top", "bottom"]:
+                target_items.append(("0", e))
+
         margin = (1.0 - (pct / 100.0)) / 2.0
         thick = self.LINE_THICKNESS
+        active_keys = set()
 
-        # Hide any windows for edges not in target_edges
-        for e, win in list(self._windows.items()):
-            if e not in target_edges:
-                try:
-                    win.withdraw()
-                except Exception:
-                    pass
+        # Position and display each overlay window
+        for mid, edge in target_items:
+            m = mon_map.get(mid)
+            if not m:
+                continue
 
-        # Position and show overlays for each target edge
-        for edge in target_edges:
-            if edge not in self._windows or not self._windows[edge].winfo_exists():
-                self._windows[edge] = self._create_overlay_window(edge)
-            win = self._windows[edge]
+            win_key = f"{mid}_{edge}"
+            active_keys.add(win_key)
 
+            if win_key not in self._windows or not self._windows[win_key].winfo_exists():
+                self._windows[win_key] = self._create_overlay_window(win_key)
+            win = self._windows[win_key]
+
+            # Geometry relative to specific monitor bounds
             if edge in ("left", "right"):
-                seg_h = max(1, int((1.0 - 2.0 * margin) * h))
-                y_pos = int(bounds["top"] + margin * h)
-                x_pos = bounds["left"] if edge == "left" else (bounds["right"] - thick)
+                seg_h = max(1, int((1.0 - 2.0 * margin) * m.height))
+                y_pos = int(m.top + margin * m.height)
+                x_pos = m.left if edge == "left" else (m.right - thick)
                 geom = f"{thick}x{seg_h}+{x_pos}+{y_pos}"
             else:  # "top" or "bottom"
-                seg_w = max(1, int((1.0 - 2.0 * margin) * w))
-                x_pos = int(bounds["left"] + margin * w)
-                y_pos = bounds["top"] if edge == "top" else (bounds["bottom"] - thick)
+                seg_w = max(1, int((1.0 - 2.0 * margin) * m.width))
+                x_pos = int(m.left + margin * m.width)
+                y_pos = m.top if edge == "top" else (m.bottom - thick)
                 geom = f"{seg_w}x{thick}+{x_pos}+{y_pos}"
 
             try:
@@ -161,14 +155,20 @@ class BorderOverlayManager:
             except Exception:
                 pass
 
+        # Hide any inactive cached overlay windows
+        for key, win in list(self._windows.items()):
+            if key not in active_keys:
+                try:
+                    win.withdraw()
+                except Exception:
+                    pass
+
         self._is_visible = True
         # Schedule automatic hide after 1.0 second of inactivity
         self._hide_timer_id = self.parent.after(1000, self.hide)
 
     def hide(self) -> None:
-        """
-        Hides all active border overlay windows.
-        """
+        """Hides all active border overlay windows."""
         self._hide_timer_id = None
         self._is_visible = False
         for win in self._windows.values():
@@ -178,9 +178,7 @@ class BorderOverlayManager:
                 pass
 
     def destroy(self) -> None:
-        """
-        Destroys all overlay windows.
-        """
+        """Destroys all overlay windows."""
         if self._hide_timer_id is not None:
             try:
                 self.parent.after_cancel(self._hide_timer_id)

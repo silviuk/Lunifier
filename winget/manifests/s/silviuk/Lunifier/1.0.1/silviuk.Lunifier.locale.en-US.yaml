@@ -1,0 +1,39 @@
+# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 1.0.1
+PackageLocale: en-US
+Publisher: silviuk
+PublisherUrl: https://github.com/silviuk/Lunifier
+PublisherSupportUrl: https://github.com/silviuk/Lunifier/issues
+Author: Silviu Vlasceanu
+PackageName: Lunifier
+PackageUrl: https://github.com/silviuk/Lunifier
+License: MIT
+LicenseUrl: https://github.com/silviuk/Lunifier/blob/master/LICENSE
+Copyright: Copyright (c) 2026 Silviu Vlasceanu
+ShortDescription: Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows and Linux.
+Description: |
+  Lunifier coordinates Logitech Easy-Switch keyboards and mice (MX Keys, MX Master 3/3S,
+  M720 Triathlon, POP Mouse, etc.) across multiple screens without requiring a local Wi-Fi/LAN connection.
+  Version 1.0.1 introduces per-monitor border selection and routing for multi-monitor setups
+  with differing resolutions and offsets, visual active border indicators per monitor,
+  and configurable logging levels (Normal, Debug, Off).
+Moniker: lunifier
+Tags:
+  - logitech
+  - easy-switch
+  - mx-keys
+  - mx-master
+  - flow
+  - multi-monitor
+  - bluetooth
+  - unifying
+  - bolt
+ReleaseNotes: |
+  - Multi-Monitor Support: Configure borders, enable/disable states, and target channels per individual monitor.
+  - Geometry Normalization: Supports monitors with differing resolutions, scales, and offsets.
+  - Visual Border Overlay: Draws high-contrast orange active zone indicators on the selected monitor.
+  - Configurable Logging: Selectable logging levels (Normal, Debug, Off) from the UI and configuration.
+ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v1.0.1
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

@@ -537,8 +537,9 @@ def test_border_overlay_manager():
         mgr.show(50, ["left", "right", "top", "bottom"])
         assert mgr._is_visible is True
         for e in ["left", "right", "top", "bottom"]:
-            assert e in mgr._windows
-            assert mgr._windows[e].winfo_exists()
+            key = f"0_{e}"
+            assert key in mgr._windows
+            assert mgr._windows[key].winfo_exists()
         mgr.hide()
         assert mgr._is_visible is False
 
@@ -546,7 +547,12 @@ def test_border_overlay_manager():
         mgr.show(75)
         assert mgr._is_visible is True
         for e in ["left", "right", "top", "bottom"]:
-            assert e in mgr._windows
+            assert f"0_{e}" in mgr._windows
+
+        # Test multi-monitor dictionary
+        mgr.show(60, {"0": ["left", "right"]})
+        assert "0_left" in mgr._windows
+        assert "0_right" in mgr._windows
 
         mgr.destroy()
         assert len(mgr._windows) == 0

@@ -19,8 +19,12 @@ except ImportError as err:
 
 from .config import AppConfig
 from .hidpp import HIDPPMaster, LogitechDevice
-from .logger import log, add_log_listener, remove_log_listener
+from .logger import (
+    log, add_log_listener, remove_log_listener, set_log_level, get_log_level,
+    LOG_LEVEL_NONE, LOG_LEVEL_NORMAL, LOG_LEVEL_DEBUG
+)
 from .border_overlay import BorderOverlayManager
+from .monitors import get_monitors, MonitorInfo
 
 IS_LINUX = sys.platform.startswith("linux")
 # On Linux X11, canvas corner masks can cause jagged notch artifacts; use crisp flat geometry
@@ -46,6 +50,13 @@ class LunifierGUI:
         self.hidpp = self.app.hidpp if self.app else HIDPPMaster()
         self.overlay_mgr = BorderOverlayManager(self.root)
         self._is_scanning: bool = False
+
+        # Multi-monitor state tracking
+        self.monitors: List[MonitorInfo] = get_monitors()
+        self.selected_monitor_id: str = "0"
+        self._mon_id_map: dict = {}
+        self.monitor_edge_vars: dict = {}
+        self.monitor_enabled_vars: dict = {}
 
         # CustomTkinter styling
         ctk.set_appearance_mode("Dark")
@@ -199,6 +210,52 @@ class LunifierGUI:
             text_color="#b0bec5"
         ).pack(anchor="w", padx=15, pady=(0, 8))
 
+        # Multi-Monitor Configuration Frame
+        mon_card = ctk.CTkFrame(edge_card, fg_color="transparent")
+        mon_card.pack(fill="x", padx=15, pady=(2, 6))
+
+        mon_top_row = ctk.CTkFrame(mon_card, fg_color="transparent")
+        mon_top_row.pack(fill="x")
+
+        ctk.CTkLabel(mon_top_row, text="Target Monitor:", font=get_ui_font(13, "bold")).pack(side="left")
+
+        mon_options = []
+        self._mon_id_map = {}
+        for m in self.monitors:
+            primary_tag = " (Primary)" if m.is_primary else ""
+            label = f"Monitor {m.index}: {m.width}x{m.height}{primary_tag}"
+            mon_options.append(label)
+            self._mon_id_map[label] = str(m.id)
+
+        if not mon_options:
+            mon_options = ["Monitor 0: Primary"]
+            self._mon_id_map["Monitor 0: Primary"] = "0"
+
+        self.mon_selector_var = ctk.StringVar(value=mon_options[0])
+        self.mon_selector_menu = ctk.CTkOptionMenu(
+            mon_top_row,
+            variable=self.mon_selector_var,
+            values=mon_options,
+            corner_radius=BTN_RADIUS,
+            width=240,
+            command=self._on_monitor_selected
+        )
+        self.mon_selector_menu.pack(side="right")
+
+        mon_switch_row = ctk.CTkFrame(mon_card, fg_color="transparent")
+        mon_switch_row.pack(fill="x", pady=(6, 0))
+
+        self.mon_enable_var = ctk.BooleanVar(value=True)
+        self.mon_enable_switch = ctk.CTkSwitch(
+            mon_switch_row,
+            text="Enable border transitions on this monitor",
+            font=get_ui_font(12),
+            variable=self.mon_enable_var,
+            corner_radius=BTN_RADIUS,
+            command=self._on_monitor_enable_toggle
+        )
+        self.mon_enable_switch.pack(side="left")
+
         channel_options = ["Disabled", "Channel 1", "Channel 2", "Channel 3"]
         self.edge_vars = {}
         self.edge_menus = {}
@@ -219,7 +276,8 @@ class LunifierGUI:
                 variable=evar,
                 values=channel_options,
                 corner_radius=BTN_RADIUS,
-                width=140
+                width=140,
+                command=lambda _, k=edge_key: self._on_edge_menu_changed(k)
             )
             menu.pack(side="right")
             self.edge_vars[edge_key] = evar
@@ -412,6 +470,23 @@ class LunifierGUI:
         ms = int(value)
         self.hold_lbl.configure(text=f"{ms} ms")
 
+    def _show_border_overlay(self) -> None:
+        if not hasattr(self, 'overlay_mgr'):
+            return
+        pct = int(self.zone_slider.get()) if hasattr(self, 'zone_slider') else 50
+        # If transitions on current monitor are disabled, hide overlay
+        if hasattr(self, 'mon_enable_var') and not self.mon_enable_var.get():
+            self.overlay_mgr.hide()
+            return
+        active_edges = []
+        if hasattr(self, 'edge_vars'):
+            for e, evar in self.edge_vars.items():
+                if evar.get() and evar.get() != "Disabled":
+                    active_edges.append(e)
+        if not active_edges:
+            active_edges = ["left", "right", "top", "bottom"]
+        self.overlay_mgr.show(pct, edges=active_edges, monitor_id=self.selected_monitor_id)
+
     def _get_current_active_edges(self) -> List[str]:
         edges = []
         if hasattr(self, 'edge_vars'):
@@ -428,8 +503,7 @@ class LunifierGUI:
         pct = int(value)
         self.zone_lbl.configure(text=f"{pct}%")
         self.config.border_active_zone_pct = pct
-        if hasattr(self, 'overlay_mgr'):
-            self.overlay_mgr.show(pct, self._get_current_active_edges())
+        self._show_border_overlay()
 
     def _on_zone_slider_interact(self, event=None) -> None:
         try:
@@ -455,6 +529,59 @@ class LunifierGUI:
             new_val = max(10, min(100, current + delta))
             self.zone_slider.set(new_val)
             self._on_zone_slider_change(new_val)
+        except Exception:
+            pass
+
+    def _on_monitor_selected(self, choice: str) -> None:
+        # Save current UI state for previous monitor
+        if hasattr(self, 'selected_monitor_id') and self.selected_monitor_id:
+            if self.selected_monitor_id not in self.monitor_edge_vars:
+                self.monitor_edge_vars[self.selected_monitor_id] = {}
+            for edge_key, evar in self.edge_vars.items():
+                self.monitor_edge_vars[self.selected_monitor_id][edge_key] = evar.get()
+            self.monitor_enabled_vars[self.selected_monitor_id] = self.mon_enable_var.get()
+
+        new_mid = self._mon_id_map.get(choice, "0")
+        self.selected_monitor_id = new_mid
+
+        # Restore state for newly selected monitor
+        enabled = self.monitor_enabled_vars.get(new_mid, True)
+        self.mon_enable_var.set(enabled)
+        for edge_key, evar in self.edge_vars.items():
+            val = self.monitor_edge_vars.get(new_mid, {}).get(edge_key, "Disabled")
+            evar.set(val)
+
+        self._update_edge_menus_state()
+        self._show_border_overlay()
+
+    def _on_monitor_enable_toggle(self) -> None:
+        enabled = self.mon_enable_var.get()
+        if hasattr(self, 'selected_monitor_id'):
+            self.monitor_enabled_vars[self.selected_monitor_id] = enabled
+        self._update_edge_menus_state()
+        self._show_border_overlay()
+
+    def _update_edge_menus_state(self) -> None:
+        enabled = self.mon_enable_var.get() if hasattr(self, 'mon_enable_var') else True
+        state = "normal" if enabled else "disabled"
+        for menu in self.edge_menus.values():
+            menu.configure(state=state)
+
+    def _on_edge_menu_changed(self, edge_key: str) -> None:
+        if hasattr(self, 'selected_monitor_id') and self.selected_monitor_id:
+            if self.selected_monitor_id not in self.monitor_edge_vars:
+                self.monitor_edge_vars[self.selected_monitor_id] = {}
+            self.monitor_edge_vars[self.selected_monitor_id][edge_key] = self.edge_vars[edge_key].get()
+        self._show_border_overlay()
+
+    def _on_log_level_changed(self, value: str) -> None:
+        val = str(value).lower()
+        lvl = "none" if val == "off" else ("debug" if val == "debug" else "normal")
+        self.config.log_level = lvl
+        set_log_level(lvl)
+        log("GUI", f"Log level set to: {lvl.upper()}")
+        try:
+            self.config.save()
         except Exception:
             pass
 
@@ -488,12 +615,46 @@ class LunifierGUI:
     def _load_config_values(self) -> None:
         self.my_ch_var.set(f"Channel {self.config.my_channel}")
 
+        # Load per-monitor configurations
+        self.monitors = get_monitors()
+        self.monitor_edge_vars = {}
+        self.monitor_enabled_vars = {}
+
+        for m in self.monitors:
+            mid = str(m.id)
+            mcfg = self.config.get_monitor_config(mid)
+            self.monitor_enabled_vars[mid] = mcfg.get("enabled", True)
+            self.monitor_edge_vars[mid] = {}
+            for edge_key in ["left", "right", "top", "bottom"]:
+                ch = mcfg.get("edges", {}).get(edge_key)
+                self.monitor_edge_vars[mid][edge_key] = f"Channel {ch}" if ch is not None else "Disabled"
+
+        if "0" not in self.monitor_edge_vars:
+            mcfg = self.config.get_monitor_config("0")
+            self.monitor_enabled_vars["0"] = mcfg.get("enabled", True)
+            self.monitor_edge_vars["0"] = {
+                edge_key: (f"Channel {mcfg.get('edges', {}).get(edge_key)}" if mcfg.get("edges", {}).get(edge_key) is not None else "Disabled")
+                for edge_key in ["left", "right", "top", "bottom"]
+            }
+
+        # Populate current UI with monitor 0
+        self.selected_monitor_id = "0"
+        for label, mid in self._mon_id_map.items():
+            if mid == "0":
+                self.mon_selector_var.set(label)
+                break
+
+        self.mon_enable_var.set(self.monitor_enabled_vars.get("0", True))
         for edge_key, evar in self.edge_vars.items():
-            ch = self.config.get_target_channel_for_edge(edge_key)
-            if ch is not None:
-                evar.set(f"Channel {ch}")
-            else:
-                evar.set("Disabled")
+            evar.set(self.monitor_edge_vars.get("0", {}).get(edge_key, "Disabled"))
+        self._update_edge_menus_state()
+
+        # Log Level
+        lvl_map = {"none": "Off", "off": "Off", "debug": "Debug", "normal": "Normal"}
+        cfg_lvl = getattr(self.config, 'log_level', 'normal').lower()
+        if hasattr(self, 'log_level_var'):
+            self.log_level_var.set(lvl_map.get(cfg_lvl, "Normal"))
+        set_log_level(cfg_lvl)
 
         hold_ms = self.config.hold_delay_ms
         self.hold_slider.set(hold_ms)
@@ -549,19 +710,36 @@ class LunifierGUI:
     def _save_config(self) -> None:
         try:
             self.config.my_channel = int(self.my_ch_var.get().split()[-1])
-            new_edges = {}
-            for edge_key, evar in self.edge_vars.items():
-                val = evar.get()
-                if val == "Disabled":
-                    new_edges[edge_key] = None
-                else:
-                    new_edges[edge_key] = int(val.split()[-1])
-            self.config.edge_channels = new_edges
 
-            active = self.config.get_active_edges()
-            if active:
-                self.config.trigger_edge = active[0]
-                self.config.target_channel = self.config.get_target_channel_for_edge(active[0]) or 2
+            # Sync current UI values into active monitor state
+            if hasattr(self, 'selected_monitor_id') and self.selected_monitor_id:
+                self.monitor_enabled_vars[self.selected_monitor_id] = self.mon_enable_var.get()
+                if self.selected_monitor_id not in self.monitor_edge_vars:
+                    self.monitor_edge_vars[self.selected_monitor_id] = {}
+                for edge_key, evar in self.edge_vars.items():
+                    self.monitor_edge_vars[self.selected_monitor_id][edge_key] = evar.get()
+
+            # Save monitor configurations into self.config.monitor_configs
+            for mid, edges_dict in self.monitor_edge_vars.items():
+                parsed_edges = {}
+                for edge_key, val in edges_dict.items():
+                    if val == "Disabled" or not val:
+                        parsed_edges[edge_key] = None
+                    else:
+                        try:
+                            parsed_edges[edge_key] = int(val.split()[-1])
+                        except Exception:
+                            parsed_edges[edge_key] = None
+                enabled = self.monitor_enabled_vars.get(mid, True)
+                self.config.set_monitor_config(mid, enabled, parsed_edges)
+
+            # Ensure legacy edge_channels and trigger_edge are kept in sync
+            if "0" in self.config.monitor_configs:
+                self.config.edge_channels = dict(self.config.monitor_configs["0"].get("edges", {}))
+                active = self.config.get_active_edges()
+                if active:
+                    self.config.trigger_edge = active[0]
+                    self.config.target_channel = self.config.get_target_channel_for_edge(active[0]) or 2
 
             self.config.hold_delay_ms = int(self.hold_slider.get())
             self.config.border_active_zone_pct = int(self.zone_slider.get())
@@ -569,6 +747,12 @@ class LunifierGUI:
             self.config.knock_timeout_ms = int(self.knock_win_entry.get() or "1000")
             self.config.cooldown_ms = int(self.cooldown_entry.get() or "2500")
             self.config.switch_backend = self.backend_var.get()
+
+            if hasattr(self, 'log_level_var'):
+                v = self.log_level_var.get().lower()
+                lvl_val = "none" if v == "off" else ("debug" if v == "debug" else "normal")
+                self.config.log_level = lvl_val
+                set_log_level(lvl_val)
 
             mode_map = {
                 "Both (Unifying & Bluetooth)": "both",
@@ -586,6 +770,8 @@ class LunifierGUI:
             self.config.save()
 
             if self.app and self.app.edge_detector:
+                self.app.edge_detector.monitor_configs = self.config.monitor_configs
+                self.app.edge_detector.refresh_screen_bounds()
                 self.app.edge_detector.active_edges = self.config.get_active_edges()
                 self.app.edge_detector.hold_delay_ms = self.config.hold_delay_ms
                 self.app.edge_detector.active_zone_pct = self.config.border_active_zone_pct
@@ -763,6 +949,21 @@ class LunifierGUI:
             width=90,
             command=self._copy_logs
         ).pack(side="right", padx=5)
+
+        # Log Level Dropdown
+        lvl_frame = ctk.CTkFrame(top_bar, fg_color="transparent")
+        lvl_frame.pack(side="right", padx=(0, 15))
+        ctk.CTkLabel(lvl_frame, text="Log Level:", font=get_ui_font(12)).pack(side="left", padx=(0, 6))
+        self.log_level_var = ctk.StringVar(value="Normal")
+        self.log_level_menu = ctk.CTkOptionMenu(
+            lvl_frame,
+            variable=self.log_level_var,
+            values=["Normal", "Debug", "Off"],
+            corner_radius=BTN_RADIUS,
+            width=100,
+            command=self._on_log_level_changed
+        )
+        self.log_level_menu.pack(side="left")
 
         self.log_textbox = ctk.CTkTextbox(
             parent,

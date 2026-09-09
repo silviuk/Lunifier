@@ -44,6 +44,7 @@ class LunifierApp:
             active_zone_pct=self.config.border_active_zone_pct,
             knock_enabled=self.config.knock_enabled,
             knock_timeout_ms=self.config.knock_timeout_ms,
+            monitor_configs=self.config.monitor_configs,
             on_trigger_callback=self._handle_edge_triggered
         )
 
@@ -61,14 +62,19 @@ class LunifierApp:
         import threading
         threading.Thread(target=lambda: self.hidpp.scan_devices(self.config.devices, force_rescan=True, connection_support=self.config.connection_support), daemon=True).start()
 
-    def _handle_edge_triggered(self, edge: str, x: int, y: int, ratio: float) -> None:
+    def _handle_edge_triggered(self, edge: str, x: int, y: int, ratio: float, monitor_id: Optional[str] = None, target_channel: Optional[int] = None) -> None:
         """
         Called when cursor dwells at a configured screen border.
         Executes hardware switch instantly with zero blocking to that edge's target channel.
         """
-        target_channel = self.config.get_target_channel_for_edge(edge)
         if target_channel is None:
-            log("Lunifier", f"No target channel configured for edge '{edge}'.")
+            if monitor_id is not None:
+                target_channel = self.config.get_target_channel_for_monitor_edge(monitor_id, edge)
+            if target_channel is None:
+                target_channel = self.config.get_target_channel_for_edge(edge)
+
+        if target_channel is None:
+            log("Lunifier", f"No target channel configured for edge '{edge}' on monitor {monitor_id or '0'}.")
             return
 
         log("Lunifier", f">>> SCREEN BORDER REACHED: '{edge.upper()}' at ({x}, {y}) (Ratio: {ratio:.2f}) <<<")
