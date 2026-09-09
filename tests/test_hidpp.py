@@ -273,11 +273,18 @@ def test_linux_receiver_uses_solaar_and_bluetooth_uses_hidraw(monkeypatch):
     assert dev_bt.name in hidraw_called
     assert dev_bt.name not in solaar_called
 
-    # 2. Receiver device on Linux must call Solaar first
+    # 2. Receiver device in 'auto' mode tries ultra-fast direct hidraw first (20ms)
     res_unifying = master.switch_device_host(dev_unifying, target_channel=1)
     assert res_unifying is True
+    assert dev_unifying.name in hidraw_called
+
+    # 3. If direct hidraw fails, it falls back to Solaar
+    hidraw_called.clear()
+    solaar_called.clear()
+    monkeypatch.setattr(master, "_switch_via_linux_hidraw", lambda *args, **kwargs: False)
+    res_fallback = master.switch_device_host(dev_unifying, target_channel=1)
+    assert res_fallback is True
     assert dev_unifying.name in solaar_called
-    assert dev_unifying.name not in hidraw_called
 
 
 def test_cache_ttl(monkeypatch):
@@ -396,7 +403,7 @@ def test_switch_device_host_backend_selection(monkeypatch):
     assert res is True
     assert calls == [("hidraw", "MX Keys", 1)]
 
-    # 3. With backend="auto", Bluetooth goes to hidraw first, Receiver goes to solaar first
+    # 3. With backend="auto", both Bluetooth and Receiver try ultra-fast direct hidraw first
     calls.clear()
     res_bt = master.switch_device_host(dev_bt, target_channel=2, backend="auto")
     assert res_bt is True
@@ -405,7 +412,7 @@ def test_switch_device_host_backend_selection(monkeypatch):
     calls.clear()
     res_rcv = master.switch_device_host(dev_rcv, target_channel=1, backend="auto")
     assert res_rcv is True
-    assert calls == [("solaar", "MX Keys", 1)]
+    assert calls == [("hidraw", "MX Keys", 1)]
 
 
 def test_solaar_1indexed_channel_and_stripped_name(monkeypatch):

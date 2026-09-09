@@ -91,7 +91,7 @@ class LogitechDevice:
 
 
 class HIDPPMaster:
-    CACHE_TTL_SECONDS: float = 3.0
+    CACHE_TTL_SECONDS: float = 60.0
 
     def __init__(self):
         self.devices: List[LogitechDevice] = []
@@ -187,28 +187,30 @@ class HIDPPMaster:
                             found_devices.append(sc_dev)
                             seen_names.add(norm)
 
-            # --- Layer 2: Solaar CLI on Linux ---
-            # Solaar is the primary authority on Linux for paired Unifying & Bolt peripherals
+            # --- Layer 2: Solaar CLI on Linux (only if no paired devices were discovered from sysfs/config) ---
+            # Solaar CLI 'solaar show' can hang when USB locks or daemon is busy; only invoke if needed
             if sys.platform.startswith("linux") and self._solaar_path:
-                solaar_devs = self._scan_solaar_devices(target_keywords)
-                for s_dev in solaar_devs:
-                    norm = self._normalize_name(s_dev.name)
-                    if norm not in seen_names:
-                        found_devices.append(s_dev)
-                        seen_names.add(norm)
-                    else:
-                        for existing in found_devices:
-                            if self._normalize_name(existing.name) == norm or self._is_same_device_name(existing.name, s_dev.name):
-                                if s_dev.solaar_name:
-                                    existing.solaar_name = s_dev.solaar_name
-                                existing.transport = s_dev.transport
-                                if s_dev.device_index and s_dev.device_index != 0x01:
-                                    existing.device_index = s_dev.device_index
-                                if getattr(s_dev, 'kind', None):
-                                    existing.kind = s_dev.kind
-                                for p in s_dev.all_paths:
-                                    if p and p not in existing.all_paths and p != b"/dev/solaar":
-                                        existing.all_paths.append(p)
+                should_run_solaar_show = (len(found_devices) == 0) or (force_rescan and len(found_devices) < 2)
+                if should_run_solaar_show:
+                    solaar_devs = self._scan_solaar_devices(target_keywords)
+                    for s_dev in solaar_devs:
+                        norm = self._normalize_name(s_dev.name)
+                        if norm not in seen_names:
+                            found_devices.append(s_dev)
+                            seen_names.add(norm)
+                        else:
+                            for existing in found_devices:
+                                if self._normalize_name(existing.name) == norm or self._is_same_device_name(existing.name, s_dev.name):
+                                    if s_dev.solaar_name:
+                                        existing.solaar_name = s_dev.solaar_name
+                                    existing.transport = s_dev.transport
+                                    if s_dev.device_index and s_dev.device_index != 0x01:
+                                        existing.device_index = s_dev.device_index
+                                    if getattr(s_dev, 'kind', None):
+                                        existing.kind = s_dev.kind
+                                    for p in s_dev.all_paths:
+                                        if p and p not in existing.all_paths and p != b"/dev/solaar":
+                                            existing.all_paths.append(p)
 
             # --- Layer 3: hidapi enumeration (Cross-Platform Windows & Linux) ---
             if hid:
@@ -667,7 +669,7 @@ class HIDPPMaster:
             return results
 
         try:
-            res = subprocess.run([self._solaar_path, "show"], capture_output=True, text=True, timeout=8)
+            res = subprocess.run([self._solaar_path, "show"], capture_output=True, text=True, timeout=1.5)
             if res.returncode != 0 or not res.stdout:
                 return results
 
@@ -967,7 +969,7 @@ class HIDPPMaster:
                     cmd = [self._solaar_path, "config", c_name, "change-host", h_arg]
                     try:
                         t0 = time.perf_counter()
-                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.2, env=clean_env)
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=0.4, env=clean_env)
                         dur_ms = (time.perf_counter() - t0) * 1000.0
                         if res.returncode == 0:
                             dev._confirmed_solaar_name = c_name
@@ -1017,16 +1019,17 @@ class HIDPPMaster:
 
             seen = set()
             candidate_solaar_names = [n for n in raw_candidates if n and not (n in seen or seen.add(n))]
-            candidate_args = [str(target_channel), str(channel_index), f"Host {target_channel}"]
+            # Limit to top 2 candidate arguments: '1'/'2'/'3' first, then 'Host 1'/'Host 2'/'Host 3'
+            candidate_args = [str(target_channel), f"Host {target_channel}"]
 
-            log("HID++", f"Solaar dispatch for '{dev.name}' -> Channel {target_channel} (candidates: {candidate_solaar_names[:4]}, args: {candidate_args})")
+            log("HID++", f"Solaar dispatch for '{dev.name}' -> Channel {target_channel} (candidates: {candidate_solaar_names[:3]}, args: {candidate_args})")
 
-            for s_name in candidate_solaar_names:
+            for s_name in candidate_solaar_names[:3]:
                 for h_arg in candidate_args:
                     cmd = [self._solaar_path, "config", s_name, "change-host", h_arg]
                     try:
                         t0 = time.perf_counter()
-                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.2, env=clean_env)
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=0.4, env=clean_env)
                         dur_ms = (time.perf_counter() - t0) * 1000.0
                         if res.returncode == 0:
                             dev._confirmed_solaar_name = s_name
@@ -1252,11 +1255,11 @@ class HIDPPMaster:
                         return True
 
                 # 2. For Receiver devices (Unifying, Bolt):
-                # Solaar CLI is the primary reliable driver on Linux (handles pairing slots & hid-logitech-dj routing).
+                # Direct /dev/hidraw writes take only ~20ms. Solaar CLI is used as fallback.
                 if dev.is_receiver:
-                    if self._solaar_path and self._switch_via_solaar(dev, target_channel, channel_index):
-                        return True
                     if self._switch_via_linux_hidraw(dev, target_channel, channel_index, dev_indices_to_try, feature_indices, target_paths):
+                        return True
+                    if self._solaar_path and self._switch_via_solaar(dev, target_channel, channel_index):
                         return True
 
         # --- METHOD 2: Direct hidapi write (Windows & Linux fallback) ---

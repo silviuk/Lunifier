@@ -940,10 +940,14 @@ class LunifierGUI:
 
         if messagebox.askyesno("Confirm Switch", f"Send switch command for all devices to Channel {target}?\n\n(Current PC is Channel {my_ch}, Backend: {self.backend_var.get()}, Support: {self.config.connection_support})"):
             log("GUI", f"Initiating manual test switch to Channel {target} (Backend: {self.backend_var.get()}, Support: {self.config.connection_support})...")
-            res = self.hidpp.switch_all_to_channel(target, self.config.devices, backend=self.backend_var.get(), connection_support=self.config.connection_support)
-            status_text = "\n".join([f"• {k}: {'OK' if v else 'FAILED'}" for k, v in res.items()])
-            log("GUI", f"Test switch completed:\n{status_text}")
-            messagebox.showinfo(f"Switch to Channel {target} Results", status_text or "No devices found.")
+            
+            def run_switch_worker():
+                res = self.hidpp.switch_all_to_channel(target, self.config.devices, backend=self.backend_var.get(), connection_support=self.config.connection_support)
+                status_text = "\n".join([f"• {k}: {'OK' if v else 'FAILED'}" for k, v in res.items()])
+                log("GUI", f"Test switch completed:\n{status_text}")
+                self.root.after(0, lambda: messagebox.showinfo(f"Switch to Channel {target} Results", status_text or "No devices found."))
+
+            threading.Thread(target=run_switch_worker, daemon=True).start()
 
     def _build_logs_tab(self, parent) -> None:
         top_bar = ctk.CTkFrame(parent, fg_color="transparent")
