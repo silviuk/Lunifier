@@ -14,18 +14,17 @@ namespace Lunifier.Windows
     {
         private AppConfig _config;
         private readonly LunifierService _service;
-        private readonly BorderOverlayWindow _overlay;
+        private BorderOverlayWindow? _overlay;
         private List<MonitorInfo> _monitors = new();
         private string _selectedMonitorId = "0";
         private bool _isLoadingConfig = true;
 
         public MainWindow()
         {
-            InitializeComponent();
-
             _config = AppConfig.Load();
             _service = new LunifierService(_config);
-            _overlay = new BorderOverlayWindow();
+
+            InitializeComponent();
 
             _service.StateChanged += OnServiceStateChanged;
             AppLogger.LogReceived += OnLogReceived;
@@ -36,19 +35,29 @@ namespace Lunifier.Windows
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            SetupBorderCombos();
-            LoadMonitors();
-            PopulateUiFromConfig();
-            _isLoadingConfig = false;
+            try
+            {
+                _overlay = new BorderOverlayWindow { Owner = this };
+                SetupBorderCombos();
+                LoadMonitors();
+                PopulateUiFromConfig();
+                _isLoadingConfig = false;
 
-            // Trigger initial device scan in background
-            RefreshDevicesAsync();
+                // Trigger initial device scan in background
+                RefreshDevicesAsync();
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("GUI", $"Error during MainWindow_Loaded: {ex}");
+                MessageBox.Show($"Initialization error in MainWindow_Loaded:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                    "Lunifier - Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             _service.Stop();
-            _overlay.Close();
+            try { _overlay?.Close(); } catch { }
         }
 
         private void SetupBorderCombos()
@@ -137,12 +146,13 @@ namespace Lunifier.Windows
         private void UpdateMonitorUi(string monitorId)
         {
             var mCfg = _config.GetMonitorConfig(monitorId);
-            MonitorEnabledCheck.IsChecked = mCfg.Enabled;
+            MonitorEnabledCheck.IsChecked = mCfg?.Enabled ?? true;
 
-            SetComboValue(LeftBorderCombo, mCfg.Edges.GetValueOrDefault("left"));
-            SetComboValue(RightBorderCombo, mCfg.Edges.GetValueOrDefault("right"));
-            SetComboValue(TopBorderCombo, mCfg.Edges.GetValueOrDefault("top"));
-            SetComboValue(BottomBorderCombo, mCfg.Edges.GetValueOrDefault("bottom"));
+            var edges = mCfg?.Edges;
+            SetComboValue(LeftBorderCombo, edges != null && edges.TryGetValue("left", out var l) ? l : null);
+            SetComboValue(RightBorderCombo, edges != null && edges.TryGetValue("right", out var r) ? r : null);
+            SetComboValue(TopBorderCombo, edges != null && edges.TryGetValue("top", out var t) ? t : null);
+            SetComboValue(BottomBorderCombo, edges != null && edges.TryGetValue("bottom", out var b) ? b : null);
         }
 
         private void SetComboValue(ComboBox combo, int? channel)
@@ -216,12 +226,12 @@ namespace Lunifier.Windows
 
         private void ActiveZoneSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (ActiveZoneText == null) return;
+            if (ActiveZoneText == null || _config == null) return;
             var val = (int)e.NewValue;
             ActiveZoneText.Text = $"{val}%";
             _config.BorderActiveZonePct = val;
 
-            if (!_isLoadingConfig)
+            if (!_isLoadingConfig && _overlay != null && _monitors != null)
             {
                 var edgesDict = new Dictionary<string, List<string>>();
                 var active = _config.GetAllActiveMonitorBorders();
@@ -242,7 +252,7 @@ namespace Lunifier.Windows
 
         private void HoldDelaySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (HoldDelayText == null) return;
+            if (HoldDelayText == null || _config == null) return;
             var val = (int)e.NewValue;
             HoldDelayText.Text = $"{val}ms";
             _config.HoldDelayMs = val;
@@ -250,7 +260,7 @@ namespace Lunifier.Windows
 
         private void CooldownSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (CooldownText == null) return;
+            if (CooldownText == null || _config == null) return;
             var val = (int)e.NewValue;
             CooldownText.Text = $"{val}ms";
             _config.CooldownMs = val;
@@ -336,33 +346,44 @@ namespace Lunifier.Windows
 
         private async void RefreshDevicesAsync()
         {
-            DevicesCountText.Text = "Scanning devices...";
-            RefreshDevicesBtn.IsEnabled = false;
-
-            var connSupport = (ConnectionSupportCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "both";
-            var devices = await Task.Run(() => _service.Hidpp.ScanDevices(_config.Devices, forceRescan: true, connectionSupport: connSupport));
-
-            DevicesList.Items.Clear();
-            foreach (var dev in devices)
+            try
             {
-                var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
-                panel.Children.Add(new TextBlock
-                {
-                    Text = dev.Name,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"))
-                });
-                panel.Children.Add(new TextBlock
-                {
-                    Text = $"Transport: {dev.Transport}  |  Slot Index: 0x{dev.DeviceIndex:X2}  |  ChangeHost Feature: 0x{dev.ChangeHostFeatureIndex:X2}  |  PID: 0x{dev.Pid:X4}",
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"))
-                });
-                DevicesList.Items.Add(panel);
-            }
+                DevicesCountText.Text = "Scanning devices...";
+                RefreshDevicesBtn.IsEnabled = false;
 
-            DevicesCountText.Text = $"{devices.Count} device(s) connected";
-            RefreshDevicesBtn.IsEnabled = true;
+                var connSupport = (ConnectionSupportCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "both";
+                var devices = await Task.Run(() => _service.Hidpp.ScanDevices(_config.Devices, forceRescan: true, connectionSupport: connSupport));
+
+                DevicesList.Items.Clear();
+                foreach (var dev in devices)
+                {
+                    var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = dev.Name,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"))
+                    });
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = $"Transport: {dev.Transport}  |  Slot Index: 0x{dev.DeviceIndex:X2}  |  ChangeHost Feature: 0x{dev.ChangeHostFeatureIndex:X2}  |  PID: 0x{dev.Pid:X4}",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"))
+                    });
+                    DevicesList.Items.Add(panel);
+                }
+
+                DevicesCountText.Text = $"{devices.Count} device(s) connected";
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("GUI", $"Error refreshing devices: {ex.Message}");
+                DevicesCountText.Text = "Scan error";
+            }
+            finally
+            {
+                RefreshDevicesBtn.IsEnabled = true;
+            }
         }
 
         private async void TestSwitch(int channel)

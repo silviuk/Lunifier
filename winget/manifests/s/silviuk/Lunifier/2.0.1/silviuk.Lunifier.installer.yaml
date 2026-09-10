@@ -11,7 +11,7 @@ Installers:
   - Architecture: x64
     InstallerType: inno
     InstallerUrl: https://github.com/silviuk/Lunifier/releases/download/v2.0.1/Lunifier-Setup-2.0.1.exe
-    InstallerSha256: 00357F12C4AFCC8D144754632C9771586DF2621C8BFB68A17B2F94D3CB589CDC
+    InstallerSha256: 5A64A83293B0E6E544BA2BE2F6F2DB465332519A1A6737F44D78268D50148502
     Scope: machine
     UpgradeBehavior: install
 ManifestType: installer
