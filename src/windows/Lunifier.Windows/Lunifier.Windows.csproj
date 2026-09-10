@@ -10,6 +10,7 @@
     <Authors>Silviu Vlasceanu</Authors>
     <Company>Silviu Vlasceanu</Company>
     <Product>Lunifier</Product>
+    <AssemblyName>Lunifier</AssemblyName>
     <AssemblyTitle>Lunifier</AssemblyTitle>
     <Description>Seamless Logitech Easy-Switch Flow for Windows and Linux</Description>
     <Copyright>Copyright © 2026 Silviu Vlasceanu</Copyright>

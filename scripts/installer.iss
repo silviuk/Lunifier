@@ -1,6 +1,6 @@
-; Inno Setup Script for Lunifier
+; Inno Setup Script for Lunifier 2.0 Native
 #define MyAppName "Lunifier"
-#define MyAppVersion "1.0.3"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "silviuk"
 #define MyAppURL "https://github.com/silviuk/Lunifier"
 #define MyAppExeName "Lunifier.exe"
@@ -30,7 +30,7 @@ ArchitecturesAllowed=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog commandline
 DisableDirPage=auto
 DisableProgramGroupPage=auto
-SetupIconFile=..\lunifier\resources\icon.ico
+SetupIconFile=..\src\windows\Lunifier.Windows\Resources\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
@@ -41,7 +41,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startupicon"; Description: "Start Lunifier automatically when Windows starts"; GroupDescription: "Windows Integration:"
 
 [Files]
-Source: "..\dist\Lunifier\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

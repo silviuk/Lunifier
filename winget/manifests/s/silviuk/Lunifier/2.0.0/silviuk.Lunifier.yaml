@@ -1,0 +1,6 @@
+# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 2.0.0
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0
