@@ -111,9 +111,10 @@ class ScreenEdgeDetector:
         self._screen_bounds: Dict[str, int] = {}
         self.refresh_screen_bounds()
 
-        # Knock state tracking: (edge, timestamp of 1st knock)
+        # Knock state tracking: (edge, timestamp of 1st knock, release flag)
         self._last_knock_edge: Optional[str] = None
         self._last_knock_time: float = 0.0
+        self._knock_waiting_release: bool = False
 
         # Anti-bounceback Return Guard tracking
         self._is_switched_out: bool = False
@@ -447,6 +448,7 @@ class ScreenEdgeDetector:
                     if (now - self._last_knock_time) * 1000 > self.knock_timeout_ms:
                         self._last_knock_edge = None
                         self._last_knock_time = 0.0
+                        self._knock_waiting_release = False
 
                 trigger_info = self._get_triggered_edge_info(x, y)
 
@@ -463,23 +465,24 @@ class ScreenEdgeDetector:
                         if elapsed_ms >= required_hold:
                             if self._is_approaching_edge(edge, x, y, self._hold_start_time):
                                 if self.knock_enabled:
-                                    if self._last_knock_edge == key and ((now - self._last_knock_time) * 1000 <= self.knock_timeout_ms):
+                                    if self._last_knock_edge == key and not self._knock_waiting_release and ((now - self._last_knock_time) * 1000 <= self.knock_timeout_ms):
                                         log("EdgeDetector", f"Border knock (2/2) on Monitor {mid} '{edge}' -> Switch to Channel {ch}")
                                         self._last_knock_edge = None
                                         self._last_knock_time = 0.0
+                                        self._knock_waiting_release = False
                                         self._last_trigger_time = now
                                         self._hold_start_time = None
                                         self._current_edge = None
                                         self._current_monitor_id = None
                                         self._cursor_history.clear()
                                         self._invoke_callback(edge, x, y, ratio, mid, ch)
-                                    else:
+                                    elif not self._knock_waiting_release and self._last_knock_edge != key:
                                         log("EdgeDetector", f"Border knock (1/2) on Monitor {mid} '{edge}' at ({x}, {y})")
                                         self._last_knock_edge = key
                                         self._last_knock_time = now
+                                        self._knock_waiting_release = True
                                         self._hold_start_time = None
                                         self._current_edge = None
-                                        time.sleep(0.15)
                                 else:
                                     log("EdgeDetector", f"Edge '{edge}' on Monitor {mid} triggered at ({x}, {y}) ratio={ratio:.2f} -> Switch to Channel {ch}")
                                     self._last_trigger_time = now
@@ -494,6 +497,9 @@ class ScreenEdgeDetector:
                     self._current_edge = None
                     self._current_monitor_id = None
                     self._hold_start_time = None
+                    # Cursor has left the border zone: arm 2nd knock
+                    if self.knock_enabled and self._knock_waiting_release:
+                        self._knock_waiting_release = False
 
                 time.sleep(0.015)
         finally:

@@ -17,6 +17,9 @@ except ImportError as err:
         "Install it via: pip install customtkinter (or pip3 install --break-system-packages customtkinter)"
     ) from err
 
+import platform
+import webbrowser
+
 from .config import AppConfig
 from .hidpp import HIDPPMaster, LogitechDevice
 from .logger import (
@@ -25,6 +28,8 @@ from .logger import (
 )
 from .border_overlay import BorderOverlayManager
 from .monitors import get_monitors, MonitorInfo
+from .tray import LunifierTray
+from .bt_link import BluetoothLink, discover_potential_partners
 
 IS_LINUX = sys.platform.startswith("linux")
 # On Linux X11, canvas corner masks can cause jagged notch artifacts; use crisp flat geometry
@@ -68,10 +73,23 @@ class LunifierGUI:
         self._set_app_icon()
 
         self._last_rendered_device_sig: Optional[str] = None
+        self.bt_link: Optional[BluetoothLink] = getattr(self.app, 'bt_link', None)
+        self._discovered_partners: dict = {}
+
         self._build_ui()
         self._load_config_values()
         self._refresh_devices_async()
         self._schedule_device_poll()
+
+        # System tray integration
+        self.tray = LunifierTray(
+            root=self.root,
+            on_switch_channel=self._on_tray_switch_channel,
+            on_show_main=self._show_main_window,
+            on_toggle_daemon=self._toggle_daemon,
+            on_exit=self._on_tray_exit
+        )
+        self.tray.start()
 
     def _set_app_icon(self) -> None:
         """Sets the application icon for window title bar, Alt+Tab, and taskbar."""
@@ -155,6 +173,7 @@ class LunifierGUI:
         self.tab_devices = self.tabs.add("  Connected Devices  ")
         self.tab_bt = self.tabs.add("  Bluetooth Inter-Host Link  ")
         self.tab_logs = self.tabs.add("  Live Logs  ")
+        self.tab_about = self.tabs.add("  About  ")
 
         self.flow_scroll = ctk.CTkScrollableFrame(self.tab_flow, fg_color="transparent")
         self.flow_scroll.pack(fill="both", expand=True)
@@ -162,6 +181,9 @@ class LunifierGUI:
         self._build_devices_tab(self.tab_devices)
         self._build_bt_tab(self.tab_bt)
         self._build_logs_tab(self.tab_logs)
+        self.about_scroll = ctk.CTkScrollableFrame(self.tab_about, fg_color="transparent")
+        self.about_scroll.pack(fill="both", expand=True)
+        self._build_about_tab(self.about_scroll)
         self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
         # Bottom Action Bar
@@ -438,6 +460,56 @@ class LunifierGUI:
         ).pack(padx=12)
 
     def _build_bt_tab(self, parent) -> None:
+        # Discovery Card
+        disc_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        disc_card.pack(fill="x", padx=5, pady=8, ipady=5)
+
+        ctk.CTkLabel(
+            disc_card,
+            text="Discover Partner Computers",
+            font=get_ui_font(14, "bold")
+        ).pack(anchor="w", padx=15, pady=(10, 4))
+
+        ctk.CTkLabel(
+            disc_card,
+            text="Scan for nearby broadcasting or paired Bluetooth computers:",
+            font=get_ui_font(11),
+            text_color="#b0bec5"
+        ).pack(anchor="w", padx=15, pady=(0, 6))
+
+        disc_row = ctk.CTkFrame(disc_card, fg_color="transparent")
+        disc_row.pack(fill="x", padx=15, pady=4)
+
+        self.bt_discovery_var = ctk.StringVar(value="(Click 'Scan Computers' to search)")
+        self.bt_discovery_menu = ctk.CTkOptionMenu(
+            disc_row,
+            variable=self.bt_discovery_var,
+            values=["(Click 'Scan Computers' to search)"],
+            corner_radius=BTN_RADIUS,
+            command=self._on_partner_selected,
+            width=360
+        )
+        self.bt_discovery_menu.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        self.bt_scan_btn = ctk.CTkButton(
+            disc_row,
+            text="Scan Computers",
+            font=get_ui_font(12, "bold"),
+            corner_radius=BTN_RADIUS,
+            width=130,
+            command=self._scan_bt_partners_async
+        )
+        self.bt_scan_btn.pack(side="right")
+
+        self.bt_scan_status_lbl = ctk.CTkLabel(
+            disc_card,
+            text="Tip: Click 'Scan Computers' to automatically find and select partner PCs.",
+            font=get_ui_font(11),
+            text_color="#90a4ae"
+        )
+        self.bt_scan_status_lbl.pack(anchor="w", padx=15, pady=(2, 8))
+
+        # Main Peer Link Configuration Card
         bt_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
         bt_card.pack(fill="x", padx=5, pady=8, ipady=5)
 
@@ -475,6 +547,31 @@ class LunifierGUI:
             corner_radius=BTN_RADIUS
         )
         self.clip_switch.pack(anchor="w", padx=15, pady=8)
+
+        # Handshake Button & Status Row
+        handshake_row = ctk.CTkFrame(bt_card, fg_color="transparent")
+        handshake_row.pack(fill="x", padx=15, pady=(6, 8))
+
+        self.handshake_btn = ctk.CTkButton(
+            handshake_row,
+            text="🤝 Request Pairing Handshake",
+            font=get_ui_font(12, "bold"),
+            fg_color="#0277bd",
+            hover_color="#01579b",
+            corner_radius=BTN_RADIUS,
+            command=self._request_bt_pairing,
+            width=210,
+            height=32
+        )
+        self.handshake_btn.pack(side="left")
+
+        self.bt_link_status_lbl = ctk.CTkLabel(
+            handshake_row,
+            text="Status: Ready to link",
+            font=get_ui_font(11, "bold"),
+            text_color="#90a4ae"
+        )
+        self.bt_link_status_lbl.pack(side="left", padx=15)
 
         desc_box = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS, fg_color="#1e1e1e")
         desc_box.pack(fill="x", padx=5, pady=8, ipady=6)
@@ -634,6 +731,8 @@ class LunifierGUI:
         state = "normal" if enabled else "disabled"
         self.peer_mac_entry.configure(state=state)
         self.port_entry.configure(state=state)
+        if hasattr(self, 'handshake_btn'):
+            self.handshake_btn.configure(state=state)
 
     def _load_config_values(self) -> None:
         self.my_ch_var.set(f"Channel {self.config.my_channel}")
@@ -1034,17 +1133,275 @@ class LunifierGUI:
                 if hasattr(self, 'status_lbl'):
                     self.status_lbl.configure(text="Logs copied to clipboard!", text_color="#81c784")
 
-    def _on_window_close(self) -> None:
-        try:
-            remove_log_listener(self._append_log_message)
-        except Exception:
-            pass
+    def _on_window_close(self, force_exit: bool = False) -> None:
+        if not force_exit and hasattr(self, 'tray') and self.tray and self.tray._icon:
+            # Minimize to tray instead of quitting
+            self.root.withdraw()
+            log("GUI", "Lunifier minimized to system tray.")
+            return
+
+        if hasattr(self, 'tray') and self.tray:
+            try:
+                self.tray.stop()
+            except Exception:
+                pass
+        if hasattr(self, 'bt_link') and self.bt_link:
+            try:
+                self.bt_link.stop()
+            except Exception:
+                pass
         if hasattr(self, 'overlay_mgr'):
             try:
                 self.overlay_mgr.destroy()
             except Exception:
                 pass
+        try:
+            remove_log_listener(self._append_log_message)
+        except Exception:
+            pass
         self.root.destroy()
+
+    def _show_main_window(self) -> None:
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+
+    def _on_tray_exit(self) -> None:
+        self._on_window_close(force_exit=True)
+
+    def _on_tray_switch_channel(self, channel: int, target_type: str = "both") -> None:
+        log("GUI", f"Tray quick-switch triggered: {target_type} -> Channel {channel}")
+        if target_type == "keyboard":
+            keywords = ["Keys", "Keyboard", "Craft", "K380", "K780", "K850", "MX Keys"]
+        elif target_type == "mouse":
+            keywords = ["Mouse", "Master", "Anywhere", "Triathlon", "M720", "M370", "POP", "M590", "Pebble", "Lift", "Ergo"]
+        else:
+            keywords = self.config.devices
+
+        backend = getattr(self.config, 'switch_backend', 'auto')
+        conn_support = getattr(self.config, 'connection_support', 'both')
+        self.hidpp.switch_all_to_channel(channel, keywords, backend=backend, connection_support=conn_support)
+
+    def _scan_bt_partners_async(self) -> None:
+        self.bt_scan_btn.configure(state="disabled", text="Scanning...")
+        self.bt_scan_status_lbl.configure(text="Scanning paired and nearby Bluetooth computers...", text_color="#80d8ff")
+
+        def worker():
+            partners = discover_potential_partners(timeout=3.5)
+            self.root.after(0, lambda: self._on_partners_scanned(partners))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_partners_scanned(self, partners: List[dict]) -> None:
+        self.bt_scan_btn.configure(state="normal", text="Scan Computers")
+        self._discovered_partners = {f"{p['name']} ({p['mac']}) [{p['source']}]": p['mac'] for p in partners}
+        options = list(self._discovered_partners.keys())
+        if not options:
+            options = ["No Bluetooth devices found"]
+            self.bt_scan_status_lbl.configure(text="No devices found. Ensure partner Bluetooth is discoverable.", text_color="#ef5350")
+        else:
+            self.bt_scan_status_lbl.configure(text=f"Found {len(options)} potential partner device(s).", text_color="#81c784")
+
+        self.bt_discovery_menu.configure(values=options)
+        self.bt_discovery_var.set(options[0])
+        if options[0] in self._discovered_partners:
+            self._on_partner_selected(options[0])
+
+    def _on_partner_selected(self, choice: str) -> None:
+        mac = getattr(self, '_discovered_partners', {}).get(choice)
+        if mac:
+            self.peer_mac_entry.delete(0, "end")
+            self.peer_mac_entry.insert(0, mac)
+            self.config.bt_peer_address = mac
+
+    def _get_or_create_bt_link(self) -> BluetoothLink:
+        if self.app and getattr(self.app, 'bt_link', None):
+            self.bt_link = self.app.bt_link
+            self.bt_link.on_pair_request = self._on_bt_pair_request_received
+            self.bt_link.on_pair_response = self._on_bt_pair_response_received
+            return self.bt_link
+        if not self.bt_link:
+            self.bt_link = BluetoothLink(
+                host_name=self.config.host_name,
+                peer_mac=self.config.bt_peer_address,
+                rfcomm_port=self.config.bt_rfcomm_port,
+                on_pair_request=self._on_bt_pair_request_received,
+                on_pair_response=self._on_bt_pair_response_received,
+                on_peer_status_changed=self._on_bt_status_changed
+            )
+            self.bt_link.start()
+        return self.bt_link
+
+    def _request_bt_pairing(self) -> None:
+        target_mac = self.peer_mac_entry.get().strip().upper()
+        if not target_mac:
+            messagebox.showwarning("Lunifier", "Please select or enter a partner Bluetooth MAC address first.")
+            return
+
+        self.bt_link_status_lbl.configure(text="Initiating handshake... Request sent to partner...", text_color="#80d8ff")
+        self.handshake_btn.configure(state="disabled", text="Pairing...")
+
+        link = self._get_or_create_bt_link()
+
+        def on_err(err):
+            def update():
+                self.handshake_btn.configure(state="normal", text="🤝 Request Pairing Handshake")
+                self.bt_link_status_lbl.configure(text=f"Pairing connection failed: {err}", text_color="#ef5350")
+                messagebox.showerror("Pairing Failed", f"Could not connect to partner at {target_mac}.\n\nError: {err}\n\nMake sure Lunifier is running on the partner computer and Bluetooth is discoverable.")
+            self.root.after(0, update)
+
+        link.request_pairing(target_mac, on_error=on_err)
+
+    def _on_bt_pair_request_received(self, from_host: str, from_mac: str) -> bool:
+        prompt_text = (
+            f"Computer '{from_host}' ({from_mac or 'Bluetooth'}) is requesting to link "
+            f"with this PC for Lunifier Easy-Switch Flow.\n\n"
+            f"Do you want to accept this connection and bind as partner?"
+        )
+        accepted = messagebox.askyesno("Lunifier Pairing Request", prompt_text)
+        if accepted:
+            def update_ui():
+                if from_mac:
+                    self.peer_mac_entry.delete(0, "end")
+                    self.peer_mac_entry.insert(0, from_mac)
+                    self.config.bt_peer_address = from_mac
+                self.p2p_switch.select()
+                self.config.bt_p2p_enabled = True
+                try:
+                    self.config.save()
+                except Exception:
+                    pass
+                self.bt_link_status_lbl.configure(text=f"✓ Linked to {from_host}", text_color="#81c784")
+                messagebox.showinfo("Lunifier Linked", f"Successfully linked and bound with '{from_host}'!")
+            self.root.after(0, update_ui)
+        return accepted
+
+    def _on_bt_pair_response_received(self, accepted: bool, from_host: str, info: str) -> None:
+        def update_ui():
+            self.handshake_btn.configure(state="normal", text="🤝 Request Pairing Handshake")
+            if accepted:
+                self.bt_link_status_lbl.configure(text=f"✓ Paired with {from_host}", text_color="#81c784")
+                self.p2p_switch.select()
+                self.config.bt_p2p_enabled = True
+                try:
+                    self.config.save()
+                except Exception:
+                    pass
+                messagebox.showinfo("Pairing Success", f"Computer '{from_host}' ACCEPTED the pairing request!\nBoth computers are now securely linked.")
+            else:
+                self.bt_link_status_lbl.configure(text="Pairing rejected by partner", text_color="#ef5350")
+                messagebox.showwarning("Pairing Rejected", f"Computer '{from_host}' declined the pairing request: {info}")
+        self.root.after(0, update_ui)
+
+    def _on_bt_status_changed(self, is_connected: bool) -> None:
+        def update_ui():
+            if hasattr(self, 'bt_link_status_lbl'):
+                if is_connected:
+                    self.bt_link_status_lbl.configure(text="Status: Connected & Synchronized", text_color="#81c784")
+                else:
+                    self.bt_link_status_lbl.configure(text="Status: Standby", text_color="#90a4ae")
+        self.root.after(0, update_ui)
+
+    def _build_about_tab(self, parent) -> None:
+        # App Identity Card
+        app_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        app_card.pack(fill="x", padx=5, pady=8, ipady=8)
+
+        ctk.CTkLabel(
+            app_card,
+            text="Lunifier",
+            font=get_ui_font(22, "bold")
+        ).pack(anchor="w", padx=15, pady=(10, 2))
+
+        ctk.CTkLabel(
+            app_card,
+            text="Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux.",
+            font=get_ui_font(12),
+            text_color="#90caf9",
+            wraplength=580,
+            justify="left"
+        ).pack(anchor="w", padx=15, pady=(0, 10))
+
+        # Metadata Card
+        meta_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        meta_card.pack(fill="x", padx=5, pady=8, ipady=6)
+
+        ctk.CTkLabel(meta_card, text="Program Information", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
+
+        rows = [
+            ("Version:", "1.0.4 (Production Stable)"),
+            ("Author & Maintainer:", "Silviu Vlasceanu"),
+            ("License:", "MIT License (Open Source)"),
+            ("Copyright:", "© 2026 Silviu Vlasceanu. All rights reserved.")
+        ]
+        for label, val in rows:
+            r = ctk.CTkFrame(meta_card, fg_color="transparent")
+            r.pack(fill="x", padx=15, pady=3)
+            ctk.CTkLabel(r, text=label, font=get_ui_font(12, "bold"), width=160, anchor="w").pack(side="left")
+            ctk.CTkLabel(r, text=val, font=get_ui_font(12), text_color="#eceff1").pack(side="left")
+
+        # Links Row
+        links_frame = ctk.CTkFrame(meta_card, fg_color="transparent")
+        links_frame.pack(fill="x", padx=15, pady=(10, 8))
+
+        ctk.CTkButton(
+            links_frame,
+            text="GitHub Repository",
+            font=get_ui_font(11, "bold"),
+            width=150,
+            height=30,
+            corner_radius=BTN_RADIUS,
+            command=lambda: webbrowser.open("https://github.com/silviuk/Lunifier")
+        ).pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(
+            links_frame,
+            text="Issue Tracker",
+            font=get_ui_font(11),
+            width=130,
+            height=30,
+            fg_color="#37474f",
+            hover_color="#455a64",
+            corner_radius=BTN_RADIUS,
+            command=lambda: webbrowser.open("https://github.com/silviuk/Lunifier/issues")
+        ).pack(side="left")
+
+        # Third-Party Libraries & Frameworks Card
+        libs_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        libs_card.pack(fill="x", padx=5, pady=8, ipady=6)
+
+        ctk.CTkLabel(libs_card, text="Used Libraries & Frameworks", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
+
+        libs = [
+            ("CustomTkinter", "Modern, high-DPI fluent dark/light themed desktop UI framework"),
+            ("hidapi / HID++", "Direct low-level HID communication with Logitech Bolt & Unifying receivers"),
+            ("Bleak & WinRT", "Cross-platform Bluetooth Low Energy device discovery & inter-host sync"),
+            ("Pystray & Pillow", "Continuous system tray notification icon and quick-switching control"),
+            ("Solaar", "Linux hardware channel switching backend (CLI and D-Bus integration)")
+        ]
+        for lib, desc in libs:
+            lr = ctk.CTkFrame(libs_card, fg_color="transparent")
+            lr.pack(fill="x", padx=15, pady=3)
+            ctk.CTkLabel(lr, text=f"• {lib}:", font=get_ui_font(11, "bold"), width=150, anchor="w", text_color="#80d8ff").pack(side="left")
+            ctk.CTkLabel(lr, text=desc, font=get_ui_font(11), text_color="#cfd8dc").pack(side="left")
+
+        # Runtime Environment Card
+        env_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        env_card.pack(fill="x", padx=5, pady=8, ipady=6)
+
+        ctk.CTkLabel(env_card, text="Runtime Environment", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
+
+        env_info = [
+            ("Python Version:", sys.version.split()[0]),
+            ("Operating System:", f"{platform.system()} {platform.release()} ({platform.machine()})"),
+            ("Active Backend:", getattr(self.config, 'switch_backend', 'auto').upper()),
+            ("Connection Mode:", getattr(self.config, 'connection_support', 'both').upper())
+        ]
+        for ek, ev in env_info:
+            er = ctk.CTkFrame(env_card, fg_color="transparent")
+            er.pack(fill="x", padx=15, pady=2)
+            ctk.CTkLabel(er, text=ek, font=get_ui_font(11, "bold"), width=150, anchor="w").pack(side="left")
+            ctk.CTkLabel(er, text=ev, font=get_ui_font(11), text_color="#b0bec5").pack(side="left")
 
     def _toggle_daemon(self) -> None:
         if self.app and self.app._running:

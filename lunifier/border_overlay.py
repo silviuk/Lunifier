@@ -1,4 +1,4 @@
-﻿"""
+"""
 Visual Screen Border Overlay for Lunifier with Multi-Monitor Support.
 Draws 4-6px vibrant orange lines along screen edges to highlight active switch zones
 on designated monitors when adjusting the active border percentage slider or scrolling.
@@ -22,8 +22,10 @@ class BorderOverlayManager:
     Manages non-intrusive, topmost, click-through overlay windows that visually highlight
     the active border switching areas along physical monitor edges.
     """
-    LINE_THICKNESS: int = 5       # 4-6px thickness
+    LINE_THICKNESS: int = 12      # Modern 12px thickness (10-15px)
     LINE_COLOR: str = "#FF5722"    # Vibrant, high-visibility orange
+    BORDER_COLOR: str = "#D84315"  # Deep contrast accent border
+    GLOW_COLOR: str = "#FFE082"    # Luminous inner neon core
 
     def __init__(self, parent: tk.Misc):
         self.parent = parent
@@ -39,12 +41,11 @@ class BorderOverlayManager:
         except Exception:
             pass
 
-        # Fill with vibrant orange color
-        win.configure(bg=self.LINE_COLOR)
+        win.configure(bg=self.BORDER_COLOR)
 
-        # Internal frame ensuring client area is solidly filled
-        frame = tk.Frame(win, bg=self.LINE_COLOR)
-        frame.pack(fill="both", expand=True)
+        canvas = tk.Canvas(win, bg=self.BORDER_COLOR, highlightthickness=0)
+        canvas.pack(fill="both", expand=True)
+        win._canvas = canvas
 
         # Make window non-activating and click-through on Windows
         if sys.platform == "win32":
@@ -134,18 +135,21 @@ class BorderOverlayManager:
 
             # Geometry relative to specific monitor bounds
             if edge in ("left", "right"):
+                seg_w = thick
                 seg_h = max(1, int((1.0 - 2.0 * margin) * m.height))
                 y_pos = int(m.top + margin * m.height)
                 x_pos = m.left if edge == "left" else (m.right - thick)
                 geom = f"{thick}x{seg_h}+{x_pos}+{y_pos}"
             else:  # "top" or "bottom"
                 seg_w = max(1, int((1.0 - 2.0 * margin) * m.width))
+                seg_h = thick
                 x_pos = int(m.left + margin * m.width)
                 y_pos = m.top if edge == "top" else (m.bottom - thick)
                 geom = f"{seg_w}x{thick}+{x_pos}+{y_pos}"
 
             try:
                 win.geometry(geom)
+                self._draw_overlay_graphics(win, seg_w, seg_h, is_vertical=(edge in ("left", "right")))
                 win.deiconify()
                 win.lift()
                 try:
@@ -166,6 +170,26 @@ class BorderOverlayManager:
         self._is_visible = True
         # Schedule automatic hide after 1.0 second of inactivity
         self._hide_timer_id = self.parent.after(1000, self.hide)
+
+    def _draw_overlay_graphics(self, win: tk.Toplevel, w: int, h: int, is_vertical: bool) -> None:
+        """Draws a modern glowing neon guideline with high-contrast accent core."""
+        canvas: Optional[tk.Canvas] = getattr(win, "_canvas", None)
+        if not canvas:
+            return
+        canvas.delete("all")
+        # Outer dark accent boundary
+        canvas.create_rectangle(0, 0, w, h, fill=self.BORDER_COLOR, outline="")
+        # Vibrant neon orange core
+        if is_vertical:
+            canvas.create_rectangle(1, 0, max(1, w - 1), h, fill=self.LINE_COLOR, outline="")
+            # Center bright glowing highlight
+            cx = w // 2
+            canvas.create_line(cx, 4, cx, max(4, h - 4), fill=self.GLOW_COLOR, width=2)
+        else:
+            canvas.create_rectangle(0, 1, w, max(1, h - 1), fill=self.LINE_COLOR, outline="")
+            # Center bright glowing highlight
+            cy = h // 2
+            canvas.create_line(4, cy, max(4, w - 4), cy, fill=self.GLOW_COLOR, width=2)
 
     def hide(self) -> None:
         """Hides all active border overlay windows."""

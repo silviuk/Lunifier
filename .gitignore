@@ -10,4 +10,5 @@ dist/
 !Lunifier.spec
 *.egg-info/
 *.zip
+src/
 
