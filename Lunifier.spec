@@ -12,6 +12,12 @@ datas += tmp_ret[0]
 binaries += tmp_ret[1]
 hiddenimports += tmp_ret[2]
 
+# Collect pystray
+tmp_pystray = collect_all('pystray')
+datas += tmp_pystray[0]
+binaries += tmp_pystray[1]
+hiddenimports += tmp_pystray[2]
+
 excludes = [
     'tkinter.test',
     'unittest',
