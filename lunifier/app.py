@@ -8,7 +8,7 @@ import sys
 import time
 import signal
 import argparse
-from typing import Optional
+from typing import Optional, Callable
 
 from .config import AppConfig, DEFAULT_CONFIG_PATH
 from .hidpp import HIDPPMaster
@@ -16,6 +16,8 @@ from .edge_detector import ScreenEdgeDetector
 from .cursor_manager import CursorManager
 from .clipboard import ClipboardManager
 from .bt_link import BluetoothLink
+from .hotkeys import GlobalHotKeyManager
+from .single_instance import SingleInstanceManager
 from .logger import log
 
 
@@ -26,6 +28,10 @@ class LunifierApp:
         self.cursor_mgr = CursorManager()
         self.bt_link: Optional[BluetoothLink] = None
         self.edge_detector: Optional[ScreenEdgeDetector] = None
+        self.hotkey_mgr: Optional[GlobalHotKeyManager] = None
+        self.single_instance: Optional[SingleInstanceManager] = None
+        self.on_show_gui: Optional[Callable[[], None]] = None
+        self.tray = None
 
         self._running = False
         self.hidpp.connection_support = getattr(self.config, 'connection_support', 'both')
@@ -62,6 +68,21 @@ class LunifierApp:
                 on_switch_received=self._handle_incoming_switch,
                 on_peer_status_changed=self._handle_peer_status_changed
             )
+
+        # 3. Global keyboard shortcuts
+        if self.hotkey_mgr:
+            try:
+                self.hotkey_mgr.stop()
+            except Exception:
+                pass
+            self.hotkey_mgr = None
+
+        if getattr(self.config, 'hotkeys_enabled', True):
+            self.hotkey_mgr = GlobalHotKeyManager(on_switch_channel=self.switch_now)
+            ch1 = getattr(self.config, 'hotkey_ch1', '<ctrl>+<alt>+1')
+            ch2 = getattr(self.config, 'hotkey_ch2', '<ctrl>+<alt>+2')
+            ch3 = getattr(self.config, 'hotkey_ch3', '<ctrl>+<alt>+3')
+            self.hotkey_mgr.start(ch1, ch2, ch3)
 
         # Warm up device cache in background so switches execute with 0ms scan delay
         import threading
@@ -218,13 +239,29 @@ class LunifierApp:
         except KeyboardInterrupt:
             self.stop()
 
+    def handle_ipc_command(self, cmd: str) -> None:
+        log("Lunifier", f"Processing IPC command: {cmd}")
+        if cmd == "SHOW":
+            if self.on_show_gui:
+                self.on_show_gui()
+        elif cmd.startswith("SWITCH:"):
+            try:
+                target_ch = int(cmd.split(":")[-1])
+                self.switch_now(target_ch)
+            except Exception as e:
+                log("Lunifier", f"Error executing IPC switch: {e}")
+
     def stop(self) -> None:
         self._running = False
         if self.edge_detector:
             self.edge_detector.stop()
         if self.bt_link:
             self.bt_link.stop()
-        print("[Lunifier] Shutdown complete.")
+        if self.hotkey_mgr:
+            self.hotkey_mgr.stop()
+        if self.single_instance:
+            self.single_instance.release()
+        log("Lunifier", "Shutdown complete.")
 
 
 # Backward compatibility alias
@@ -345,20 +382,47 @@ def main():
     config = AppConfig.load(args.config)
     if args.backend:
         config.switch_backend = args.backend
+
+    if args.setup:
+        interactive_configure(config, args.config)
+        return
+
     app = LunifierApp(config)
 
     if args.scan:
         app.scan_devices()
-    elif args.switch is not None:
+        return
+
+    # Single-instance check and IPC
+    single_inst = SingleInstanceManager(on_command=app.handle_ipc_command)
+    if not single_inst.acquire():
+        # Another instance is already running
+        if args.switch is not None:
+            single_inst.send_command(f"SWITCH:{args.switch}")
+            print(f"[Lunifier] Switch to Channel {args.switch} sent to running instance.")
+        elif args.daemon:
+            print("[Lunifier] Lunifier daemon is already running.")
+        else:
+            single_inst.send_command("SHOW")
+            print("[Lunifier] Lunifier is already running. Showing active window.")
+        sys.exit(0)
+
+    app.single_instance = single_inst
+
+    if args.switch is not None:
         app.switch_now(args.switch)
-    elif args.setup:
-        interactive_configure(config, args.config)
+        app.stop()
+        sys.exit(0)
     elif args.daemon:
-        app.run()
+        try:
+            from .gui import launch_gui
+            launch_gui(app, start_hidden=True)
+        except Exception:
+            app.run()
     elif args.gui or len(sys.argv) == 1:
         try:
             from .gui import launch_gui
-            launch_gui(app)
+            launch_gui(app, start_hidden=False)
         except (ImportError, ModuleNotFoundError) as e:
             print("\n" + "=" * 60)
             print("[Lunifier] GUI Error: Missing GUI dependencies.")

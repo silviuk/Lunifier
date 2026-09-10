@@ -7,7 +7,7 @@ DIST_DIR="$ROOT_DIR/dist"
 
 mkdir -p "$DIST_DIR"
 
-VERSION="${1:-1.0.4}"
+VERSION="${1:-1.0.5}"
 DEB_BUILD_DIR="/tmp/lunifier-deb"
 rm -rf "$DEB_BUILD_DIR"
 mkdir -p "$DEB_BUILD_DIR"
@@ -34,8 +34,8 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: all
-Depends: python3, python3-hidapi, python3-tk
-Recommends: python3-pip, xdotool, xclip, solaar
+Depends: python3, python3-hidapi, python3-tk, python3-pil, python3-pynput, python3-gi, gir1.2-ayatanaappindicator3-0.1
+Recommends: python3-pip, python3-pystray, xdotool, xclip, solaar, gir1.2-gtk-3.0
 Maintainer: Silviu Vlasceanu <silviuk@users.noreply.github.com>
 Description: Seamless Logitech Easy-Switch flow across Windows and Linux
  Lunifier coordinates Logitech Easy-Switch keyboards and mice
@@ -58,8 +58,8 @@ if [ "$1" = "configure" ]; then
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
     fi
-    if command -v pip3 >/dev/null 2>&1 && ! /usr/bin/python3 -c "import customtkinter" >/dev/null 2>&1; then
-        pip3 install customtkinter --break-system-packages >/dev/null 2>&1 || pip3 install customtkinter >/dev/null 2>&1 || true
+    if command -v pip3 >/dev/null 2>&1; then
+        pip3 install customtkinter pystray pynput --break-system-packages >/dev/null 2>&1 || pip3 install customtkinter pystray pynput >/dev/null 2>&1 || true
     fi
 fi
 exit 0

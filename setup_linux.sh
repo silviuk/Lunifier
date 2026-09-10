@@ -27,12 +27,12 @@ for cmd in xdotool xclip solaar; do
     fi
 done
 
-# 3. Install Python dependencies (supports PEP 668 on modern Linux)
-echo "[3/4] Installing Python requirements..."
-if ! pip3 install --user hidapi customtkinter 2>/dev/null; then
+# 3. Install Python and System Tray dependencies (supports PEP 668 on modern Linux)
+echo "[3/4] Installing Python requirements (customtkinter, hidapi, pystray, pynput, pillow)..."
+if ! pip3 install --user hidapi customtkinter pystray pynput pillow 2>/dev/null; then
     echo "  Standard pip install restricted by system (PEP 668); retrying with --break-system-packages..."
-    pip3 install --user --break-system-packages hidapi customtkinter || {
-        echo "  [NOTE] If pip fails, install via package manager: sudo apt install -y python3-hidapi python3-tk"
+    pip3 install --user --break-system-packages hidapi customtkinter pystray pynput pillow || {
+        echo "  [NOTE] If pip fails, install via package manager: sudo apt install -y python3-hidapi python3-tk python3-pil python3-pynput python3-gi gir1.2-ayatanaappindicator3-0.1"
     }
 fi
 

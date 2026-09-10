@@ -1,4 +1,4 @@
-﻿"""
+"""
 Configuration management for Lunifier.
 """
 
@@ -85,6 +85,19 @@ class AppConfig:
 
     # Configurable logging level: "normal", "debug", or "none"
     log_level: str = "normal"
+
+    # Autostart with system login
+    autostart_enabled: bool = False
+
+    # Tray icon double-click action:
+    # "open_gui", "switch_1", "switch_2", "switch_3", "mini_window"
+    tray_double_click_action: str = "open_gui"
+
+    # Global keyboard shortcuts for channel switching
+    hotkeys_enabled: bool = True
+    hotkey_ch1: str = "<ctrl>+<alt>+1"
+    hotkey_ch2: str = "<ctrl>+<alt>+2"
+    hotkey_ch3: str = "<ctrl>+<alt>+3"
 
     def get_monitor_config(self, monitor_id: str) -> Dict[str, Any]:
         """

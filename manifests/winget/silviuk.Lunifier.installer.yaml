@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 1.0.5
+MinimumOSVersion: 10.0.0.0
+InstallerType: inno
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+InstallerSwitches:
+  Silent: /VERYSILENT /NORESTART /SUPPRESSMSGBOXES
+  SilentWithProgress: /SILENT /NORESTART /SUPPRESSMSGBOXES
+UpgradeBehavior: install
+ReleaseDate: 2026-09-10
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/silviuk/Lunifier/releases/download/v1.0.5/Lunifier-Setup-1.0.5.exe
+    InstallerSha256: 75F3ED12EFE55D9A817853DF4FE7D9B2F98691C0BE9AB1394C379C622D2698CA
+ManifestType: installer
+ManifestVersion: 1.6.0

@@ -10,7 +10,6 @@ from typing import Optional, List
 
 try:
     import customtkinter as ctk
-    from tkinter import messagebox
 except ImportError as err:
     raise ImportError(
         "CustomTkinter is required for the Lunifier GUI. "
@@ -30,6 +29,7 @@ from .border_overlay import BorderOverlayManager
 from .monitors import get_monitors, MonitorInfo
 from .tray import LunifierTray
 from .bt_link import BluetoothLink, discover_potential_partners
+from .autostart import is_autostart_enabled, set_autostart_enabled
 
 IS_LINUX = sys.platform.startswith("linux")
 # On Linux X11, canvas corner masks can cause jagged notch artifacts; use crisp flat geometry
@@ -56,6 +56,10 @@ class LunifierGUI:
         self.overlay_mgr = BorderOverlayManager(self.root)
         self._is_scanning: bool = False
 
+        # Register callback with app coordinator for IPC show commands
+        if self.app:
+            self.app.on_show_gui = self._show_main_window
+
         # Multi-monitor state tracking
         self.monitors: List[MonitorInfo] = get_monitors()
         self.selected_monitor_id: str = "0"
@@ -63,12 +67,12 @@ class LunifierGUI:
         self.monitor_edge_vars: dict = {}
         self.monitor_enabled_vars: dict = {}
 
-        # CustomTkinter styling
-        ctk.set_appearance_mode("Dark")
+        # CustomTkinter styling - dynamically tracks Windows Light/Dark mode
+        ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
         self.root.title("Lunifier - Logitech Easy-Switch Flow")
-        self.root.geometry("740x940")
+        self.root.geometry("740x950")
         self.root.minsize(640, 750)
         self._set_app_icon()
 
@@ -87,7 +91,8 @@ class LunifierGUI:
             on_switch_channel=self._on_tray_switch_channel,
             on_show_main=self._show_main_window,
             on_toggle_daemon=self._toggle_daemon,
-            on_exit=self._on_tray_exit
+            on_exit=self._on_tray_exit,
+            double_click_action=getattr(self.config, 'tray_double_click_action', 'open_gui')
         )
         self.tray.start()
 
@@ -134,7 +139,7 @@ class LunifierGUI:
             title_box,
             text="Seamless Logitech Easy-Switch Flow",
             font=get_ui_font(12),
-            text_color="#90caf9"
+            text_color=("#1565c0", "#90caf9")
         )
         subtitle_lbl.pack(anchor="w")
 
@@ -146,8 +151,8 @@ class LunifierGUI:
             status_box,
             text="STOPPED",
             font=get_ui_font(11, "bold"),
-            fg_color="#3e2723",
-            text_color="#ef5350",
+            fg_color=("#ffcdd2", "#3e2723"),
+            text_color=("#c62828", "#ef5350"),
             corner_radius=BTN_RADIUS,
             width=95,
             height=30
@@ -186,9 +191,17 @@ class LunifierGUI:
         self._build_about_tab(self.about_scroll)
         self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
-        # Bottom Action Bar
+        # Bottom Action Bar with Non-Blocking Inline Status Feedback
         bottom_bar = ctk.CTkFrame(self.main_container, fg_color="transparent")
         bottom_bar.pack(fill="x")
+
+        self.action_status_lbl = ctk.CTkLabel(
+            bottom_bar,
+            text="",
+            font=get_ui_font(12, "bold"),
+            text_color="#4caf50"
+        )
+        self.action_status_lbl.pack(side="left", padx=5)
 
         self.save_btn = ctk.CTkButton(
             bottom_bar,
@@ -213,6 +226,26 @@ class LunifierGUI:
             width=190
         )
         self.test_btn.pack(side="right", padx=5)
+
+    def _show_action_status(self, text: str, color: str = "#4caf50", duration_ms: int = 4500) -> None:
+        """Displays non-blocking status message in bottom bar without popup dialogs."""
+        def update():
+            if hasattr(self, 'action_status_lbl') and self.action_status_lbl.winfo_exists():
+                self.action_status_lbl.configure(text=text, text_color=color)
+                if duration_ms > 0:
+                    self.root.after(duration_ms, lambda: self._clear_action_status_if_match(text))
+        try:
+            self.root.after(0, update)
+        except Exception:
+            pass
+
+    def _clear_action_status_if_match(self, text: str) -> None:
+        try:
+            if hasattr(self, 'action_status_lbl') and self.action_status_lbl.winfo_exists():
+                if self.action_status_lbl.cget("text") == text:
+                    self.action_status_lbl.configure(text="")
+        except Exception:
+            pass
 
     def _build_flow_tab(self, parent) -> None:
         # Easy-Switch Channel Card
@@ -390,19 +423,110 @@ class LunifierGUI:
         self.cooldown_entry = ctk.CTkEntry(cd_row, width=100, corner_radius=BTN_RADIUS, placeholder_text="2500")
         self.cooldown_entry.pack(side="right")
 
-        # Switching Backend selector (Linux / Diagnostic)
-        backend_row = ctk.CTkFrame(edge_card, fg_color="transparent")
-        backend_row.pack(fill="x", padx=15, pady=(4, 6))
-        ctk.CTkLabel(backend_row, text="Switching Backend (Linux):", font=get_ui_font(13)).pack(side="left")
-        self.backend_var = ctk.StringVar(value="auto")
-        self.backend_menu = ctk.CTkOptionMenu(
-            backend_row,
-            variable=self.backend_var,
-            values=["auto", "solaar", "direct"],
+        # Switching Backend selector (Linux Only)
+        self.backend_var = ctk.StringVar(value=getattr(self.config, 'switch_backend', 'auto'))
+        if IS_LINUX:
+            backend_row = ctk.CTkFrame(edge_card, fg_color="transparent")
+            backend_row.pack(fill="x", padx=15, pady=(4, 6))
+            ctk.CTkLabel(backend_row, text="Switching Backend (Linux):", font=get_ui_font(13)).pack(side="left")
+            self.backend_menu = ctk.CTkOptionMenu(
+                backend_row,
+                variable=self.backend_var,
+                values=["auto", "solaar", "direct"],
+                corner_radius=BTN_RADIUS,
+                width=130
+            )
+            self.backend_menu.pack(side="right")
+
+        # System Startup & Shortcuts Card
+        sys_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        sys_card.pack(fill="x", padx=5, pady=8, ipady=5)
+
+        ctk.CTkLabel(
+            sys_card,
+            text="Application Startup & System Integration",
+            font=get_ui_font(14, "bold")
+        ).pack(anchor="w", padx=15, pady=(10, 6))
+
+        # Autostart Switch
+        self.autostart_switch = ctk.CTkSwitch(
+            sys_card,
+            text="Start Lunifier automatically on system login",
+            font=get_ui_font(13),
             corner_radius=BTN_RADIUS,
-            width=130
+            command=self._on_autostart_toggle
         )
-        self.backend_menu.pack(side="right")
+        self.autostart_switch.pack(anchor="w", padx=15, pady=5)
+
+        # Hotkeys Switch
+        self.hotkeys_switch = ctk.CTkSwitch(
+            sys_card,
+            text="Enable Global Keyboard Shortcuts (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3)",
+            font=get_ui_font(13),
+            corner_radius=BTN_RADIUS,
+            command=self._on_hotkeys_toggle
+        )
+        self.hotkeys_switch.pack(anchor="w", padx=15, pady=5)
+
+        # Tray Double-Click Action Row
+        tray_act_row = ctk.CTkFrame(sys_card, fg_color="transparent")
+        tray_act_row.pack(fill="x", padx=15, pady=(6, 8))
+        ctk.CTkLabel(tray_act_row, text="Tray Icon Double-Click Action:", font=get_ui_font(13)).pack(side="left")
+        self.tray_action_var = ctk.StringVar(value="Open Lunifier Window")
+        self.tray_action_menu = ctk.CTkOptionMenu(
+            tray_act_row,
+            variable=self.tray_action_var,
+            values=[
+                "Open Lunifier Window",
+                "Switch Both to Channel 1",
+                "Switch Both to Channel 2",
+                "Switch Both to Channel 3",
+                "Open Quick Switch Popup"
+            ],
+            corner_radius=BTN_RADIUS,
+            width=210,
+            command=self._on_tray_action_changed
+        )
+        self.tray_action_menu.pack(side="right")
+
+    def _on_autostart_toggle(self) -> None:
+        enabled = bool(self.autostart_switch.get())
+        self.config.autostart_enabled = enabled
+        ok = set_autostart_enabled(enabled)
+        if ok:
+            status_text = "✓ Autostart enabled on login" if enabled else "✓ Autostart disabled"
+            self._show_action_status(status_text, "#4caf50")
+        else:
+            self._show_action_status("✗ Failed to update system autostart", "#ef5350")
+
+    def _on_hotkeys_toggle(self) -> None:
+        enabled = bool(self.hotkeys_switch.get())
+        self.config.hotkeys_enabled = enabled
+        if self.app and hasattr(self.app, 'hotkey_mgr'):
+            if enabled:
+                if not self.app.hotkey_mgr:
+                    from .hotkeys import GlobalHotKeyManager
+                    self.app.hotkey_mgr = GlobalHotKeyManager(on_switch_channel=self.app.switch_now)
+                self.app.hotkey_mgr.start(self.config.hotkey_ch1, self.config.hotkey_ch2, self.config.hotkey_ch3)
+                self._show_action_status("✓ Global shortcuts activated (Ctrl+Alt+1/2/3)", "#4caf50")
+            else:
+                if self.app.hotkey_mgr:
+                    self.app.hotkey_mgr.stop()
+                self._show_action_status("✓ Global shortcuts disabled", "gray60")
+
+    def _on_tray_action_changed(self, choice: str) -> None:
+        action_map = {
+            "Open Lunifier Window": "open_gui",
+            "Switch Both to Channel 1": "switch_1",
+            "Switch Both to Channel 2": "switch_2",
+            "Switch Both to Channel 3": "switch_3",
+            "Open Quick Switch Popup": "mini_window"
+        }
+        act_key = action_map.get(choice, "open_gui")
+        self.config.tray_double_click_action = act_key
+        if hasattr(self, 'tray') and self.tray:
+            self.tray.set_double_click_action(act_key)
+        self._show_action_status(f"✓ Tray action set: {choice}", "#4caf50")
 
     def _build_devices_tab(self, parent) -> None:
         top_bar = ctk.CTkFrame(parent, fg_color="transparent")
@@ -449,13 +573,13 @@ class LunifierGUI:
         self.device_list_frame = ctk.CTkScrollableFrame(parent, corner_radius=CARD_RADIUS, height=280)
         self.device_list_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-        note_box = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS, fg_color="#1e1e1e")
+        note_box = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS, fg_color=("#f0f0f0", "#1e1e1e"))
         note_box.pack(fill="x", padx=5, pady=8, ipady=6)
         ctk.CTkLabel(
             note_box,
             text="Supports Logitech MX Keys, M370, POP Mouse, MX Master 3/3S, M720 Triathlon, and all Easy-Switch devices across Bluetooth, Unifying, and Bolt receivers.",
             font=get_ui_font(11),
-            text_color="#b0bec5",
+            text_color=("gray30", "#b0bec5"),
             wraplength=580
         ).pack(padx=12)
 
@@ -573,7 +697,7 @@ class LunifierGUI:
         )
         self.bt_link_status_lbl.pack(side="left", padx=15)
 
-        desc_box = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS, fg_color="#1e1e1e")
+        desc_box = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS, fg_color=("#f0f0f0", "#1e1e1e"))
         desc_box.pack(fill="x", padx=5, pady=8, ipady=6)
         ctk.CTkLabel(
             desc_box,
@@ -581,7 +705,7 @@ class LunifierGUI:
                  "- Autonomous Mode (Partner MAC empty): Switches hardware whenever cursor reaches the border with ZERO inter-PC connection.\n"
                  "- Bluetooth Sync Mode: Directly pairs the two computers over Bluetooth RFCOMM to align cursor entry height and synchronize clipboard text without Wi-Fi.",
             font=get_ui_font(11),
-            text_color="#b0bec5",
+            text_color=("gray30", "#b0bec5"),
             justify="left",
             wraplength=580
         ).pack(padx=12)
@@ -827,6 +951,32 @@ class LunifierGUI:
             self.conn_support_var.set(rev_map.get(conn_mode, "Both (Unifying & Bluetooth)"))
         self.hidpp.connection_support = conn_mode
 
+        # Autostart state
+        auto_enabled = is_autostart_enabled() or getattr(self.config, 'autostart_enabled', False)
+        if hasattr(self, 'autostart_switch'):
+            if auto_enabled:
+                self.autostart_switch.select()
+            else:
+                self.autostart_switch.deselect()
+
+        # Global hotkeys state
+        if hasattr(self, 'hotkeys_switch'):
+            if getattr(self.config, 'hotkeys_enabled', True):
+                self.hotkeys_switch.select()
+            else:
+                self.hotkeys_switch.deselect()
+
+        # Tray double-click action
+        tray_action_map = {
+            "open_gui": "Open Lunifier Window",
+            "switch_1": "Switch Both to Channel 1",
+            "switch_2": "Switch Both to Channel 2",
+            "switch_3": "Switch Both to Channel 3",
+            "mini_window": "Open Quick Switch Popup"
+        }
+        if hasattr(self, 'tray_action_var'):
+            self.tray_action_var.set(tray_action_map.get(getattr(self.config, 'tray_double_click_action', 'open_gui'), "Open Lunifier Window"))
+
         self._on_p2p_toggle()
 
     def _save_config(self) -> None:
@@ -870,6 +1020,37 @@ class LunifierGUI:
             self.config.cooldown_ms = int(self.cooldown_entry.get() or "2500")
             self.config.switch_backend = self.backend_var.get()
 
+            # Autostart and shortcuts settings
+            if hasattr(self, 'autostart_switch'):
+                auto_val = bool(self.autostart_switch.get())
+                self.config.autostart_enabled = auto_val
+                set_autostart_enabled(auto_val)
+
+            if hasattr(self, 'hotkeys_switch'):
+                hk_val = bool(self.hotkeys_switch.get())
+                self.config.hotkeys_enabled = hk_val
+                if self.app and hasattr(self.app, 'hotkey_mgr'):
+                    if hk_val:
+                        if not self.app.hotkey_mgr:
+                            from .hotkeys import GlobalHotKeyManager
+                            self.app.hotkey_mgr = GlobalHotKeyManager(on_switch_channel=self.app.switch_now)
+                        self.app.hotkey_mgr.start(self.config.hotkey_ch1, self.config.hotkey_ch2, self.config.hotkey_ch3)
+                    elif self.app.hotkey_mgr:
+                        self.app.hotkey_mgr.stop()
+
+            if hasattr(self, 'tray_action_var'):
+                rev_tray_map = {
+                    "Open Lunifier Window": "open_gui",
+                    "Switch Both to Channel 1": "switch_1",
+                    "Switch Both to Channel 2": "switch_2",
+                    "Switch Both to Channel 3": "switch_3",
+                    "Open Quick Switch Popup": "mini_window"
+                }
+                act_key = rev_tray_map.get(self.tray_action_var.get(), "open_gui")
+                self.config.tray_double_click_action = act_key
+                if hasattr(self, 'tray') and self.tray:
+                    self.tray.set_double_click_action(act_key)
+
             if hasattr(self, 'log_level_var'):
                 v = self.log_level_var.get().lower()
                 lvl_val = "none" if v == "off" else ("debug" if v == "debug" else "normal")
@@ -901,9 +1082,9 @@ class LunifierGUI:
                 self.app.edge_detector.knock_timeout_ms = self.config.knock_timeout_ms
                 self.app.edge_detector.cooldown_ms = self.config.cooldown_ms
 
-            messagebox.showinfo("Lunifier", "Settings successfully saved!")
+            self._show_action_status("✓ Settings saved successfully!", "#4caf50")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save settings: {e}")
+            self._show_action_status(f"✗ Failed to save: {e}", "#ef5350")
 
     def _schedule_device_poll(self) -> None:
         """
@@ -971,7 +1152,7 @@ class LunifierGUI:
             empty_lbl.pack(pady=30)
         else:
             for d in devs:
-                card = ctk.CTkFrame(self.device_list_frame, corner_radius=CARD_RADIUS, fg_color="#2b2b2b")
+                card = ctk.CTkFrame(self.device_list_frame, corner_radius=CARD_RADIUS, fg_color=("#f5f5f5", "#2b2b2b"))
                 card.pack(fill="x", padx=5, pady=4, ipady=4)
 
                 left = ctk.CTkFrame(card, fg_color="transparent")
@@ -988,7 +1169,7 @@ class LunifierGUI:
                     left,
                     text=f"Slot/Index: 0x{d.device_index:02x} | CHANGE_HOST Feature: {f_str}",
                     font=get_ui_font(11),
-                    text_color="#b0bec5"
+                    text_color=("gray40", "#b0bec5")
                 ).pack(anchor="w")
 
                 # Protocol Badge
@@ -1037,16 +1218,21 @@ class LunifierGUI:
         if target == my_ch:
             target = 1 if my_ch != 1 else 2
 
-        if messagebox.askyesno("Confirm Switch", f"Send switch command for all devices to Channel {target}?\n\n(Current PC is Channel {my_ch}, Backend: {self.backend_var.get()}, Support: {self.config.connection_support})"):
-            log("GUI", f"Initiating manual test switch to Channel {target} (Backend: {self.backend_var.get()}, Support: {self.config.connection_support})...")
-            
-            def run_switch_worker():
-                res = self.hidpp.switch_all_to_channel(target, self.config.devices, backend=self.backend_var.get(), connection_support=self.config.connection_support)
-                status_text = "\n".join([f"• {k}: {'OK' if v else 'FAILED'}" for k, v in res.items()])
-                log("GUI", f"Test switch completed:\n{status_text}")
-                self.root.after(0, lambda: messagebox.showinfo(f"Switch to Channel {target} Results", status_text or "No devices found."))
+        self._show_action_status(f"Switching all devices to Channel {target}...", "#0288d1", duration_ms=10000)
+        log("GUI", f"Initiating manual test switch to Channel {target} (Backend: {self.backend_var.get()}, Support: {self.config.connection_support})...")
 
-            threading.Thread(target=run_switch_worker, daemon=True).start()
+        def run_switch_worker():
+            try:
+                res = self.hidpp.switch_all_to_channel(target, self.config.devices, backend=self.backend_var.get(), connection_support=self.config.connection_support)
+                status_parts = [f"{k}: {'OK' if v else 'FAILED'}" for k, v in res.items()]
+                status_text = ", ".join(status_parts) if status_parts else "No devices found"
+                log("GUI", f"Test switch completed: {status_text}")
+                self._show_action_status(f"✓ Channel {target} switch: {status_text}", "#4caf50", duration_ms=5000)
+            except Exception as e:
+                log("GUI", f"Test switch failed: {e}")
+                self._show_action_status(f"✗ Switch error: {e}", "#ef5350", duration_ms=6000)
+
+        threading.Thread(target=run_switch_worker, daemon=True).start()
 
     def _build_logs_tab(self, parent) -> None:
         top_bar = ctk.CTkFrame(parent, fg_color="transparent")
@@ -1134,20 +1320,21 @@ class LunifierGUI:
                     self.status_lbl.configure(text="Logs copied to clipboard!", text_color="#81c784")
 
     def _on_window_close(self, force_exit: bool = False) -> None:
-        if not force_exit and hasattr(self, 'tray') and self.tray and self.tray._icon:
+        if not force_exit:
             # Minimize to tray instead of quitting
             self.root.withdraw()
-            log("GUI", "Lunifier minimized to system tray.")
+            log("GUI", "Lunifier window minimized to system tray (background service remains active).")
             return
 
+        log("GUI", "Shutting down Lunifier...")
         if hasattr(self, 'tray') and self.tray:
             try:
                 self.tray.stop()
             except Exception:
                 pass
-        if hasattr(self, 'bt_link') and self.bt_link:
+        if hasattr(self, 'app') and self.app:
             try:
-                self.bt_link.stop()
+                self.app.stop()
             except Exception:
                 pass
         if hasattr(self, 'overlay_mgr'):
@@ -1235,7 +1422,7 @@ class LunifierGUI:
     def _request_bt_pairing(self) -> None:
         target_mac = self.peer_mac_entry.get().strip().upper()
         if not target_mac:
-            messagebox.showwarning("Lunifier", "Please select or enter a partner Bluetooth MAC address first.")
+            self.bt_link_status_lbl.configure(text="Please select or enter partner MAC first", text_color="#ffa726")
             return
 
         self.bt_link_status_lbl.configure(text="Initiating handshake... Request sent to partner...", text_color="#80d8ff")
@@ -1247,50 +1434,40 @@ class LunifierGUI:
             def update():
                 self.handshake_btn.configure(state="normal", text="🤝 Request Pairing Handshake")
                 self.bt_link_status_lbl.configure(text=f"Pairing connection failed: {err}", text_color="#ef5350")
-                messagebox.showerror("Pairing Failed", f"Could not connect to partner at {target_mac}.\n\nError: {err}\n\nMake sure Lunifier is running on the partner computer and Bluetooth is discoverable.")
             self.root.after(0, update)
 
         link.request_pairing(target_mac, on_error=on_err)
 
     def _on_bt_pair_request_received(self, from_host: str, from_mac: str) -> bool:
-        prompt_text = (
-            f"Computer '{from_host}' ({from_mac or 'Bluetooth'}) is requesting to link "
-            f"with this PC for Lunifier Easy-Switch Flow.\n\n"
-            f"Do you want to accept this connection and bind as partner?"
-        )
-        accepted = messagebox.askyesno("Lunifier Pairing Request", prompt_text)
-        if accepted:
-            def update_ui():
-                if from_mac:
-                    self.peer_mac_entry.delete(0, "end")
-                    self.peer_mac_entry.insert(0, from_mac)
-                    self.config.bt_peer_address = from_mac
-                self.p2p_switch.select()
-                self.config.bt_p2p_enabled = True
-                try:
-                    self.config.save()
-                except Exception:
-                    pass
-                self.bt_link_status_lbl.configure(text=f"✓ Linked to {from_host}", text_color="#81c784")
-                messagebox.showinfo("Lunifier Linked", f"Successfully linked and bound with '{from_host}'!")
-            self.root.after(0, update_ui)
-        return accepted
+        log("GUI", f"Pair request received from {from_host} ({from_mac}) - auto-accepted.")
+        def update_ui():
+            if from_mac:
+                self.peer_mac_entry.delete(0, "end")
+                self.peer_mac_entry.insert(0, from_mac)
+                self.config.bt_peer_address = from_mac
+            self.p2p_switch.select()
+            self.config.bt_p2p_enabled = True
+            try:
+                self.config.save()
+            except Exception:
+                pass
+            self.bt_link_status_lbl.configure(text=f"✓ Auto-linked and bound to '{from_host}'", text_color="#81c784")
+        self.root.after(0, update_ui)
+        return True
 
     def _on_bt_pair_response_received(self, accepted: bool, from_host: str, info: str) -> None:
         def update_ui():
             self.handshake_btn.configure(state="normal", text="🤝 Request Pairing Handshake")
             if accepted:
-                self.bt_link_status_lbl.configure(text=f"✓ Paired with {from_host}", text_color="#81c784")
+                self.bt_link_status_lbl.configure(text=f"✓ Partner '{from_host}' ACCEPTED pairing!", text_color="#81c784")
                 self.p2p_switch.select()
                 self.config.bt_p2p_enabled = True
                 try:
                     self.config.save()
                 except Exception:
                     pass
-                messagebox.showinfo("Pairing Success", f"Computer '{from_host}' ACCEPTED the pairing request!\nBoth computers are now securely linked.")
             else:
-                self.bt_link_status_lbl.configure(text="Pairing rejected by partner", text_color="#ef5350")
-                messagebox.showwarning("Pairing Rejected", f"Computer '{from_host}' declined the pairing request: {info}")
+                self.bt_link_status_lbl.configure(text=f"Partner declined: {info}", text_color="#ef5350")
         self.root.after(0, update_ui)
 
     def _on_bt_status_changed(self, is_connected: bool) -> None:
@@ -1329,7 +1506,7 @@ class LunifierGUI:
         ctk.CTkLabel(meta_card, text="Program Information", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
 
         rows = [
-            ("Version:", "1.0.4 (Production Stable)"),
+            ("Version:", "1.0.5 (Production Stable)"),
             ("Author & Maintainer:", "Silviu Vlasceanu"),
             ("License:", "MIT License (Open Source)"),
             ("Copyright:", "© 2026 Silviu Vlasceanu. All rights reserved.")
@@ -1338,7 +1515,7 @@ class LunifierGUI:
             r = ctk.CTkFrame(meta_card, fg_color="transparent")
             r.pack(fill="x", padx=15, pady=3)
             ctk.CTkLabel(r, text=label, font=get_ui_font(12, "bold"), width=160, anchor="w").pack(side="left")
-            ctk.CTkLabel(r, text=val, font=get_ui_font(12), text_color="#eceff1").pack(side="left")
+            ctk.CTkLabel(r, text=val, font=get_ui_font(12), text_color=("#212121", "#eceff1")).pack(side="left")
 
         # Links Row
         links_frame = ctk.CTkFrame(meta_card, fg_color="transparent")
@@ -1360,8 +1537,9 @@ class LunifierGUI:
             font=get_ui_font(11),
             width=130,
             height=30,
-            fg_color="#37474f",
-            hover_color="#455a64",
+            fg_color=("#cfd8dc", "#37474f"),
+            hover_color=("#b0bec5", "#455a64"),
+            text_color=("#263238", "#ffffff"),
             corner_radius=BTN_RADIUS,
             command=lambda: webbrowser.open("https://github.com/silviuk/Lunifier/issues")
         ).pack(side="left")
@@ -1374,6 +1552,7 @@ class LunifierGUI:
 
         libs = [
             ("CustomTkinter", "Modern, high-DPI fluent dark/light themed desktop UI framework"),
+            ("pynput", "Global system-wide keyboard shortcuts for instant channel switching (Ctrl+Alt+1/2/3)"),
             ("hidapi / HID++", "Direct low-level HID communication with Logitech Bolt & Unifying receivers"),
             ("Bleak & WinRT", "Cross-platform Bluetooth Low Energy device discovery & inter-host sync"),
             ("Pystray & Pillow", "Continuous system tray notification icon and quick-switching control"),
@@ -1382,8 +1561,8 @@ class LunifierGUI:
         for lib, desc in libs:
             lr = ctk.CTkFrame(libs_card, fg_color="transparent")
             lr.pack(fill="x", padx=15, pady=3)
-            ctk.CTkLabel(lr, text=f"• {lib}:", font=get_ui_font(11, "bold"), width=150, anchor="w", text_color="#80d8ff").pack(side="left")
-            ctk.CTkLabel(lr, text=desc, font=get_ui_font(11), text_color="#cfd8dc").pack(side="left")
+            ctk.CTkLabel(lr, text=f"• {lib}:", font=get_ui_font(11, "bold"), width=150, anchor="w", text_color=("#0277bd", "#80d8ff")).pack(side="left")
+            ctk.CTkLabel(lr, text=desc, font=get_ui_font(11), text_color=("gray30", "#cfd8dc")).pack(side="left")
 
         # Runtime Environment Card
         env_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
@@ -1401,34 +1580,43 @@ class LunifierGUI:
             er = ctk.CTkFrame(env_card, fg_color="transparent")
             er.pack(fill="x", padx=15, pady=2)
             ctk.CTkLabel(er, text=ek, font=get_ui_font(11, "bold"), width=150, anchor="w").pack(side="left")
-            ctk.CTkLabel(er, text=ev, font=get_ui_font(11), text_color="#b0bec5").pack(side="left")
+            ctk.CTkLabel(er, text=ev, font=get_ui_font(11), text_color=("gray40", "#b0bec5")).pack(side="left")
+
+    def _start_daemon_service(self) -> None:
+        """Starts background daemon service and updates GUI indicators."""
+        if self.app and not self.app._running:
+            self.app._setup_subsystems()
+            threading.Thread(target=self.app.run, daemon=True).start()
+            self.status_badge.configure(
+                text="ACTIVE",
+                fg_color=("#c8e6c9", "#1b5e20"),
+                text_color=("#2e7d32", "#81c784")
+            )
+            self.toggle_btn.configure(text="Stop Service", fg_color="#d32f2f")
 
     def _toggle_daemon(self) -> None:
         if self.app and self.app._running:
             self.app.stop()
             self.status_badge.configure(
                 text="STOPPED",
-                fg_color="#3e2723",
-                text_color="#ef5350"
+                fg_color=("#ffcdd2", "#3e2723"),
+                text_color=("#c62828", "#ef5350")
             )
             self.toggle_btn.configure(text="Start Service", fg_color="#1976d2")
         elif self.app:
             self._save_config()
-            self.app._setup_subsystems()
-            threading.Thread(target=self.app.run, daemon=True).start()
-            self.status_badge.configure(
-                text="ACTIVE",
-                fg_color="#1b5e20",
-                text_color="#81c784"
-            )
-            self.toggle_btn.configure(text="Stop Service", fg_color="#d32f2f")
+            self._start_daemon_service()
 
 
 # Backward compatibility alias
 LogiFlowBTGUI = LunifierGUI
 
 
-def launch_gui(app_instance=None):
+def launch_gui(app_instance=None, start_hidden: bool = False):
     root = ctk.CTk()
     gui = LunifierGUI(root, app_instance)
+    if start_hidden:
+        root.withdraw()
+        if app_instance and not app_instance._running:
+            gui._start_daemon_service()
     root.mainloop()
