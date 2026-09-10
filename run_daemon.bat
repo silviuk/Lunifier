@@ -1,3 +1,6 @@
 @echo off
-python -m lunifier.app --daemon
-pause
+if exist "%~dp0dist\windows\Lunifier.Windows.exe" (
+    start "" "%~dp0dist\windows\Lunifier.Windows.exe"
+) else (
+    call "%~dp0run_gui.bat"
+)

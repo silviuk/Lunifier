@@ -1,0 +1,306 @@
+<Window x:Class="Lunifier.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Lunifier - Logitech Easy-Switch Flow"
+        Width="780" Height="920"
+        MinWidth="680" MinHeight="750"
+        Background="{StaticResource WindowBackground}"
+        WindowStartupLocation="CenterScreen"
+        Icon="Resources/icon.ico">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15,12" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Lunifier" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                    <TextBlock Text="Seamless Logitech Easy-Switch Flow" FontSize="12" Foreground="#38BDF8" Margin="0,2,0,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="StatusBadge" Background="#3E2723" CornerRadius="4" Padding="12,6" Margin="0,0,10,0">
+                        <TextBlock x:Name="StatusText" Text="STOPPED" FontWeight="Bold" FontSize="11" Foreground="#EF5350" />
+                    </Border>
+                    <Button x:Name="ToggleServiceBtn" Content="Start Service" Width="130" Height="32" Click="ToggleServiceBtn_Click" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tabs -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+            <!-- Screen & Switching Tab -->
+            <TabItem Header="  Screen &amp; Switching  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <!-- Host Identity Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Host Identity" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Host Name:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBox x:Name="HostNameBox" Grid.Column="1" Text="Host" />
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="This Host Channel:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="MyChannelCombo" Grid.Column="1">
+                                        <ComboBoxItem Content="Channel 1 (Slot 1)" />
+                                        <ComboBoxItem Content="Channel 2 (Slot 2)" />
+                                        <ComboBoxItem Content="Channel 3 (Slot 3)" />
+                                    </ComboBox>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Multi-Monitor Configuration Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Display &amp; Border Configuration" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Selected Monitor:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="MonitorSelectorCombo" Grid.Column="1" SelectionChanged="MonitorSelectorCombo_SelectionChanged" />
+                                </Grid>
+                                <CheckBox x:Name="MonitorEnabledCheck" Content="Enable border switching for this monitor" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" Checked="MonitorEnabledCheck_Changed" Unchecked="MonitorEnabledCheck_Changed" />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Left Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="LeftBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Right Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="RightBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Top Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="TopBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Bottom Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="BottomBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Edge Sensitivity Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Edge Trigger Sensitivity" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+
+                                <!-- Active Zone Slider -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0" Margin="0,0,0,4">
+                                        <TextBlock Text="Active Border Zone (%):" Foreground="{StaticResource TextSecondary}" />
+                                        <TextBlock x:Name="ActiveZoneText" Text="50%" HorizontalAlignment="Right" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <Slider x:Name="ActiveZoneSlider" Grid.Row="1" Minimum="10" Maximum="100" Value="50" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="ActiveZoneSlider_ValueChanged" />
+                                </Grid>
+
+                                <!-- Hold Delay Slider -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0" Margin="0,0,0,4">
+                                        <TextBlock Text="Dwell Hold Delay (ms):" Foreground="{StaticResource TextSecondary}" />
+                                        <TextBlock x:Name="HoldDelayText" Text="250ms" HorizontalAlignment="Right" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <Slider x:Name="HoldDelaySlider" Grid.Row="1" Minimum="50" Maximum="1000" Value="250" TickFrequency="25" IsSnapToTickEnabled="True" ValueChanged="HoldDelaySlider_ValueChanged" />
+                                </Grid>
+
+                                <!-- Cooldown Slider -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0" Margin="0,0,0,4">
+                                        <TextBlock Text="Switch Cooldown (ms):" Foreground="{StaticResource TextSecondary}" />
+                                        <TextBlock x:Name="CooldownText" Text="2500ms" HorizontalAlignment="Right" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <Slider x:Name="CooldownSlider" Grid.Row="1" Minimum="500" Maximum="5000" Value="2500" TickFrequency="100" IsSnapToTickEnabled="True" ValueChanged="CooldownSlider_ValueChanged" />
+                                </Grid>
+
+                                <!-- Border Knock -->
+                                <CheckBox x:Name="KnockEnabledCheck" Content="Require double-touch 'Border Knock' to switch" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
+                                <Grid Margin="20,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Knock Timeout (ms):" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBox x:Name="KnockTimeoutBox" Grid.Column="1" Text="1000" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Hardware & Logging Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Hardware &amp; Logging Options" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Connection Support:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="ConnectionSupportCombo" Grid.Column="1">
+                                        <ComboBoxItem Content="Both (Wireless Receivers &amp; Bluetooth)" Tag="both" />
+                                        <ComboBoxItem Content="Unifying / Bolt / Receivers Only" Tag="unifying" />
+                                        <ComboBoxItem Content="Bluetooth Connections Only" Tag="bluetooth" />
+                                    </ComboBox>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Logging Level:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="LogLevelCombo" Grid.Column="1">
+                                        <ComboBoxItem Content="Normal (Standard logs)" Tag="normal" />
+                                        <ComboBoxItem Content="Debug (Verbose diagnostics)" Tag="debug" />
+                                        <ComboBoxItem Content="None (Logging disabled)" Tag="none" />
+                                    </ComboBox>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Connected Devices Tab -->
+            <TabItem Header="  Connected Devices  ">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="RefreshDevicesBtn" Content="Refresh Devices" Width="130" Height="30" Margin="0,0,10,0" Click="RefreshDevicesBtn_Click" />
+                        <TextBlock x:Name="DevicesCountText" Text="Scanning devices..." VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Background="{StaticResource CardBackground}" CornerRadius="8" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" Padding="10">
+                        <ListBox x:Name="DevicesList" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextPrimary}" />
+                    </Border>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                        <TextBlock Text="Manual Test Switch:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0" />
+                        <Button Content="To Channel 1" Width="100" Height="28" Margin="0,0,8,0" Click="TestSwitch1_Click" />
+                        <Button Content="To Channel 2" Width="100" Height="28" Margin="0,0,8,0" Click="TestSwitch2_Click" />
+                        <Button Content="To Channel 3" Width="100" Height="28" Click="TestSwitch3_Click" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Bluetooth Inter-Host Link Tab -->
+            <TabItem Header="  Bluetooth Inter-Host Link  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Zero-Network Bluetooth Link" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                            <CheckBox x:Name="BtEnabledCheck" Content="Enable Bluetooth RFCOMM P2P Inter-Host Connection" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Partner Host MAC:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                <TextBox x:Name="PeerMacBox" Grid.Column="1" Text="" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="RFCOMM Port:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                <TextBox x:Name="RfcommPortBox" Grid.Column="1" Text="4" Width="80" HorizontalAlignment="Left" />
+                            </Grid>
+
+                            <CheckBox x:Name="SyncCursorCheck" Content="Synchronize cursor position at entry edge" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" IsChecked="True" />
+                            <CheckBox x:Name="SyncClipboardCheck" Content="Synchronize clipboard text across hosts" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                            <Border Background="#1E293B" CornerRadius="4" Padding="10" Margin="0,10,0,0">
+                                <TextBlock Text="When enabled, Lunifier communicates directly between hosts over Bluetooth without WiFi or local network access." Foreground="#94A3B8" TextWrapping="Wrap" FontSize="11" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Live Logs Tab -->
+            <TabItem Header="  Live Logs  ">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Clear Logs" Width="90" Height="26" Margin="0,0,8,0" Click="ClearLogs_Click" />
+                        <Button Content="Copy Logs" Width="90" Height="26" Click="CopyLogs_Click" />
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Background="{StaticResource CardBackground}" CornerRadius="8" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" Padding="10">
+                        <TextBox x:Name="LogsBox" Background="Transparent" Foreground="#90CAF9" BorderThickness="0" FontFamily="Consolas, monospace" FontSize="11" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+            <Grid>
+                <TextBlock Text="Lunifier 2.0 Native for Windows 11" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" FontSize="11" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Save Configuration" Width="140" Height="30" Click="SaveConfig_Click" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

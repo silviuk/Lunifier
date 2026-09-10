@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Lunifier
+Comment=Seamless Logitech Easy-Switch Flow across Systems
+Exec=lunifier --gui
+Icon=lunifier
+Terminal=false
+Type=Application
+Categories=Utility;HardwareSettings;
+Keywords=Logitech;Easy-Switch;Flow;Unifying;Bolt;Bluetooth;Mouse;Keyboard;
+StartupNotify=true

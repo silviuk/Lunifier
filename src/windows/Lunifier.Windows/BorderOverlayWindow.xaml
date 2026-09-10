@@ -1,0 +1,13 @@
+<Window x:Class="Lunifier.Windows.BorderOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BorderOverlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Focusable="False"
+        IsHitTestVisible="False">
+    <Canvas x:Name="OverlayCanvas" Background="Transparent" IsHitTestVisible="False" />
+</Window>

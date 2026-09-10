@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lunifier"
+version = "2.0.0"
+description = "Seamless Logitech Easy-Switch Flow for Linux (GTK4 + Libadwaita)"
+readme = "README.md"
+authors = [{ name = "Silviu Vlasceanu" }]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "PyGObject>=3.42.0",
+]
+
+[project.scripts]
+lunifier = "run_lunifier:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lunifier*"]

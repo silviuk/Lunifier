@@ -11,9 +11,20 @@ if (-not (Test-Path $sourceDir)) {
     $sourceDir = $scriptDir
 }
 
-$exePath = Join-Path $sourceDir "Lunifier.exe"
-if (-not (Test-Path $exePath)) {
-    Write-Host "[ERROR] Could not locate Lunifier.exe at $exePath" -ForegroundColor Red
+$exeCandidates = @(
+    Join-Path $scriptDir "dist\windows\Lunifier.Windows.exe",
+    Join-Path $sourceDir "Lunifier.Windows.exe",
+    Join-Path $sourceDir "Lunifier.exe"
+)
+$exePath = $null
+foreach ($cand in $exeCandidates) {
+    if (Test-Path $cand) {
+        $exePath = $cand
+        break
+    }
+}
+if (-not $exePath) {
+    Write-Host "[ERROR] Could not locate Lunifier binary in dist\windows or root." -ForegroundColor Red
     exit 1
 }
 

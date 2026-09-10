@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background rounded squircle gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+
+    <!-- Squircle Border gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="#64748b" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#fb923c" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Star 1 (Top-Left) Cyan/Azure Glow -->
+    <radialGradient id="star1Glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#00f0ff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="star1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+
+    <!-- Star 2 (Bottom-Right) Orange/Amber Glow -->
+    <radialGradient id="star2Glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff6d00" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#ff6d00" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="star2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+
+    <!-- Dotted Wall Dot Gradient -->
+    <radialGradient id="dotGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="45%" stop-color="#94a3b8" />
+      <stop offset="100%" stop-color="#475569" />
+    </radialGradient>
+
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Base Squircle Container -->
+  <rect x="28" y="28" width="456" height="456" rx="100" ry="100"
+        fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="5" filter="url(#softShadow)" />
+
+  <!-- Dotted Wall (Separating Diagonal) -->
+  <!-- Line from (76, 436) to (436, 76) with discrete circular dots -->
+  <g id="dotted-wall">
+    <circle cx="96"  cy="416" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="123" cy="389" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="150" cy="362" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="177" cy="335" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="204" cy="308" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="231" cy="281" r="7.5" fill="url(#dotGrad)" />
+    <circle cx="256" cy="256" r="8.5" fill="#e2e8f0" />
+    <circle cx="281" cy="231" r="7.5" fill="url(#dotGrad)" />
+    <circle cx="308" cy="204" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="335" cy="177" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="362" cy="150" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="389" cy="123" r="6.5" fill="url(#dotGrad)" />
+    <circle cx="416" cy="96"  r="6.5" fill="url(#dotGrad)" />
+  </g>
+
+  <!-- Top-Left Star (System 1) -->
+  <!-- Soft Glow Behind Star 1 -->
+  <circle cx="160" cy="160" r="100" fill="url(#star1Glow)" />
+  <!-- 4-pointed radiant Star 1 with curved flares -->
+  <path d="M 160 82
+           C 160 132, 132 160, 82 160
+           C 132 160, 160 188, 160 238
+           C 160 188, 188 160, 238 160
+           C 188 160, 160 132, 160 82 Z"
+        fill="url(#star1Grad)" />
+  <!-- Bright core center -->
+  <circle cx="160" cy="160" r="14" fill="#ffffff" />
+  <!-- Small secondary sparkle -->
+  <circle cx="215" cy="115" r="4.5" fill="#38bdf8" />
+  <circle cx="108" cy="210" r="3.5" fill="#38bdf8" />
+
+  <!-- Bottom-Right Star (System 2) -->
+  <!-- Soft Glow Behind Star 2 -->
+  <circle cx="352" cy="352" r="100" fill="url(#star2Glow)" />
+  <!-- 4-pointed radiant Star 2 with curved flares -->
+  <path d="M 352 274
+           C 352 324, 324 352, 274 352
+           C 324 352, 352 380, 352 430
+           C 352 380, 380 352, 430 352
+           C 380 352, 352 324, 352 274 Z"
+        fill="url(#star2Grad)" />
+  <!-- Bright core center -->
+  <circle cx="352" cy="352" r="14" fill="#ffffff" />
+  <!-- Small secondary sparkle -->
+  <circle cx="297" cy="397" r="4.5" fill="#fb923c" />
+  <circle cx="404" cy="302" r="3.5" fill="#fb923c" />
+</svg>

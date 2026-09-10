@@ -1,6 +1,10 @@
-# Lunifier
+# Lunifier 2.0 Native
 
-Seamless cross-platform (Windows & Linux) software that transfers your **Logitech Easy-Switch keyboards and mice** (MX Keys, MX Master series, M720 Triathlon, POP, etc.) between computers when the mouse cursor hits the edge of your screen—just like **Logitech Flow**, but operating **autonomously over direct Bluetooth, Unifying, and Logi Bolt receivers** without requiring any local network!
+Seamless cross-platform software that transfers your **Logitech Easy-Switch keyboards and mice** (MX Keys, MX Master series, M720 Triathlon, POP, etc.) between computers when the mouse cursor hits the edge of your screen—just like **Logitech Flow**, but operating **autonomously over direct Bluetooth, Unifying, and Logi Bolt receivers** without requiring any local network!
+
+Lunifier 2.0 is written from scratch in native code using modern APIs:
+- **Windows 11**: Modern C# (.NET 9) with Windows 11 Fluent UI + direct Win32 APIs (`SetupAPI`, `hid.dll`, `user32.dll`, Winsock Bluetooth RFCOMM).
+- **Ubuntu 24.04+**: Modern native GNOME application using **GTK4 + Libadwaita** (`Adw.Application`, `Adw.PreferencesWindow`, `Adw.ActionRow`, `Adw.SwitchRow`) with direct Linux `/dev/hidraw`, `libudev`, BlueZ RFCOMM sockets, and X11/Wayland coordinate monitoring.
 
 ---
 
@@ -9,12 +13,14 @@ Seamless cross-platform (Windows & Linux) software that transfers your **Logitec
 Official Logitech Flow has significant limitations:
 1. **No Linux Support**: Logitech Options+ is not available on Linux.
 2. **Network Dependency**: Official Flow mandates that all computers share the same Wi-Fi/LAN subnet with open ports, which fails on VPNs, guest networks, corporate firewalls, or isolated PCs.
-3. **Multi-Channel Border Routing**: Lunifier lets you route each screen edge (**Left**, **Right**, **Top**, **Bottom**) to distinct Easy-Switch channels (**Channel 1**, **Channel 2**, **Channel 3**), effortlessly coordinating 2-PC or 3-PC setups.
+3. **Multi-Channel Border Routing**: Lunifier lets you route each screen edge (**Left**, **Right**, **Top**, **Bottom**) per monitor to distinct Easy-Switch channels (**Channel 1**, **Channel 2**, **Channel 3**), effortlessly coordinating 2-PC or 3-PC setups.
 
-**Lunifier** solves all of these:
-- **Autonomous Multi-Protocol Support**: Automatically detects and switches your Logitech devices whether connected via **Direct Bluetooth**, **Unifying Receivers**, **Logi Bolt Receivers**, or mixed transports (e.g. keyboard on Unifying receiver and mouse on Bluetooth).
-- **Logitech HID++ 2.0 Feature `0x1814` (`CHANGE_HOST`)**: Issues hardware channel switch commands directly to all connected Easy-Switch peripherals simultaneously.
-- **Multi-Border Screen Routing**: Configure what happens at each border independently: e.g. Left Border switches to Channel 1, Right Border switches to Channel 3.
+**Lunifier 2.0** solves all of these:
+- **Autonomous Multi-Protocol Support**: Automatically detects and switches your Logitech devices whether connected via **Direct Bluetooth**, **Unifying Receivers**, **Logi Bolt Receivers**, or mixed transports.
+- **Logitech HID++ 2.0 Feature `0x1814` (`CHANGE_HOST`)**: Issues hardware channel switch commands directly to all connected Easy-Switch peripherals simultaneously (<20ms execution).
+- **Per-Monitor Border Routing**: Configure borders independently per physical monitor, correctly handling mixed resolutions and monitor alignments.
+- **Configurable Active Border Zone**: Select the active middle percentage of each border (10% to 100%) with live visual feedback overlay.
+- **Border Knock Activation**: Optional double-touch gesture to switch channels, preventing accidental triggers when working near boundaries.
 - **Dual Operating Modes**: Operates completely autonomously on each host with **zero inter-PC connection**, or links peers over **Bluetooth RFCOMM** for cursor entry coordinate alignment and clipboard sync without any LAN/Wi-Fi connection.
 
 ---
@@ -43,51 +49,26 @@ When cursor dwells against the border:
 
 ## Installation & Quick Start
 
-### 1. Windows Installation
-
-#### Option A: Windows Installer (`.exe` / Winget ready)
-Download and run **`Lunifier-Setup-1.0.0.exe`** from [Releases](https://github.com/silviuk/Lunifier/releases).
-- Includes clean installation to `Program Files\Lunifier`, Start Menu shortcuts, Desktop icons, uninstaller, and optional Windows startup integration.
-- Fully compatible with silent installs:
-  ```powershell
-  Lunifier-Setup-1.0.0.exe /VERYSILENT /NORESTART
-  ```
-
-#### Option B: Windows Package Manager (Winget)
-Once submitted to the official winget-pkgs repository, or using the local manifest:
-```powershell
-winget install silviuk.Lunifier
-```
-
-#### Option C: Portable / Development Setup
+### 1. Windows 11 Native Setup
 1. Clone or extract the repository.
-2. Run `setup_windows.bat` (installs dependencies and tests device detection).
-3. Run `run_gui.bat` to configure settings, or `run_daemon.bat` to start the background service.
+2. Run `setup_windows.bat` (builds the native .NET 9 solution and publishes single-file `Lunifier.Windows.exe` to `dist\windows\`).
+3. Run `run_gui.bat` to open the Windows 11 Fluent settings UI, or `install_windows.ps1` to install shortcuts and startup integration.
 
----
-
-### 2. Linux Installation
-
-#### Option A: Debian / Ubuntu Package (`.deb`)
-Download the `.deb` package from [Releases](https://github.com/silviuk/Lunifier/releases):
-```bash
-sudo apt install ./lunifier_1.0.0_all.deb
-```
-This automatically configures udev rules, installs desktop launcher shortcuts, and sets up a systemd user service.
-
-#### Option B: Setup Script (Any Linux distribution)
-1. Open a terminal in the cloned repository:
+### 2. Ubuntu 24.04+ Native Setup (GTK4 + Libadwaita)
+1. Open a terminal in the repository:
    ```bash
    chmod +x setup_linux.sh
    ./setup_linux.sh
    ```
-2. Launch the settings GUI:
+2. Launch the native Libadwaita GUI:
    ```bash
-   python3 -m lunifier.app --gui
-   # or simply
-   lunifier --gui
+   python3 src/linux/lunifier-adwaita/run_lunifier.py --gui
    ```
-3. Enable autostart on login:
+3. Or run the daemon headless:
+   ```bash
+   python3 src/linux/lunifier-adwaita/run_lunifier.py --daemon
+   ```
+4. Enable autostart on login:
    ```bash
    systemctl --user enable --now lunifier.service
    ```
@@ -96,72 +77,44 @@ This automatically configures udev rules, installs desktop launcher shortcuts, a
 
 ## Configuration (`config.json`)
 
-Settings can be modified via the GUI (`lunifier --gui`) or by editing `config.json`:
+Settings can be modified via the UI or by editing `config.json`:
 - **Windows location**: `%APPDATA%\Lunifier\config.json`
 - **Linux location**: `~/.config/lunifier/config.json`
 
-*(Note: Lunifier automatically migrates existing legacy settings if found).*
+Schema specification: `src/common/config.schema.json`.
 
 ```json
 {
-    "host_name": "Host",
-    "my_channel": 2,
-    "target_channel": 3,
-    "trigger_edge": "right",
-    "entry_edge": "left",
-    "hold_delay_ms": 250,
-    "cooldown_ms": 2500,
-    "edge_channels": {
-        "left": 1,
-        "right": 3,
+  "host_name": "Host",
+  "my_channel": 1,
+  "target_channel": 2,
+  "hold_delay_ms": 250,
+  "cooldown_ms": 2500,
+  "border_active_zone_pct": 50,
+  "knock_enabled": false,
+  "knock_timeout_ms": 1000,
+  "monitor_configs": {
+    "0": {
+      "enabled": true,
+      "edges": {
+        "left": null,
+        "right": 2,
         "top": null,
         "bottom": null
-    },
-    "devices": [
-        "MX Keys",
-        "Keys",
-        "M370",
-        "POP",
-        "Triathlon",
-        "M720",
-        "MX Master",
-        "MX Anywhere",
-        "Mouse"
-    ],
-    "bt_p2p_enabled": false,
-    "bt_peer_address": "",
-    "sync_clipboard": false
+      }
+    }
+  },
+  "switch_backend": "auto",
+  "connection_support": "both",
+  "log_level": "normal",
+  "bt_p2p_enabled": false,
+  "sync_cursor_position": true,
+  "sync_clipboard": false
 }
 ```
 
-### Key Parameters:
-- `my_channel`: Easy-Switch channel (1, 2, or 3) on the current computer.
-- `edge_channels`: Maps each screen edge (`left`, `right`, `top`, `bottom`) to a target Easy-Switch channel (or `null` to disable).
-- `hold_delay_ms`: Dwell time (in milliseconds) before triggering to prevent accidental switches when targeting scrollbars or window edges (default: `250`).
-- `cooldown_ms`: Delay after a switch before a new trigger is accepted to avoid immediate bounce-back.
-- `bt_peer_address`: Bluetooth MAC address of partner host (optional, leave empty for Autonomous mode).
-
 ---
 
-## CLI Usage
-
-```text
-usage: lunifier [-h] [--scan] [--switch {1,2,3}] [--daemon] [--gui] [--setup] [--config CONFIG]
-
-Lunifier - Seamless cross-platform Logitech Easy-Switch Flow
-
-options:
-  -h, --help            show this help message and exit
-  --scan                Scan and list connected Logitech devices across Bluetooth & Unifying
-  --switch {1,2,3}      Immediately switch devices to Channel 1, 2, or 3
-  --daemon              Run in background daemon mode
-  --gui                 Launch the GUI settings and status window
-  --setup, --configure  Interactive terminal configuration wizard
-  --config CONFIG       Path to custom config.json file
-```
-
----
-
-## License
-
-MIT License. Copyright (c) 2026 Silviu Vlasceanu.
+## Author & License
+- **Author**: Silviu Vlasceanu ([@silviuk](https://github.com/silviuk))
+- **License**: MIT

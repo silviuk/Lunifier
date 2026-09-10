@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LunifierConfig",
+  "type": "object",
+  "properties": {
+    "host_name": { "type": "string", "default": "Host" },
+    "my_channel": { "type": "integer", "enum": [1, 2, 3], "default": 1 },
+    "target_channel": { "type": "integer", "enum": [1, 2, 3], "default": 2 },
+    "trigger_edge": { "type": "string", "enum": ["left", "right", "top", "bottom"], "default": "right" },
+    "entry_edge": { "type": "string", "enum": ["left", "right", "top", "bottom"], "default": "left" },
+    "hold_delay_ms": { "type": "integer", "minimum": 0, "default": 250 },
+    "cooldown_ms": { "type": "integer", "minimum": 0, "default": 2500 },
+    "border_active_zone_pct": { "type": "integer", "minimum": 10, "maximum": 100, "default": 50 },
+    "knock_enabled": { "type": "boolean", "default": false },
+    "knock_timeout_ms": { "type": "integer", "minimum": 100, "default": 1000 },
+    "edge_channels": {
+      "type": "object",
+      "properties": {
+        "left": { "type": ["integer", "null"] },
+        "right": { "type": ["integer", "null"] },
+        "top": { "type": ["integer", "null"] },
+        "bottom": { "type": ["integer", "null"] }
+      }
+    },
+    "monitor_configs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true },
+          "edges": {
+            "type": "object",
+            "properties": {
+              "left": { "type": ["integer", "null"] },
+              "right": { "type": ["integer", "null"] },
+              "top": { "type": ["integer", "null"] },
+              "bottom": { "type": ["integer", "null"] }
+            }
+          }
+        },
+        "required": ["enabled", "edges"]
+      }
+    },
+    "devices": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["MX Keys", "Keys", "M370", "POP", "Triathlon", "M720", "MX Master", "MX Anywhere", "Mouse"]
+    },
+    "device_feature_indices": { "type": "object", "additionalProperties": { "type": "integer" } },
+    "use_solaar_on_linux": { "type": "boolean", "default": true },
+    "switch_backend": { "type": "string", "enum": ["auto", "solaar", "direct"], "default": "auto" },
+    "connection_support": { "type": "string", "enum": ["both", "unifying", "bluetooth"], "default": "both" },
+    "bt_p2p_enabled": { "type": "boolean", "default": false },
+    "bt_peer_address": { "type": "string", "default": "" },
+    "bt_rfcomm_port": { "type": "integer", "minimum": 1, "maximum": 30, "default": 4 },
+    "sync_cursor_position": { "type": "boolean", "default": true },
+    "sync_clipboard": { "type": "boolean", "default": false },
+    "log_level": { "type": "string", "enum": ["none", "normal", "debug"], "default": "normal" }
+  }
+}

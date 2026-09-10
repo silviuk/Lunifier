@@ -10,4 +10,7 @@ dist/
 !Lunifier.spec
 *.egg-info/
 *.zip
-
+bin/
+obj/
+*.user
+*.suo
