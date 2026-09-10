@@ -8,7 +8,7 @@ LINUX_SRC_DIR="$ROOT_DIR/src/linux/lunifier-adwaita"
 
 mkdir -p "$DIST_DIR"
 
-VERSION="${1:-2.0.0}"
+VERSION="${1:-2.0.1}"
 DEB_BUILD_DIR="/tmp/lunifier-deb"
 rm -rf "$DEB_BUILD_DIR"
 mkdir -p "$DEB_BUILD_DIR"

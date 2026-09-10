@@ -9,6 +9,7 @@ import sys
 import time
 import threading
 import ctypes
+import subprocess
 from typing import Callable, Optional, Tuple, List, Dict, Any
 
 from .logger import log, log_debug
@@ -346,7 +347,10 @@ class ScreenEdgeDetector:
                                         self._current_monitor_id = None
                                         self._cursor_history.clear()
                                         if self.on_trigger_callback:
-                                            self.on_trigger_callback(edge, x, y, ratio, mid, ch)
+                                            try:
+                                                self.on_trigger_callback(edge, x, y, ratio, mid, ch)
+                                            except Exception as cb_err:
+                                                log("EdgeDetector", f"Error in trigger callback: {cb_err}")
                                     else:
                                         log("EdgeDetector", f"Border knock (1/2) on Monitor {mid} '{edge}' at ({x}, {y})")
                                         self._last_knock_edge = key
@@ -362,7 +366,10 @@ class ScreenEdgeDetector:
                                     self._current_monitor_id = None
                                     self._cursor_history.clear()
                                     if self.on_trigger_callback:
-                                        self.on_trigger_callback(edge, x, y, ratio, mid, ch)
+                                        try:
+                                            self.on_trigger_callback(edge, x, y, ratio, mid, ch)
+                                        except Exception as cb_err:
+                                            log("EdgeDetector", f"Error in trigger callback: {cb_err}")
                             else:
                                 self._hold_start_time = now
                 else:

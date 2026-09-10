@@ -1,9 +1,10 @@
-# Lunifier 2.0 Windows Installer & Package Builder
+param (
+    [string]$version = "2.0.1"
+)
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootDir = (Get-Item $scriptDir).Parent.FullName
-$version = "2.0.0"
 $distDir = Join-Path $rootDir "dist"
 $distWindowsDir = Join-Path $distDir "windows"
 

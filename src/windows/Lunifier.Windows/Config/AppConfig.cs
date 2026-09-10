@@ -136,13 +136,13 @@ namespace Lunifier.Windows.Config
                 return new MonitorEdgeConfig
                 {
                     Enabled = true,
-                    Edges = new Dictionary<string, int?>(EdgeChannels ?? new()
+                    Edges = EdgeChannels != null ? new Dictionary<string, int?>(EdgeChannels) : new Dictionary<string, int?>
                     {
                         { "left", null },
                         { "right", 2 },
                         { "top", null },
                         { "bottom", null }
-                    })
+                    }
                 };
             }
 

@@ -514,7 +514,7 @@ namespace Lunifier.Windows.Core
                             // For Bluetooth devices send an immediate follow-up to guarantee transmission
                             if (dev.Transport == TransportType.Bluetooth)
                             {
-                                Task.Delay(15).Wait();
+                                Thread.Sleep(15);
                                 WriteFile(handle, packet, 20, out _, IntPtr.Zero);
                             }
                             break;

@@ -125,8 +125,15 @@ class BluetoothLink:
                         conn, peer_info = self._server_sock.accept()
                         log("BluetoothLink", f"Incoming connection from {peer_info}")
                         self._set_active_conn(conn)
-                        self._handle_connection(conn)
-                    except Exception:
+                        try:
+                            self._handle_connection(conn)
+                        except Exception as h_err:
+                            log("BluetoothLink", f"Connection handling error: {h_err}")
+                        finally:
+                            self._close_conn()
+                    except Exception as a_err:
+                        if self._running:
+                            log("BluetoothLink", f"Accept error: {a_err}")
                         break
             except Exception as e:
                 if self._running:

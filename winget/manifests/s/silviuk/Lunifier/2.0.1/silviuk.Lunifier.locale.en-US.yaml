@@ -1,0 +1,38 @@
+﻿# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 2.0.1
+PackageLocale: en-US
+Publisher: silviuk
+PublisherUrl: https://github.com/silviuk/Lunifier
+PublisherSupportUrl: https://github.com/silviuk/Lunifier/issues
+Author: Silviu Vlasceanu
+PackageName: Lunifier
+PackageUrl: https://github.com/silviuk/Lunifier
+License: MIT
+LicenseUrl: https://github.com/silviuk/Lunifier/blob/master/LICENSE
+Copyright: Copyright (c) 2026 Silviu Vlasceanu
+ShortDescription: Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows and Linux.
+Description: |
+  Lunifier 2.0 Native is rewritten from scratch in native C# (.NET 9) with Windows 11 Fluent UI on Windows
+  and native GTK4 + Libadwaita on Ubuntu 24.04+. Coordinates Logitech Easy-Switch keyboards and mice
+  (MX Keys, MX Master series, M720 Triathlon, POP Mouse, etc.) across screens without requiring a local Wi-Fi/LAN connection.
+Moniker: lunifier
+Tags:
+  - logitech
+  - easy-switch
+  - mx-keys
+  - mx-master
+  - flow
+  - multi-monitor
+  - bluetooth
+  - unifying
+  - bolt
+ReleaseNotes: |
+  - Fixed synchronous Task delay in Windows Bluetooth switching engine for smoother transitions.
+  - Enhanced edge detection loop stability with try-catch callback guards across Windows and Linux.
+  - Resolved Linux edge detector fallback subprocess import error.
+  - Fixed GTK4 / Libadwaita PreferencesGroup dynamic row cleanup in devices view.
+  - Improved Bluetooth RFCOMM server resilience against individual socket connection aborts.
+ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v2.0.1
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

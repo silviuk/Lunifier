@@ -160,14 +160,14 @@ namespace Lunifier.Windows.Core
                     // EndPoint on Windows Bluetooth RFCOMM:
                     // Socket.Bind to BluetoothEndPoint or standard serialized endpoint
                     // If RFCOMM raw socket bind fails on non-paired desktop Bluetooth, log and retry gracefully
-                    Thread.Sleep(3000);
+                    Thread.Sleep(5000);
                 }
                 catch (SocketException ex)
                 {
                     if (_running)
                     {
                         AppLogger.LogDebug("BluetoothPeer", $"Server bind/listen info: {ex.Message}");
-                        Thread.Sleep(5000);
+                        Thread.Sleep(10000);
                     }
                 }
                 catch (Exception ex)
@@ -175,7 +175,7 @@ namespace Lunifier.Windows.Core
                     if (_running)
                     {
                         AppLogger.LogDebug("BluetoothPeer", $"Server loop exception: {ex.Message}");
-                        Thread.Sleep(5000);
+                        Thread.Sleep(10000);
                     }
                 }
             }

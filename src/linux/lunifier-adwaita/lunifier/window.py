@@ -418,26 +418,22 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         threading.Thread(target=worker, daemon=True).start()
 
     def _render_devices_list(self, devices):
-        # Clear previous rows from group
-        # In Libadwaita PreferencesGroup, we can recreate or remove children
-        # Iterate over existing rows and remove them
-        child = self.grp_devices_list.get_first_child()
-        while child:
-            next_child = child.get_next_sibling()
-            # Don't remove header if it's internal; remove action rows
-            if isinstance(child, Gtk.ListBox):
-                # The ListBox inside PreferencesGroup holds rows
-                row = child.get_first_child()
-                while row:
-                    nxt = row.get_next_sibling()
-                    child.remove(row)
-                    row = nxt
-            child = next_child
+        # Safely remove previously tracked rows from the PreferencesGroup
+        if not hasattr(self, "_device_rows"):
+            self._device_rows = []
+
+        for r in self._device_rows:
+            try:
+                self.grp_devices_list.remove(r)
+            except Exception:
+                pass
+        self._device_rows.clear()
 
         if not devices:
             empty_row = Adw.ActionRow(title="No compatible Logitech devices currently detected")
             empty_row.set_subtitle("Ensure devices are paired and powered on")
             self.grp_devices_list.add(empty_row)
+            self._device_rows.append(empty_row)
             return
 
         for dev in devices:
@@ -445,6 +441,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
             trans = dev.transport.value if hasattr(dev.transport, 'value') else str(dev.transport)
             row.set_subtitle(f"Transport: {trans} | Slot: 0x{dev.device_index:02X} | Feature 0x1814: 0x{dev.change_host_feature_index:02X}")
             self.grp_devices_list.add(row)
+            self._device_rows.append(row)
 
     def _test_switch(self, channel: int):
         log("GUI", f"Initiating manual test switch to Channel {channel}...")

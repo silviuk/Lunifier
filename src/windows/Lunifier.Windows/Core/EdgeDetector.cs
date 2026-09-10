@@ -327,7 +327,14 @@ namespace Lunifier.Windows.Core
                                             _currentEdge = null;
                                             _currentMonitorId = null;
                                             lock (_cursorHistory) _cursorHistory.Clear();
-                                            OnTriggerCallback?.Invoke(edge, x, y, ratio, mid, ch);
+                                            try
+                                            {
+                                                OnTriggerCallback?.Invoke(edge, x, y, ratio, mid, ch);
+                                            }
+                                            catch (Exception cbEx)
+                                            {
+                                                AppLogger.Log("EdgeDetector", $"Error executing trigger callback: {cbEx.Message}");
+                                            }
                                         }
                                         else
                                         {
@@ -347,7 +354,14 @@ namespace Lunifier.Windows.Core
                                         _currentEdge = null;
                                         _currentMonitorId = null;
                                         lock (_cursorHistory) _cursorHistory.Clear();
-                                        OnTriggerCallback?.Invoke(edge, x, y, ratio, mid, ch);
+                                        try
+                                        {
+                                            OnTriggerCallback?.Invoke(edge, x, y, ratio, mid, ch);
+                                        }
+                                        catch (Exception cbEx)
+                                        {
+                                            AppLogger.Log("EdgeDetector", $"Error executing trigger callback: {cbEx.Message}");
+                                        }
                                     }
                                 }
                                 else

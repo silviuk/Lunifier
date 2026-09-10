@@ -1,0 +1,18 @@
+﻿# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 2.0.1
+Platform:
+  - Windows.Desktop
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+Installers:
+  - Architecture: x64
+    InstallerType: inno
+    InstallerUrl: https://github.com/silviuk/Lunifier/releases/download/v2.0.1/Lunifier-Setup-2.0.1.exe
+    InstallerSha256: 00357F12C4AFCC8D144754632C9771586DF2621C8BFB68A17B2F94D3CB589CDC
+    Scope: machine
+    UpgradeBehavior: install
+ManifestType: installer
+ManifestVersion: 1.6.0
