@@ -1515,7 +1515,7 @@ class LunifierGUI:
         ctk.CTkLabel(meta_card, text="Program Information", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
 
         rows = [
-            ("Version:", "1.0.5 (Production Stable)"),
+            ("Version:", "1.0.6 (Production Stable)"),
             ("Author & Maintainer:", "Silviu Vlasceanu"),
             ("License:", "MIT License (Open Source)"),
             ("Copyright:", "© 2026 Silviu Vlasceanu. All rights reserved.")
