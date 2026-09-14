@@ -18,6 +18,7 @@ except ImportError:
 
 import customtkinter as ctk
 from .logger import log
+from .icons import set_window_icon, get_icon_pil, get_icon_ctk
 
 IS_LINUX = sys.platform.startswith("linux")
 BTN_RADIUS = 0 if IS_LINUX else 6
@@ -40,6 +41,7 @@ class QuickSwitchWindow(ctk.CTkToplevel):
         self.geometry("380x330")
         self.resizable(False, False)
         self.attributes("-topmost", True)
+        set_window_icon(self)
 
         # Position near bottom right (above taskbar) if possible, otherwise centered
         self._position_window()
@@ -80,12 +82,17 @@ class QuickSwitchWindow(ctk.CTkToplevel):
         container = ctk.CTkFrame(self, corner_radius=CARD_RADIUS)
         container.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Header
+        # Header with unified Lunifier icon
         hdr = ctk.CTkFrame(container, fg_color="transparent")
         hdr.pack(fill="x", padx=10, pady=(6, 4))
+        
+        icon_img = get_icon_ctk(size=(22, 22))
+        if icon_img:
+            ctk.CTkLabel(hdr, image=icon_img, text="").pack(side="left", padx=(0, 8))
+            
         ctk.CTkLabel(
             hdr,
-            text="⚡ Quick Switch Channel",
+            text="Quick Switch Channel",
             font=ctk.CTkFont(family="Segoe UI" if sys.platform == "win32" else None, size=15, weight="bold")
         ).pack(side="left")
 
@@ -243,13 +250,9 @@ class LunifierTray:
         self._thread: Optional[threading.Thread] = None
 
     def _create_icon_image(self) -> Image.Image:
-        base_dir = os.path.dirname(__file__)
-        png_path = os.path.join(base_dir, "resources", "icon.png")
-        if os.path.exists(png_path):
-            try:
-                return Image.open(png_path)
-            except Exception:
-                pass
+        pil_img = get_icon_pil()
+        if pil_img:
+            return pil_img
 
         # Fallback generated icon: orange circle with white "L"
         img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))

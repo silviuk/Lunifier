@@ -30,6 +30,7 @@ from .monitors import get_monitors, MonitorInfo
 from .tray import LunifierTray
 from .bt_link import BluetoothLink, discover_potential_partners
 from .autostart import is_autostart_enabled, set_autostart_enabled
+from .icons import set_window_icon, get_icon_ctk
 
 IS_LINUX = sys.platform.startswith("linux")
 # On Linux X11, canvas corner masks can cause jagged notch artifacts; use crisp flat geometry
@@ -97,24 +98,8 @@ class LunifierGUI:
         self.tray.start()
 
     def _set_app_icon(self) -> None:
-        """Sets the application icon for window title bar, Alt+Tab, and taskbar."""
-        import os
-        base_dir = os.path.dirname(__file__)
-        ico_path = os.path.join(base_dir, "resources", "icon.ico")
-        png_path = os.path.join(base_dir, "resources", "icon.png")
-
-        if sys.platform == "win32" and os.path.exists(ico_path):
-            try:
-                self.root.iconbitmap(ico_path)
-            except Exception:
-                pass
-        elif os.path.exists(png_path):
-            try:
-                import tkinter as tk
-                img = tk.PhotoImage(file=png_path)
-                self.root.iconphoto(True, img)
-            except Exception:
-                pass
+        """Sets the unified application icon for window title bar, Alt+Tab, and taskbar."""
+        set_window_icon(self.root)
 
     def _build_ui(self) -> None:
         # Main container with padding
@@ -128,12 +113,19 @@ class LunifierGUI:
         title_box = ctk.CTkFrame(header, fg_color="transparent")
         title_box.pack(side="left", padx=15, pady=5)
 
+        title_inner = ctk.CTkFrame(title_box, fg_color="transparent")
+        title_inner.pack(anchor="w")
+
+        icon_img = get_icon_ctk(size=(32, 32))
+        if icon_img:
+            ctk.CTkLabel(title_inner, image=icon_img, text="").pack(side="left", padx=(0, 10))
+
         title_lbl = ctk.CTkLabel(
-            title_box,
+            title_inner,
             text="Lunifier",
             font=get_ui_font(22, "bold")
         )
-        title_lbl.pack(anchor="w")
+        title_lbl.pack(side="left")
 
         subtitle_lbl = ctk.CTkLabel(
             title_box,
@@ -1484,20 +1476,37 @@ class LunifierGUI:
         app_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
         app_card.pack(fill="x", padx=5, pady=8, ipady=8)
 
+        id_header = ctk.CTkFrame(app_card, fg_color="transparent")
+        id_header.pack(fill="x", padx=15, pady=(10, 4))
+
+        about_icon = get_icon_ctk(size=(48, 48))
+        if about_icon:
+            ctk.CTkLabel(id_header, image=about_icon, text="").pack(side="left", padx=(0, 12))
+
+        id_text = ctk.CTkFrame(id_header, fg_color="transparent")
+        id_text.pack(side="left", fill="both", expand=True)
+
         ctk.CTkLabel(
-            app_card,
+            id_text,
             text="Lunifier",
             font=get_ui_font(22, "bold")
-        ).pack(anchor="w", padx=15, pady=(10, 2))
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            id_text,
+            text="Logitech Easy-Switch Screen Flow",
+            font=get_ui_font(12),
+            text_color=("#1565c0", "#90caf9")
+        ).pack(anchor="w")
 
         ctk.CTkLabel(
             app_card,
             text="Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux.",
             font=get_ui_font(12),
-            text_color="#90caf9",
+            text_color=("#546e7a", "#b0bec5"),
             wraplength=580,
             justify="left"
-        ).pack(anchor="w", padx=15, pady=(0, 10))
+        ).pack(anchor="w", padx=15, pady=(6, 10))
 
         # Metadata Card
         meta_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
