@@ -18,6 +18,12 @@ on:
         required: true
         default: true
         type: boolean
+      app_id:
+        description: 'Microsoft Store Product ID (leave blank to auto-detect)'
+        required: false
+        default: ''
+        type: string
+
 
 permissions:
   contents: read
@@ -155,7 +161,7 @@ jobs:
           SELLER_ID: ${{ secrets.MS_STORE_SELLER_ID }}
           CLIENT_ID: ${{ secrets.MS_STORE_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.MS_STORE_CLIENT_SECRET }}
-          APP_ID: ${{ secrets.MS_STORE_APP_ID }}
+          APP_ID: ${{ inputs.app_id != '' && inputs.app_id || secrets.MS_STORE_APP_ID }}
           MSIX_PATH: ${{ steps.release_info.outputs.msix_path }}
           EXE_PATH: ${{ steps.release_info.outputs.exe_path }}
         run: |
@@ -203,28 +209,43 @@ jobs:
             "Accept"        = "application/json"
           }
 
+          Write-Host "Querying all applications in Partner Center..."
+          $appsResp = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications" -Headers $headers
+
+          Write-Host "Found $($appsResp.value.Count) applications in Partner Center:"
+          foreach ($app in $appsResp.value) {
+            Write-Host " - Name: '$($app.primaryName)' | ID: $($app.id) | PackageFamily: $($app.packageFamilyName)"
+          }
+
           $targetAppId = $env:APP_ID
           if (-not $targetAppId) {
-            Write-Host "MS_STORE_APP_ID secret not explicitly set. Searching Partner Center applications..."
-            $appsResp = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications" -Headers $headers
-            foreach ($app in $appsResp.value) {
-              if ($app.primaryName -like "*Lunifier*") {
-                $targetAppId = $app.id
-                Write-Host "Auto-discovered Lunifier Product ID: $targetAppId"
-                break
-              }
+            # Prefer app with Lunifier in name
+            $match = $appsResp.value | Where-Object { $_.primaryName -like "*Lunifier*" } | Select-Object -First 1
+            if (-not $match) {
+              # Check for app named 'App' or containing 'App' (excluding Luminark)
+              $match = $appsResp.value | Where-Object { ($_.primaryName -eq "App" -or $_.primaryName -like "*App*") -and $_.primaryName -ne "Luminark" } | Select-Object -First 1
+            }
+            if (-not $match) {
+              # Pick any non-Luminark application
+              $match = $appsResp.value | Where-Object { $_.primaryName -ne "Luminark" } | Select-Object -First 1
+            }
+            if ($match) {
+              $targetAppId = $match.id
+              Write-Host "Selected Target Application: '$($match.primaryName)' (ID: $targetAppId)"
             }
           }
 
           if (-not $targetAppId) {
-            Write-Warning "::warning::Lunifier application has not been reserved in Microsoft Partner Center yet. Please reserve 'Lunifier' in Partner Center (partner.microsoft.com) and set MS_STORE_APP_ID repository secret."
-            "store_status=Skipped (App name not yet reserved in Partner Center)" >> $env:GITHUB_OUTPUT
-            exit 0
+            Write-Error "No suitable application found in Partner Center. Registered apps: $($appsResp.value.primaryName -join ', ')"
+            "store_status=Skipped (No matching app in Partner Center)" >> $env:GITHUB_OUTPUT
+            exit 1
           }
 
           Write-Host "Retrieving Application details for Product ID: $targetAppId..."
           $appUri = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$targetAppId"
           $appObj = Invoke-RestMethod -Method Get -Uri $appUri -Headers $headers
+          Write-Host "App Primary Name: $($appObj.primaryName)"
+          Write-Host "Package Family Name: $($appObj.packageFamilyName)"
 
           # Check if there is an existing pending submission
           $createSubUri = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$targetAppId/submissions"
@@ -273,7 +294,26 @@ jobs:
             exit 1
           }
 
-          # Update release notes for Store compliance
+          # -------------------------------------------------------------------
+          # Inspect and Update Store Listing Information
+          # -------------------------------------------------------------------
+          Write-Host "Inspecting current submission metadata..."
+          Write-Host "Category: $($subObj.applicationCategory)"
+          Write-Host "Pricing: isFree=$($subObj.pricing.isFree), priceId=$($subObj.pricing.priceId)"
+
+          if (-not $subObj.applicationCategory) {
+            Write-Host "Setting missing applicationCategory to UtilitiesTools..."
+            $subObj.applicationCategory = "UtilitiesTools"
+          }
+
+          if (-not $subObj.pricing) {
+            Write-Host "Setting missing pricing to Free..."
+            $subObj.pricing = @{
+              isFree = $true
+              priceId = "Free"
+            }
+          }
+
           $releaseNotes = @(
             "What's New in Lunifier v${{ steps.release_info.outputs.version }}:",
             "- Unified Lunifier icon across all Windows and Linux UI dialogs, tray, and menus.",
@@ -285,15 +325,95 @@ jobs:
             "- Polished mini dwell overlay window with Esc and click-outside dismissal."
           ) -join "`n"
 
-          if ($subObj.listings) {
-            foreach ($lang in $subObj.listings.PSObject.Properties) {
-              if ($lang.Value.baseListing) {
-                $lang.Value.baseListing.releaseNotes = $releaseNotes
-                if ($lang.Value.baseListing.shortDescription -and $lang.Value.baseListing.shortDescription.Length -gt 500) {
-                  $lang.Value.baseListing.shortDescription = "Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux."
-                }
+          $fullDescription = @"
+Lunifier coordinates Logitech Easy-Switch keyboards (MX Keys, Craft, ERGO K860, etc.) and mice (MX Master series, MX Anywhere, M720 Triathlon, POP Mouse, etc.) across screens without requiring a shared local Wi-Fi network, cloud accounts, or proprietary software running on both machines.
+
+Key Features:
+• Instant Hardware Switching: Uses direct Bluetooth/Logitech HID++ protocol commands to switch keyboard and mouse channels simultaneously.
+• Dynamic Screen Border Detection: Move your mouse cursor into configurable dwell zones or double-tap the screen edge to trigger smooth switching between your computers.
+• System Tray Controls & Quick Switch Flyout: Switch channels with a single click, or double-click the tray icon to switch immediately to your preferred channel.
+• Global Keyboard Hotkeys: Switch instantly using customizable hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3).
+• Automatic Windows Theme Sync: Integrates seamlessly with Windows Light and Dark display mode.
+• Lightweight & Private: Zero telemetry, zero cloud dependencies, pure local control.
+"@
+
+          $shortDesc = "Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux."
+
+          $features = @(
+            "Instant Logitech Easy-Switch multi-device channel switching",
+            "Multi-monitor border dwell and double-tap screen knock triggers",
+            "Global keyboard hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3)",
+            "System tray controls with customizable double-click quick actions",
+            "Native Windows Light and Dark mode dynamic theme integration",
+            "Zero network or cloud dependencies - 100% private and local"
+          )
+
+          $keywords = @(
+            "Logitech",
+            "Easy-Switch",
+            "Flow",
+            "MX Master",
+            "MX Keys",
+            "KVM",
+            "Mouse",
+            "Keyboard",
+            "Bluetooth",
+            "Bolt"
+          )
+
+          # Ensure listings exists
+          if (-not $subObj.listings) {
+            $subObj.listings = @{}
+          }
+
+          $hasListing = $false
+          foreach ($langProp in $subObj.listings.PSObject.Properties) {
+            $hasListing = $true
+            $l = $langProp.Value.baseListing
+            if ($l) {
+              Write-Host "Updating listing for language: $($langProp.Name)"
+              if (-not $l.description -or $l.description.Length -lt 20) {
+                Write-Host "Populating missing description for $($langProp.Name)..."
+                $l.description = $fullDescription
+              }
+              $l.releaseNotes = $releaseNotes
+              $l.shortDescription = $shortDesc
+              if (-not $l.features -or $l.features.Count -eq 0) {
+                $l.features = $features
+              }
+              if (-not $l.keywords -or $l.keywords.Count -eq 0) {
+                $l.keywords = $keywords
+              }
+              if (-not $l.copyrightAndTrademarkInfo) {
+                $l.copyrightAndTrademarkInfo = "Copyright (c) 2026 Silviu Vlasceanu"
+              }
+              if (-not $l.privacyPolicyUrl) {
+                $l.privacyPolicyUrl = "https://github.com/silviuk/Lunifier/blob/master/PRIVACY.md"
+              }
+              if (-not $l.websiteUrl) {
+                $l.websiteUrl = "https://github.com/silviuk/Lunifier"
+              }
+              if (-not $l.supportContact) {
+                $l.supportContact = "https://github.com/silviuk/Lunifier/issues"
               }
             }
+          }
+
+          if (-not $hasListing) {
+            Write-Host "No listings found. Creating default 'en-us' listing..."
+            $subObj.listings | Add-Member -NotePropertyName "en-us" -NotePropertyValue @{
+              baseListing = @{
+                description = $fullDescription
+                shortDescription = $shortDesc
+                features = $features
+                keywords = $keywords
+                releaseNotes = $releaseNotes
+                copyrightAndTrademarkInfo = "Copyright (c) 2026 Silviu Vlasceanu"
+                privacyPolicyUrl = "https://github.com/silviuk/Lunifier/blob/master/PRIVACY.md"
+                websiteUrl = "https://github.com/silviuk/Lunifier"
+                supportContact = "https://github.com/silviuk/Lunifier/issues"
+              }
+            } -Force
           }
 
           # Configure application packages
