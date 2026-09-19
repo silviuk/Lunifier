@@ -18,6 +18,11 @@ on:
         required: true
         default: true
         type: boolean
+      app_id:
+        description: 'Microsoft Store Product ID (e.g. 9N...). Leave blank to auto-detect.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -155,7 +160,8 @@ jobs:
           SELLER_ID: ${{ secrets.MS_STORE_SELLER_ID }}
           CLIENT_ID: ${{ secrets.MS_STORE_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.MS_STORE_CLIENT_SECRET }}
-          APP_ID: ${{ secrets.MS_STORE_APP_ID }}
+          APP_ID: ${{ inputs.app_id }}
+          SECRET_APP_ID: ${{ secrets.MS_STORE_APP_ID }}
           MSIX_PATH: ${{ steps.release_info.outputs.msix_path }}
           EXE_PATH: ${{ steps.release_info.outputs.exe_path }}
         run: |
@@ -258,7 +264,7 @@ jobs:
             Write-Host "Ingestion API note: $($_.Exception.Message)"
           }
 
-          $targetAppId = $env:APP_ID
+          $targetAppId = if ($env:APP_ID) { $env:APP_ID } elseif ($env:SECRET_APP_ID) { $env:SECRET_APP_ID } else { $null }
           if (-not $targetAppId) {
             # Prefer app with Lunifier in name
             $match = $allApps | Where-Object { $_.primaryName -like "*Lunifier*" } | Select-Object -First 1
