@@ -205,23 +205,47 @@ jobs:
 
           Write-Host "Querying all applications in Partner Center..."
           $appsResp = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications" -Headers $headers
+          Write-Host "Raw API Response Properties: $(($appsResp.PSObject.Properties.Name -join ', '))"
+          Write-Host "Total applications in this page: $($appsResp.value.Count)"
 
-          Write-Host "Found $($appsResp.value.Count) applications in Partner Center:"
-          foreach ($app in $appsResp.value) {
-            Write-Host " - Name: '$($app.primaryName)' | ID: $($app.id) | PackageFamily: $($app.packageFamilyName)"
+          $allApps = @()
+          if ($appsResp.value) { $allApps += $appsResp.value }
+
+          $nextLink = $appsResp.nextLink
+          if (-not $nextLink) { $nextLink = $appsResp.'@odata.nextLink' }
+          while ($nextLink) {
+            Write-Host "Fetching next page: $nextLink"
+            $nextResp = Invoke-RestMethod -Method Get -Uri $nextLink -Headers $headers
+            if ($nextResp.value) { $allApps += $nextResp.value }
+            $nextLink = $nextResp.nextLink
+            if (-not $nextLink) { $nextLink = $nextResp.'@odata.nextLink' }
+          }
+
+          Write-Host "Total applications found: $($allApps.Count)"
+          foreach ($app in $allApps) {
+            Write-Host " - App: '$($app.primaryName)' | ID: $($app.id) | Package: $($app.packageFamilyName) | PendingSub: $($app.pendingApplicationSubmission.id)"
+          }
+
+          # Check Luminark details to see if the user modified Luminark
+          try {
+            $lum = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/9N935LP9FSFD" -Headers $headers
+            Write-Host "Luminark pending submission: $($lum.pendingApplicationSubmission.id)"
+            Write-Host "Luminark last published: $($lum.lastPublishedApplicationSubmission.id)"
+          } catch {
+            Write-Warning "Could not inspect Luminark: $_"
           }
 
           $targetAppId = $env:APP_ID
           if (-not $targetAppId) {
             # Prefer app with Lunifier in name
-            $match = $appsResp.value | Where-Object { $_.primaryName -like "*Lunifier*" } | Select-Object -First 1
+            $match = $allApps | Where-Object { $_.primaryName -like "*Lunifier*" } | Select-Object -First 1
             if (-not $match) {
               # Check for app named 'App' or containing 'App' (excluding Luminark)
-              $match = $appsResp.value | Where-Object { ($_.primaryName -eq "App" -or $_.primaryName -like "*App*") -and $_.primaryName -ne "Luminark" } | Select-Object -First 1
+              $match = $allApps | Where-Object { ($_.primaryName -eq "App" -or $_.primaryName -like "*App*") -and $_.primaryName -ne "Luminark" } | Select-Object -First 1
             }
             if (-not $match) {
               # Pick any non-Luminark application
-              $match = $appsResp.value | Where-Object { $_.primaryName -ne "Luminark" } | Select-Object -First 1
+              $match = $allApps | Where-Object { $_.primaryName -ne "Luminark" } | Select-Object -First 1
             }
             if ($match) {
               $targetAppId = $match.id
@@ -230,7 +254,7 @@ jobs:
           }
 
           if (-not $targetAppId) {
-            Write-Error "No suitable application found in Partner Center. Registered apps: $($appsResp.value.primaryName -join ', ')"
+            Write-Error "No suitable Lunifier application found in Partner Center. Registered apps: $($allApps.primaryName -join ', ')"
             "store_status=Skipped (No matching app in Partner Center)" >> $env:GITHUB_OUTPUT
             exit 1
           }
