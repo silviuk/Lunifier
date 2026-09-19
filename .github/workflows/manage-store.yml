@@ -1,0 +1,390 @@
+name: Manage Microsoft Store Submission
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_query:
+        description: 'App name query (e.g. Lunifier or App). Leave blank to auto-detect.'
+        required: false
+        default: ''
+        type: string
+      apply_store_listing:
+        description: 'Populate/Update Store Listing metadata (descriptions, features, URLs)'
+        required: true
+        default: true
+        type: boolean
+      upload_msix:
+        description: 'Upload latest v1.0.6 MSIX package to submission'
+        required: true
+        default: true
+        type: boolean
+      commit_certification:
+        description: 'Commit submission to Partner Center for certification'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  manage_store:
+    name: Inspect and Manage Store Submission
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Inspect and Update Partner Center Submission
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TENANT_ID: ${{ secrets.MS_STORE_TENANT_ID }}
+          SELLER_ID: ${{ secrets.MS_STORE_SELLER_ID }}
+          CLIENT_ID: ${{ secrets.MS_STORE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.MS_STORE_CLIENT_SECRET }}
+          APP_ID: ${{ secrets.MS_STORE_APP_ID }}
+          APP_QUERY: ${{ inputs.app_query }}
+          APPLY_LISTING: ${{ inputs.apply_store_listing }}
+          UPLOAD_MSIX: ${{ inputs.upload_msix }}
+          COMMIT_SUBMISSION: ${{ inputs.commit_certification }}
+        run: |
+          Write-Host "=========================================================="
+          Write-Host "Microsoft Partner Center Store Manager"
+          Write-Host "=========================================================="
+
+          # 1. Authenticate with Azure Entra ID
+          Write-Host "Authenticating with Azure Entra ID..."
+          $tokenResp = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$env:TENANT_ID/oauth2/v2.0/token" -ContentType "application/x-www-form-urlencoded" -Body @{
+            grant_type    = "client_credentials"
+            client_id     = $env:CLIENT_ID
+            client_secret = $env:CLIENT_SECRET
+            scope         = "https://manage.devcenter.microsoft.com/.default"
+          }
+
+          $accessToken = $tokenResp.access_token
+          if (-not $accessToken) {
+            Write-Error "Failed to obtain access token."
+            exit 1
+          }
+
+          $headers = @{
+            "Authorization" = "Bearer $accessToken"
+            "Content-Type"  = "application/json"
+            "Accept"        = "application/json"
+          }
+
+          # 2. List all applications
+          Write-Host "Querying all applications in Partner Center..."
+          $appsResp = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications" -Headers $headers
+          $apps = $appsResp.value
+
+          Write-Host "Found $($apps.Count) applications:"
+          $appSummaryRows = @()
+          foreach ($a in $apps) {
+            Write-Host " - Name: '$($a.primaryName)' | ID: $($a.id) | Package: $($a.packageFamilyName)"
+            $appSummaryRows += "| $($a.primaryName) | $($a.id) | $($a.packageFamilyName) |"
+          }
+
+          # Identify target application
+          $targetApp = $null
+          if ($env:APP_ID) {
+            $targetApp = $apps | Where-Object { $_.id -eq $env:APP_ID }
+          }
+          if (-not $targetApp -and $env:APP_QUERY) {
+            $targetApp = $apps | Where-Object { $_.primaryName -like "*$($env:APP_QUERY)*" } | Select-Object -First 1
+          }
+          if (-not $targetApp) {
+            # Prefer an app with 'Lunifier' in the name
+            $targetApp = $apps | Where-Object { $_.primaryName -like "*Lunifier*" } | Select-Object -First 1
+          }
+          if (-not $targetApp) {
+            # If still not found, pick the non-Luminark application
+            $targetApp = $apps | Where-Object { $_.primaryName -ne "Luminark" } | Select-Object -First 1
+          }
+
+          if (-not $targetApp) {
+            Write-Error "No suitable application found in Partner Center. Registered apps: $($apps.primaryName -join ', ')"
+            exit 1
+          }
+
+          $appId = $targetApp.id
+          $appName = $targetApp.primaryName
+          Write-Host "Target Application: '$appName' (ID: $appId)"
+
+          # 3. Retrieve full application details
+          Write-Host "Fetching details for application $appId..."
+          $appDetail = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId" -Headers $headers
+
+          # Save APP_ID as secret in repo if not set
+          if (-not $env:APP_ID) {
+            Write-Host "Saving discovered MS_STORE_APP_ID ($appId) to repo secrets..."
+            gh secret set MS_STORE_APP_ID --body "$appId" --repo silviuk/Lunifier
+          }
+
+          # 4. Check / Create draft submission
+          $subId = $null
+          $subObj = $null
+          if ($appDetail.pendingApplicationSubmission -and $appDetail.pendingApplicationSubmission.id) {
+            $subId = $appDetail.pendingApplicationSubmission.id
+            Write-Host "Found existing pending submission: $subId"
+            $subObj = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId" -Headers $headers
+          } else {
+            Write-Host "Creating new draft submission for $appId..."
+            $newSub = Invoke-RestMethod -Method Post -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions" -Headers $headers
+            $subId = $newSub.id
+            Write-Host "Created new submission: $subId"
+            $subObj = Invoke-RestMethod -Method Get -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId" -Headers $headers
+          }
+
+          # 5. Inspect existing submission details
+          Write-Host "=========================================================="
+          Write-Host "Current Submission Inspection: $subId"
+          Write-Host "=========================================================="
+          Write-Host "Category: $($subObj.applicationCategory)"
+          Write-Host "Pricing: isFree=$($subObj.pricing.isFree), priceId=$($subObj.pricing.priceId)"
+          Write-Host "Visibility: $($subObj.visibility)"
+          Write-Host "Packages count: $($subObj.applicationPackages.Count)"
+          if ($subObj.applicationPackages) {
+            foreach ($p in $subObj.applicationPackages) {
+              Write-Host " - Package: $($p.fileName) (Status: $($p.fileStatus), Version: $($p.version), Arch: $($p.architecture))"
+            }
+          }
+
+          Write-Host "Listings:"
+          $missingItems = @()
+          if ($subObj.listings) {
+            foreach ($prop in $subObj.listings.PSObject.Properties) {
+              $lang = $prop.Name
+              $listing = $prop.Value.baseListing
+              Write-Host "Language: $lang"
+              Write-Host " - Description length: $($listing.description.Length)"
+              Write-Host " - ShortDescription: $($listing.shortDescription)"
+              Write-Host " - PrivacyPolicy: $($listing.privacyPolicyUrl)"
+              Write-Host " - SupportContact: $($listing.supportContact)"
+              Write-Host " - WebsiteUrl: $($listing.websiteUrl)"
+              Write-Host " - Copyright: $($listing.copyrightAndTrademarkInfo)"
+              Write-Host " - Features: $(($listing.features -join '; '))"
+              Write-Host " - Keywords: $(($listing.keywords -join '; '))"
+              Write-Host " - Images count: $($prop.Value.images.Count)"
+            }
+          } else {
+            $missingItems += "Listings dictionary is empty"
+          }
+
+          if (-not $subObj.applicationCategory) { $missingItems += "Application Category" }
+          if (-not $subObj.pricing) { $missingItems += "Pricing" }
+
+          # 6. Apply Listing Information if requested
+          if ($env:APPLY_LISTING -eq "true") {
+            Write-Host "=========================================================="
+            Write-Host "Applying Store Listing Information..."
+            Write-Host "=========================================================="
+
+            if (-not $subObj.applicationCategory) {
+              $subObj.applicationCategory = "UtilitiesTools"
+            }
+
+            if (-not $subObj.pricing) {
+              $subObj.pricing = @{
+                isFree = $true
+                priceId = "Free"
+              }
+            }
+
+            $desc = @"
+Lunifier coordinates Logitech Easy-Switch keyboards (MX Keys, Craft, ERGO K860, etc.) and mice (MX Master series, MX Anywhere, M720 Triathlon, POP Mouse, etc.) across screens without requiring a shared local Wi-Fi network, cloud accounts, or proprietary software running on both machines.
+
+Key Highlights:
+• Instant Hardware Switching: Uses direct Bluetooth/Logitech HID++ protocol commands to switch keyboard and mouse channels simultaneously.
+• Dynamic Screen Border Detection: Move your mouse cursor into configurable dwell zones or double-tap the screen edge to trigger smooth switching between your computers.
+• System Tray Controls & Quick Switch Flyout: Switch channels with a single click, or double-click the tray icon to switch immediately to your preferred channel.
+• Global Keyboard Hotkeys: Switch instantly using customizable hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3).
+• Automatic Windows Theme Sync: Integrates seamlessly with Windows Light and Dark display mode.
+• Lightweight & Private: Zero telemetry, zero cloud dependencies, pure local control.
+"@
+
+            $shortDesc = "Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux."
+
+            $features = @(
+              "Instant Logitech Easy-Switch multi-device channel switching",
+              "Multi-monitor border dwell and double-tap screen knock triggers",
+              "Global keyboard hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3)",
+              "System tray controls with customizable double-click quick actions",
+              "Native Windows Light and Dark mode dynamic theme integration",
+              "Zero network or cloud dependencies - 100% private and local"
+            )
+
+            $keywords = @(
+              "Logitech",
+              "Easy-Switch",
+              "Flow",
+              "MX Master",
+              "MX Keys",
+              "KVM",
+              "Mouse",
+              "Keyboard",
+              "Bluetooth",
+              "Bolt"
+            )
+
+            $releaseNotes = @"
+What's New in Lunifier v1.0.6:
+- Unified Lunifier icon across all Windows and Linux UI dialogs, tray, and menus.
+- Configurable Tray Icon Double-Click Action (Channel 1, 2, 3 or open Main Window).
+- Global Keyboard Shortcuts (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3) for instantaneous host channel switching.
+- Single-instance guard preventing duplicate background services.
+- Windows system Light / Dark mode dynamic auto-updating.
+- Polished mini dwell overlay window with Esc and click-outside dismissal.
+"@
+
+            # Ensure en-us listing exists
+            if (-not $subObj.listings) {
+              $subObj.listings = @{}
+            }
+
+            # If no listings yet, initialize en-us
+            $hasEnUs = $false
+            foreach ($prop in $subObj.listings.PSObject.Properties) {
+              if ($prop.Name -eq "en-us") { $hasEnUs = $true }
+            }
+
+            if (-not $hasEnUs) {
+              $subObj.listings | Add-Member -NotePropertyName "en-us" -NotePropertyValue @{
+                baseListing = @{}
+              } -Force
+            }
+
+            foreach ($prop in $subObj.listings.PSObject.Properties) {
+              $l = $prop.Value.baseListing
+              $l.description = $desc
+              $l.shortDescription = $shortDesc
+              $l.features = $features
+              $l.keywords = $keywords
+              $l.releaseNotes = $releaseNotes
+              $l.copyrightAndTrademarkInfo = "Copyright (c) 2026 Silviu Vlasceanu"
+              $l.privacyPolicyUrl = "https://github.com/silviuk/Lunifier/blob/master/PRIVACY.md"
+              $l.websiteUrl = "https://github.com/silviuk/Lunifier"
+              $l.supportContact = "https://github.com/silviuk/Lunifier/issues"
+            }
+
+            Write-Host "Updating submission metadata with Store listings..."
+            $subJson = $subObj | ConvertTo-Json -Depth 20
+            $subUri = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId"
+            $subObj = Invoke-RestMethod -Method Put -Uri $subUri -Headers $headers -Body $subJson
+            Write-Host "Metadata updated successfully! Status: $($subObj.status)"
+          }
+
+          # 7. Upload MSIX Package if requested
+          if ($env:UPLOAD_MSIX -eq "true") {
+            Write-Host "=========================================================="
+            Write-Host "Downloading and Uploading MSIX Package..."
+            Write-Host "=========================================================="
+
+            $releaseJson = gh release view v1.0.6 --json tagName,assets --repo silviuk/Lunifier | ConvertFrom-Json
+            $msixAsset = $releaseJson.assets | Where-Object { $_.name -like "*.msix" } | Select-Object -First 1
+
+            if (-not $msixAsset) {
+              Write-Error "No MSIX asset found in release v1.0.6."
+              exit 1
+            }
+
+            New-Item -ItemType Directory -Path "release-assets" -Force | Out-Null
+            gh release download v1.0.6 --pattern "*.msix" --dir release-assets --repo silviuk/Lunifier --clobber
+            $msixLocal = Get-ChildItem -Path release-assets -Filter "*.msix" | Select-Object -First 1
+
+            Write-Host "Downloaded MSIX: $($msixLocal.FullName) ($([Math]::Round($msixLocal.Length / 1MB, 2)) MB)"
+
+            # Configure application packages in submission
+            $pkgList = @()
+            if ($subObj.applicationPackages) {
+              foreach ($existingPkg in $subObj.applicationPackages) {
+                if ($existingPkg.fileStatus -ne "PendingUpload") {
+                  $existingPkg.fileStatus = "PendingDelete"
+                  $pkgList += $existingPkg
+                }
+              }
+            }
+            $pkgList += @{
+              fileName = $msixLocal.Name
+              fileStatus = "PendingUpload"
+            }
+            $subObj.applicationPackages = $pkgList
+
+            $subJson = $subObj | ConvertTo-Json -Depth 20
+            $subUri = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId"
+            $subObj = Invoke-RestMethod -Method Put -Uri $subUri -Headers $headers -Body $subJson
+
+            # Bundle zip
+            $tempUploadDir = Join-Path $env:RUNNER_TEMP "msstore_upload_$([guid]::NewGuid().ToString('N'))"
+            $bundleDir = Join-Path $tempUploadDir "bundle"
+            New-Item -ItemType Directory -Path $bundleDir -Force | Out-Null
+            Copy-Item -Path $msixLocal.FullName -Destination (Join-Path $bundleDir $msixLocal.Name)
+            $zipPath = Join-Path $tempUploadDir "Upload.zip"
+            Compress-Archive -Path "$bundleDir\*" -DestinationPath $zipPath
+
+            Write-Host "Uploading package bundle to Azure Blob Storage..."
+            $httpClient = [System.Net.Http.HttpClient]::new()
+            $httpClient.Timeout = [System.TimeSpan]::FromMinutes(15)
+            $fileStream = [System.IO.File]::OpenRead($zipPath)
+            try {
+              $streamContent = [System.Net.Http.StreamContent]::new($fileStream)
+              $streamContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/zip")
+              $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Put, $subObj.fileUploadUrl)
+              $request.Headers.Add("x-ms-blob-type", "BlockBlob")
+              $request.Content = $streamContent
+              $uploadResp = $httpClient.SendAsync($request).GetAwaiter().GetResult()
+              if (-not $uploadResp.IsSuccessStatusCode) {
+                $respErr = $uploadResp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                Write-Error "Azure Blob upload failed: $respErr"
+                exit 1
+              }
+              Write-Host "Package uploaded successfully!"
+            } finally {
+              $fileStream.Close()
+              $fileStream.Dispose()
+              $httpClient.Dispose()
+            }
+          }
+
+          # 8. Query Status and Validation Details
+          Write-Host "=========================================================="
+          Write-Host "Querying Submission Status & Validation Details..."
+          Write-Host "=========================================================="
+          $statusUri = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId/status"
+          $statusObj = Invoke-RestMethod -Method Get -Uri $statusUri -Headers $headers
+          Write-Host "Current Status: $($statusObj.status)"
+          Write-Host "Status Details: $($statusObj | ConvertTo-Json -Depth 5)"
+
+          # 9. Commit if requested
+          if ($env:COMMIT_SUBMISSION -eq "true") {
+            Write-Host "=========================================================="
+            Write-Host "Committing Submission for Certification..."
+            Write-Host "=========================================================="
+            $commitUri = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId/commit"
+            $commitResp = Invoke-RestMethod -Method Post -Uri $commitUri -Headers $headers
+            Write-Host "Commit response: $($commitResp | ConvertTo-Json -Compress)"
+
+            Start-Sleep -Seconds 10
+            $finalStatusObj = Invoke-RestMethod -Method Get -Uri $statusUri -Headers $headers
+            Write-Host "Final Status: $($finalStatusObj.status)"
+          }
+
+          # 10. Summary
+          $summary = @"
+          ## 🏪 Microsoft Store Submission Status
+          - **App Name**: ``$appName``
+          - **Product ID**: ``$appId``
+          - **Submission ID**: ``$subId``
+          - **Submission Status**: $($statusObj.status)
+          - **Listing Metadata Applied**: $env:APPLY_LISTING
+          - **MSIX Uploaded**: $env:UPLOAD_MSIX
+          - **Committed for Certification**: $env:COMMIT_SUBMISSION
+
+          ### Partner Center Applications Overview
+          | Name | Product ID | Package Family Name |
+          |---|---|---|
+          $($appSummaryRows -join "`n")
+          "@
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
