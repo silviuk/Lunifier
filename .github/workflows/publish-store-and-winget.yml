@@ -373,26 +373,47 @@ jobs:
           ) -join "`n"
 
           $fullDescription = @(
-            "Lunifier coordinates Logitech Easy-Switch keyboards (MX Keys, Craft, ERGO K860, etc.) and mice (MX Master series, MX Anywhere, M720 Triathlon, POP Mouse, etc.) across screens without requiring a shared local Wi-Fi network, cloud accounts, or proprietary software running on both machines.",
+            "Seamless multi-computer workflow for Logitech Easy-Switch keyboards and mice across Windows & Linux.",
             "",
-            "Key Features:",
-            "• Instant Hardware Switching: Uses direct Bluetooth/Logitech HID++ protocol commands to switch keyboard and mouse channels simultaneously.",
-            "• Dynamic Screen Border Detection: Move your mouse cursor into configurable dwell zones or double-tap the screen edge to trigger smooth switching between your computers.",
-            "• System Tray Controls & Quick Switch Flyout: Switch channels with a single click, or double-click the tray icon to switch immediately to your preferred channel.",
-            "• Global Keyboard Hotkeys: Switch instantly using customizable hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3).",
-            "• Automatic Windows Theme Sync: Integrates seamlessly with Windows Light and Dark display mode.",
-            "• Lightweight & Private: Zero telemetry, zero cloud dependencies, pure local control."
+            "Tired of flipping your mouse over to press tiny channel buttons? Frustrated with software KVMs that lag or Logitech Flow disconnecting across corporate Wi-Fi and VPNs? Lunifier brings effortless multi-PC desk coordination directly to your Logitech peripherals.",
+            "",
+            "Instead of redirecting cursor coordinates over your local network like software KVMs, Lunifier commands your Logitech hardware (via Bluetooth & Logi Bolt/Unifying HID++ protocol) to switch channels instantly. Your keyboard and mouse switch host connections together in real time.",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "✨ KEY FEATURES",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "• Seamless Screen Border Transition: Move your mouse cursor into configurable screen edge dwell zones or double-tap the border to switch systems naturally.",
+            "• Synchronized Keyboard & Mouse: When your mouse switches, your keyboard follows automatically to the same channel.",
+            "• Instant Global Hotkeys: Switch host channels instantly from anywhere with customizable shortcuts (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3).",
+            "• System Tray & Quick Switch Controls: Access channel selection from your taskbar or configure double-clicking the tray icon to switch immediately to your favorite computer.",
+            "• Zero Network / Cloud Dependency: Operates 100% locally. Works through isolated corporate subnets, strict firewalls, VPNs, and offline environments.",
+            "• Dynamic Theme Integration: Seamlessly adapts to Windows Light and Dark modes.",
+            "• Lightweight & Battery Friendly: Ultra-low CPU footprint and passive event-driven monitoring.",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🖱️ SUPPORTED HARDWARE",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "Supports Logitech Easy-Switch Bluetooth and Bolt / Unifying wireless peripherals, including:",
+            "• Mice: MX Master series (1, 2S, 3, 3S), MX Anywhere series (2S, 3, 3S), M720 Triathlon, M705, POP Mouse, Lift Vertical, and compatible models.",
+            "• Keyboards: MX Keys series (Mini, Advanced, S), Craft, ERGO K860, K780, K380, POP Keys, Signature K650, and compatible models.",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🔒 100% PRIVATE & LOCAL",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "Lunifier is completely private: no account login, no telemetry, no tracking, and no external network connections."
           ) -join "`n"
 
-          $shortDesc = "Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux."
+          $shortDesc = "Effortless multi-PC switching for Logitech Easy-Switch keyboards and mice across Windows & Linux. Zero cloud or network lag."
 
           $features = @(
-            "Instant Logitech Easy-Switch multi-device channel switching",
-            "Multi-monitor border dwell and double-tap screen knock triggers",
+            "Synchronized Logitech Easy-Switch keyboard and mouse channel switching",
+            "Natural screen edge border dwell and double-tap knock triggers",
             "Global keyboard hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3)",
-            "System tray controls with customizable double-click quick actions",
-            "Native Windows Light and Dark mode dynamic theme integration",
-            "Zero network or cloud dependencies - 100% private and local"
+            "System tray quick controls with customizable double-click actions",
+            "Hardware-level switching via direct Bluetooth & Bolt HID++ commands",
+            "Works across isolated corporate networks, firewalls, and VPNs",
+            "Dynamic Windows Light and Dark mode appearance",
+            "100% private, local-first utility with zero telemetry"
           )
 
           $keywords = @(
