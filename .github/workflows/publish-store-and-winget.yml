@@ -234,6 +234,29 @@ jobs:
           } catch {
             Write-Warning "Could not inspect Luminark: $_"
           }
+          # Check Partner Center Ingestion API (used for Win32 apps and newer Store products)
+          try {
+            Write-Host "Checking Partner Center Ingestion API (api.partner.microsoft.com)..."
+            $ingestTokenResp = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$env:TENANT_ID/oauth2/v2.0/token" -ContentType "application/x-www-form-urlencoded" -Body @{
+              grant_type    = "client_credentials"
+              client_id     = $env:CLIENT_ID
+              client_secret = $env:CLIENT_SECRET
+              scope         = "https://api.partner.microsoft.com/.default"
+            } -ErrorAction Stop
+            if ($ingestTokenResp.access_token) {
+              $ingestHeaders = @{
+                "Authorization" = "Bearer $($ingestTokenResp.access_token)"
+                "Accept"        = "application/json"
+              }
+              $ingestProducts = Invoke-RestMethod -Method Get -Uri "https://api.partner.microsoft.com/v1.0/ingestion/products" -Headers $ingestHeaders
+              Write-Host "Ingestion API products count: $($ingestProducts.value.Count)"
+              foreach ($prod in $ingestProducts.value) {
+                Write-Host " - Ingest Product: '$($prod.name)' | ID: $($prod.id) | Type: $($prod.type)"
+              }
+            }
+          } catch {
+            Write-Host "Ingestion API note: $($_.Exception.Message)"
+          }
 
           $targetAppId = $env:APP_ID
           if (-not $targetAppId) {
