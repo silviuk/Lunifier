@@ -319,17 +319,17 @@ jobs:
             "- Polished mini dwell overlay window with Esc and click-outside dismissal."
           ) -join "`n"
 
-          $fullDescription = @"
-Lunifier coordinates Logitech Easy-Switch keyboards (MX Keys, Craft, ERGO K860, etc.) and mice (MX Master series, MX Anywhere, M720 Triathlon, POP Mouse, etc.) across screens without requiring a shared local Wi-Fi network, cloud accounts, or proprietary software running on both machines.
-
-Key Features:
-• Instant Hardware Switching: Uses direct Bluetooth/Logitech HID++ protocol commands to switch keyboard and mouse channels simultaneously.
-• Dynamic Screen Border Detection: Move your mouse cursor into configurable dwell zones or double-tap the screen edge to trigger smooth switching between your computers.
-• System Tray Controls & Quick Switch Flyout: Switch channels with a single click, or double-click the tray icon to switch immediately to your preferred channel.
-• Global Keyboard Hotkeys: Switch instantly using customizable hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3).
-• Automatic Windows Theme Sync: Integrates seamlessly with Windows Light and Dark display mode.
-• Lightweight & Private: Zero telemetry, zero cloud dependencies, pure local control.
-"@
+          $fullDescription = @(
+            "Lunifier coordinates Logitech Easy-Switch keyboards (MX Keys, Craft, ERGO K860, etc.) and mice (MX Master series, MX Anywhere, M720 Triathlon, POP Mouse, etc.) across screens without requiring a shared local Wi-Fi network, cloud accounts, or proprietary software running on both machines.",
+            "",
+            "Key Features:",
+            "• Instant Hardware Switching: Uses direct Bluetooth/Logitech HID++ protocol commands to switch keyboard and mouse channels simultaneously.",
+            "• Dynamic Screen Border Detection: Move your mouse cursor into configurable dwell zones or double-tap the screen edge to trigger smooth switching between your computers.",
+            "• System Tray Controls & Quick Switch Flyout: Switch channels with a single click, or double-click the tray icon to switch immediately to your preferred channel.",
+            "• Global Keyboard Hotkeys: Switch instantly using customizable hotkeys (Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3).",
+            "• Automatic Windows Theme Sync: Integrates seamlessly with Windows Light and Dark display mode.",
+            "• Lightweight & Private: Zero telemetry, zero cloud dependencies, pure local control."
+          ) -join "`n"
 
           $shortDesc = "Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows & Linux."
 
