@@ -22,8 +22,10 @@ mkdir -p "$DEB_BUILD_DIR/usr/bin"
 mkdir -p "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier"
 mkdir -p "$DEB_BUILD_DIR/etc/udev/rules.d"
 mkdir -p "$DEB_BUILD_DIR/usr/share/applications"
-mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/256x256/apps"
 mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
+for res in 16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512; do
+    mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/$res/apps"
+done
 mkdir -p "$DEB_BUILD_DIR/usr/share/pixmaps"
 mkdir -p "$DEB_BUILD_DIR/usr/lib/systemd/user"
 
@@ -77,9 +79,14 @@ chmod 755 "$DEB_BUILD_DIR/usr/bin/lunifier"
 cp -r "$ROOT_DIR/lunifier/"* "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/"
 rm -rf "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/__pycache__"
 
-cp "$ROOT_DIR/lunifier/resources/icon.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/256x256/apps/lunifier.png"
-cp "$ROOT_DIR/lunifier/resources/icon.png" "$DEB_BUILD_DIR/usr/share/pixmaps/lunifier.png"
+for s in 16 24 32 48 64 128 256 512; do
+    if [ -f "$ROOT_DIR/lunifier/resources/icons/${s}x${s}.png" ]; then
+        cp "$ROOT_DIR/lunifier/resources/icons/${s}x${s}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${s}x${s}/apps/lunifier.png"
+    fi
+done
 cp "$ROOT_DIR/lunifier/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/lunifier.svg"
+cp "$ROOT_DIR/lunifier/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/pixmaps/lunifier.svg"
+cp "$ROOT_DIR/lunifier/resources/icon.png" "$DEB_BUILD_DIR/usr/share/pixmaps/lunifier.png"
 
 # 6. Udev rule
 cat << 'EOF' > "$DEB_BUILD_DIR/etc/udev/rules.d/99-logitech-hidpp.rules"
@@ -98,6 +105,7 @@ Type=Application
 Categories=Utility;HardwareSettings;
 Keywords=logitech;flow;easy-switch;mx-keys;mouse;
 StartupNotify=true
+StartupWMClass=Lunifier
 EOF
 
 # 8. Systemd user service

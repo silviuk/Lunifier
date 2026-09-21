@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.8] - 2026-09-21
 
+### Changed
+- **Unified Scalable Vector Graphics Iconography Across Windows & Linux**:
+  - Replaced the mismatched Linux icon with the official Lunifier icon from the Windows package.
+  - Recreated the icon as a master Scalable Vector Graphics (SVG) vector asset (`lunifier/resources/icon.svg`) featuring the metallic dark circular badge, diagonal inter-host communication link with status indicator beads, 4-lobed orange propeller/star, and pure white center.
+  - Deployed full multi-resolution mipmap suite (`16x16` up to `512x512`) and scalable SVG into Linux FreeDesktop hicolor theme paths (`/usr/share/icons/hicolor/scalable/apps/lunifier.svg`, `/usr/share/pixmaps/`) and `lunifier.desktop`.
+  - Upgraded `lunifier.icons.render_scalable_icon()` with native vector SVG rasterization (`resvg_py`/`cairosvg`) and high-fidelity fallback rendering across high-DPI displays.
+
 ### Fixed
 - **Linux Python Typing Compatibility**:
   - Resolved `NameError: name 'Dict' is not defined` during module initialization (`lunifier.app`) on Python 3.10–3.12 (standard Debian/Ubuntu distributions).

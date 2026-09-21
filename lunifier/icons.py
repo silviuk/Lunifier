@@ -80,13 +80,26 @@ def _draw_star_vector(draw: ImageDraw.ImageDraw, cx: float, cy: float, outer_r: 
 def render_scalable_icon(size: int = 512) -> Image.Image:
     """
     Renders the official Lunifier icon at any arbitrary resolution using
-    native vector mathematics and 2x supersampled anti-aliasing.
+    Scalable Vector Graphics (SVG) or high-precision vector mathematics.
     """
     size = max(16, min(2048, int(size)))
 
-    # Check if CairoSVG is available to render SVG directly
+    # 1. Render from icon.svg via resvg_py or cairosvg
     svg_path = get_resource_path("icon.svg")
     if os.path.exists(svg_path):
+        # Try resvg_py
+        try:
+            import resvg_py
+            import io
+            with open(svg_path, "r", encoding="utf-8") as f:
+                svg_data = f.read()
+            png_bytes = resvg_py.svg_to_bytes(svg_data, width=size, height=size)
+            if png_bytes:
+                return Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+        except Exception:
+            pass
+
+        # Try cairosvg
         try:
             import cairosvg
             import io
@@ -96,96 +109,76 @@ def render_scalable_icon(size: int = 512) -> Image.Image:
         except Exception:
             pass
 
-    # High-precision mathematical vector rendering fallback
+    # 2. If master icon.png is available on disk, scale with high-fidelity Lanczos
+    png_path = get_resource_path("icon.png")
+    if os.path.exists(png_path):
+        try:
+            master = Image.open(png_path).convert("RGBA")
+            if master.size == (size, size):
+                return master
+            return master.resize((size, size), Image.Resampling.LANCZOS)
+        except Exception:
+            pass
+
+    # 3. High-precision mathematical vector rendering fallback
     scale = 2
     canvas_size = size * scale
     img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    margin = 56 * (canvas_size / 1024.0)
-    rect_box = [margin, margin, canvas_size - margin, canvas_size - margin]
-    radius = 190 * (canvas_size / 1024.0)
+    cx, cy = canvas_size / 2.0, canvas_size / 2.0
+    r_disc = 198.0 * (canvas_size / 512.0)
 
-    # 1. Background Rounded Squircle with Drop Shadow
+    # Outer drop shadow
     shadow = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    shadow_draw = ImageDraw.Draw(shadow)
-    shadow_y_off = 18 * (canvas_size / 1024.0)
-    shadow_box = [margin, margin + shadow_y_off, canvas_size - margin, canvas_size - margin + shadow_y_off]
-    shadow_draw.rounded_rectangle(shadow_box, radius=radius, fill=(0, 0, 0, 140))
-    blur_r = max(1.0, 24 * (canvas_size / 1024.0))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(blur_r))
+    s_draw = ImageDraw.Draw(shadow)
+    dy = 20.0 * (canvas_size / 512.0)
+    s_draw.ellipse([cx - r_disc, cy - r_disc + dy, cx + r_disc, cy + r_disc + dy], fill=(0, 0, 0, 140))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(max(1.0, 22.0 * (canvas_size / 512.0))))
     img = Image.alpha_composite(shadow, img)
     draw = ImageDraw.Draw(img)
 
-    # Base squircle container
-    border_w = max(1, int(9 * (canvas_size / 1024.0)))
-    draw.rounded_rectangle(rect_box, radius=radius, fill=(15, 23, 42, 255), outline=(71, 85, 105, 200), width=border_w)
+    # Outer disc with border
+    border_w = max(1, int(5.0 * (canvas_size / 512.0)))
+    draw.ellipse([cx - r_disc, cy - r_disc, cx + r_disc, cy + r_disc], fill=(20, 28, 38, 255), outline=(74, 90, 106, 255), width=border_w)
 
-    # 2. Dotted Wall (Separating diagonal)
-    diag_off = 80 * (canvas_size / 1024.0)
-    x1, y1 = margin + diag_off, canvas_size - margin - diag_off
-    x2, y2 = canvas_size - margin - diag_off, margin + diag_off
-    num_dots = 15
-    for i in range(num_dots):
-        t = i / (num_dots - 1)
-        dx = x1 + t * (x2 - x1)
-        dy = y1 + t * (y2 - y1)
-        dist_from_center = abs(t - 0.5)
-        dot_r = max(1.5, (14.0 - dist_from_center * 5.0) * (canvas_size / 1024.0))
-        alpha = int(255 - dist_from_center * 70)
-        draw.ellipse([dx - dot_r, dy - dot_r, dx + dot_r, dy + dot_r], fill=(226, 232, 240, alpha))
+    # Diagonal bead chain
+    u = 1.0 / math.sqrt(2.0)
+    bead_r = 11.5 * (canvas_size / 512.0)
+    for s_val in range(-176, 177, 16):
+        bx = cx + s_val * u * (canvas_size / 512.0)
+        by = cy - s_val * u * (canvas_size / 512.0)
+        draw.ellipse([bx - bead_r, by - bead_r, bx + bead_r, by + bead_r], fill=(202, 214, 207, 240))
 
-    # 3. Top-Left Star (System 1: Cyan / Azure)
-    s1_off = 200 * (canvas_size / 1024.0)
-    s1_cx = margin + s1_off
-    s1_cy = margin + s1_off
+    # 4 Orange lobes
+    lobe_len = 149.0 * (canvas_size / 512.0)
+    lobe_hw = 24.0 * (canvas_size / 512.0)
+    for angle in [0, 90, 180, 270]:
+        rad = math.radians(angle)
+        cos_a, sin_a = math.cos(rad), math.sin(rad)
+        # Draw curved lobe
+        points = []
+        for step in range(30):
+            t = step / 29.0
+            dist = 25.0 * (canvas_size / 512.0) + t * (lobe_len - 25.0 * (canvas_size / 512.0))
+            w_factor = math.sin(math.pi * (t ** 0.7)) * lobe_hw
+            px = cx + dist * sin_a + w_factor * cos_a
+            py = cy - dist * cos_a + w_factor * sin_a
+            points.append((px, py))
+        for step in range(29, -1, -1):
+            t = step / 29.0
+            dist = 25.0 * (canvas_size / 512.0) + t * (lobe_len - 25.0 * (canvas_size / 512.0))
+            w_factor = -math.sin(math.pi * (t ** 0.7)) * lobe_hw
+            px = cx + dist * sin_a + w_factor * cos_a
+            py = cy - dist * cos_a + w_factor * sin_a
+            points.append((px, py))
+        draw.polygon(points, fill=(251, 146, 60, 255))
 
-    glow1 = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    glow1_draw = ImageDraw.Draw(glow1)
-    g1_r = 180 * (canvas_size / 1024.0)
-    glow1_draw.ellipse([s1_cx - g1_r, s1_cy - g1_r, s1_cx + g1_r, s1_cy + g1_r], fill=(0, 240, 255, 60))
-    glow1 = glow1.filter(ImageFilter.GaussianBlur(max(1.0, 36 * (canvas_size / 1024.0))))
-    img = Image.alpha_composite(img, glow1)
-    draw = ImageDraw.Draw(img)
+    # Center white core
+    r_core = 27.0 * (canvas_size / 512.0)
+    draw.ellipse([cx - r_core, cy - r_core, cx + r_core, cy + r_core], fill=(255, 255, 255, 255))
 
-    _draw_star_vector(
-        draw, s1_cx, s1_cy,
-        outer_r=150 * (canvas_size / 1024.0),
-        inner_r=30 * (canvas_size / 1024.0),
-        fill_color=(56, 189, 248, 255),
-        core_color=(255, 255, 255, 255)
-    )
-    m1_r = max(1.0, 6 * (canvas_size / 1024.0))
-    draw.ellipse([s1_cx + 105 * (canvas_size / 1024.0) - m1_r, s1_cy - 85 * (canvas_size / 1024.0) - m1_r,
-                  s1_cx + 105 * (canvas_size / 1024.0) + m1_r, s1_cy - 85 * (canvas_size / 1024.0) + m1_r],
-                 fill=(125, 211, 252, 240))
-
-    # 4. Bottom-Right Star (System 2: Orange / Amber)
-    s2_cx = canvas_size - margin - s1_off
-    s2_cy = canvas_size - margin - s1_off
-
-    glow2 = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    glow2_draw = ImageDraw.Draw(glow2)
-    g2_r = 180 * (canvas_size / 1024.0)
-    glow2_draw.ellipse([s2_cx - g2_r, s2_cy - g2_r, s2_cx + g2_r, s2_cy + g2_r], fill=(255, 109, 0, 60))
-    glow2 = glow2.filter(ImageFilter.GaussianBlur(max(1.0, 36 * (canvas_size / 1024.0))))
-    img = Image.alpha_composite(img, glow2)
-    draw = ImageDraw.Draw(img)
-
-    _draw_star_vector(
-        draw, s2_cx, s2_cy,
-        outer_r=150 * (canvas_size / 1024.0),
-        inner_r=30 * (canvas_size / 1024.0),
-        fill_color=(251, 146, 60, 255),
-        core_color=(255, 255, 255, 255)
-    )
-    m2_r = max(1.0, 6 * (canvas_size / 1024.0))
-    draw.ellipse([s2_cx - 105 * (canvas_size / 1024.0) - m2_r, s2_cy + 85 * (canvas_size / 1024.0) - m2_r,
-                  s2_cx - 105 * (canvas_size / 1024.0) + m2_r, s2_cy + 85 * (canvas_size / 1024.0) + m2_r],
-                 fill=(253, 186, 116, 240))
-
-    final_img = img.resize((size, size), Image.Resampling.LANCZOS)
-    return final_img
+    return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
 def get_icon_pil(size: Optional[Union[int, Tuple[int, int]]] = None) -> Optional[Image.Image]:
