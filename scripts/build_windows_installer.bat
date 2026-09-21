@@ -7,7 +7,7 @@ echo ===================================================
 
 set "SCRIPT_DIR=%~dp0"
 set "ROOT_DIR=%SCRIPT_DIR%.."
-set "VERSION=1.0.7"
+set "VERSION=1.0.8"
 
 echo [1/3] Compiling Python Application with PyInstaller...
 cd /d "%ROOT_DIR%"
@@ -23,7 +23,7 @@ if exist "%LocalAppData%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LocalAppData
 if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
 if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 
-if "%ISCC%"=="" (
+if not defined ISCC (
     echo [ERROR] Inno Setup compiler (ISCC.exe) not found.
     exit /b 1
 )

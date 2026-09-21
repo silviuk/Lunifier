@@ -7,7 +7,7 @@ DIST_DIR="$ROOT_DIR/dist"
 
 mkdir -p "$DIST_DIR"
 
-VERSION="${1:-1.0.7}"
+VERSION="${1:-1.0.8}"
 DEB_BUILD_DIR="/tmp/lunifier-deb"
 rm -rf "$DEB_BUILD_DIR"
 mkdir -p "$DEB_BUILD_DIR"

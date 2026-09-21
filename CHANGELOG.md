@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.8] - 2026-09-21
+
+### Fixed
+- **Linux Python Typing Compatibility**:
+  - Resolved `NameError: name 'Dict' is not defined` during module initialization (`lunifier.app`) on Python 3.10–3.12 (standard Debian/Ubuntu distributions).
+  - Added `from __future__ import annotations` and explicit imports for `Dict, Any, List` in `lunifier.app`.
+  - Added automated type annotation inspection test in build and test validation suite to prevent regression across all Python runtime versions.
+- **File Encoding**:
+  - Removed unintended UTF-8 BOM (`\xef\xbb\xbf`) prefix from `lunifier/logger.py`.
+
+---
+
 ## [1.0.7] - 2026-09-20
 
 ### Added

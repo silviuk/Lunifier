@@ -3,12 +3,14 @@ Main Coordinator Application for Lunifier.
 Integrates Edge Detection, Logitech HID++ Switching, Bluetooth Inter-Host Link, and Cursor Repositioning.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import time
 import signal
 import argparse
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any, List
 
 from .config import AppConfig, DEFAULT_CONFIG_PATH
 from .hidpp import HIDPPMaster

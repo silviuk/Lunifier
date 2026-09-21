@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unified, high-precision timestamped logger for Lunifier.
 Outputs thread-safe logs with millisecond precision to stdout and registered listeners.
 Supports configurable log levels: "none", "normal", and "debug".
