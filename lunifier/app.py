@@ -66,6 +66,8 @@ class LunifierApp:
                 peer_mac=self.config.bt_peer_address,
                 rfcomm_port=self.config.bt_rfcomm_port,
                 on_switch_received=self._handle_incoming_switch,
+                on_clipboard_received=self._handle_incoming_clipboard,
+                on_alignment_received=self._handle_incoming_alignment,
                 on_peer_status_changed=self._handle_peer_status_changed
             )
 
@@ -167,6 +169,14 @@ class LunifierApp:
     def _handle_peer_status_changed(self, connected: bool) -> None:
         status = "CONNECTED" if connected else "DISCONNECTED"
         log("Lunifier", f"Partner host Bluetooth link: {status}")
+
+    def _handle_incoming_clipboard(self, clip_text: str) -> None:
+        if self.config.sync_clipboard and clip_text:
+            ok = ClipboardManager.set_text(clip_text)
+            log("Lunifier", f"Updated local clipboard from partner: {'OK' if ok else 'FAILED'}")
+
+    def _handle_incoming_alignment(self, bounds: Dict[str, int]) -> None:
+        log("Lunifier", f"Received partner screen alignment geometry: {bounds}")
 
     def scan_devices(self) -> None:
         log("Lunifier", "=== Scanning for Logitech Devices (VID 0x046D) ===")

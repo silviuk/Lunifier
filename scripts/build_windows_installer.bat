@@ -7,7 +7,7 @@ echo ===================================================
 
 set "SCRIPT_DIR=%~dp0"
 set "ROOT_DIR=%SCRIPT_DIR%.."
-set "VERSION=1.0.6"
+set "VERSION=1.0.7"
 
 echo [1/3] Compiling Python Application with PyInstaller...
 cd /d "%ROOT_DIR%"

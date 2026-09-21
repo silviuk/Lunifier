@@ -28,7 +28,7 @@ from .logger import (
 from .border_overlay import BorderOverlayManager
 from .monitors import get_monitors, MonitorInfo
 from .tray import LunifierTray
-from .bt_link import BluetoothLink, discover_potential_partners
+from .bt_link import BluetoothLink, discover_potential_partners, discover_advertising_lunifier_peers
 from .autostart import is_autostart_enabled, set_autostart_enabled
 from .icons import set_window_icon, get_icon_ctk
 
@@ -576,62 +576,128 @@ class LunifierGUI:
         ).pack(padx=12)
 
     def _build_bt_tab(self, parent) -> None:
-        # Discovery Card
+        # Card 1: Timed Peer Advertising (Bluetooth)
+        adv_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
+        adv_card.pack(fill="x", padx=5, pady=8, ipady=5)
+
+        ctk.CTkLabel(
+            adv_card,
+            text="1. Advertise Lunifier (Bluetooth)",
+            font=get_ui_font(14, "bold")
+        ).pack(anchor="w", padx=15, pady=(10, 4))
+
+        ctk.CTkLabel(
+            adv_card,
+            text="Temporarily enables discovery over Bluetooth so your other PC can find and link this computer. Automatically turns off after duration.",
+            font=get_ui_font(11),
+            text_color=("gray30", "#b0bec5"),
+            wraplength=580,
+            justify="left"
+        ).pack(anchor="w", padx=15, pady=(0, 6))
+
+        adv_row = ctk.CTkFrame(adv_card, fg_color="transparent")
+        adv_row.pack(fill="x", padx=15, pady=4)
+
+        self.adv_btn = ctk.CTkButton(
+            adv_row,
+            text="📡 Advertise Lunifier",
+            font=get_ui_font(12, "bold"),
+            fg_color="#00838f",
+            hover_color="#006064",
+            corner_radius=BTN_RADIUS,
+            width=160,
+            height=32,
+            command=self._toggle_advertising
+        )
+        self.adv_btn.pack(side="left")
+
+        ctk.CTkLabel(adv_row, text="Duration:", font=get_ui_font(12)).pack(side="left", padx=(15, 6))
+        self.adv_duration_var = ctk.StringVar(value="60s (1 min)")
+        self.adv_duration_menu = ctk.CTkOptionMenu(
+            adv_row,
+            variable=self.adv_duration_var,
+            values=["30s", "60s (1 min)", "120s (2 min)", "300s (5 min)"],
+            corner_radius=BTN_RADIUS,
+            width=130
+        )
+        self.adv_duration_menu.pack(side="left")
+
+        self.adv_status_lbl = ctk.CTkLabel(
+            adv_card,
+            text="Status: Idle (Not advertising)",
+            font=get_ui_font(11, "bold"),
+            text_color="#90a4ae"
+        )
+        self.adv_status_lbl.pack(anchor="w", padx=15, pady=(4, 8))
+
+        # Card 2: Filtered Peer Discovery (Bluetooth)
         disc_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
         disc_card.pack(fill="x", padx=5, pady=8, ipady=5)
 
         ctk.CTkLabel(
             disc_card,
-            text="Discover Partner Computers",
+            text="2. Find Advertising Lunifier Hosts",
             font=get_ui_font(14, "bold")
         ).pack(anchor="w", padx=15, pady=(10, 4))
 
         ctk.CTkLabel(
             disc_card,
-            text="Scan for nearby broadcasting or paired Bluetooth computers:",
+            text="Scans over Bluetooth and detects ONLY hosts running Lunifier that have pressed 'Advertise Lunifier':",
             font=get_ui_font(11),
-            text_color="#b0bec5"
+            text_color=("gray30", "#b0bec5")
         ).pack(anchor="w", padx=15, pady=(0, 6))
 
         disc_row = ctk.CTkFrame(disc_card, fg_color="transparent")
         disc_row.pack(fill="x", padx=15, pady=4)
 
-        self.bt_discovery_var = ctk.StringVar(value="(Click 'Scan Computers' to search)")
+        self.bt_discovery_var = ctk.StringVar(value="(Click 'Scan Hosts' to search)")
         self.bt_discovery_menu = ctk.CTkOptionMenu(
             disc_row,
             variable=self.bt_discovery_var,
-            values=["(Click 'Scan Computers' to search)"],
+            values=["(Click 'Scan Hosts' to search)"],
             corner_radius=BTN_RADIUS,
-            command=self._on_partner_selected,
-            width=360
+            command=self._on_advertising_peer_selected,
+            width=280
         )
-        self.bt_discovery_menu.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.bt_discovery_menu.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         self.bt_scan_btn = ctk.CTkButton(
             disc_row,
-            text="Scan Computers",
+            text="🔍 Scan Hosts",
             font=get_ui_font(12, "bold"),
             corner_radius=BTN_RADIUS,
-            width=130,
-            command=self._scan_bt_partners_async
+            width=110,
+            command=self._scan_bt_advertising_peers_async
         )
-        self.bt_scan_btn.pack(side="right")
+        self.bt_scan_btn.pack(side="left", padx=(0, 8))
+
+        self.bt_quick_pair_btn = ctk.CTkButton(
+            disc_row,
+            text="🤝 Connect & Link",
+            font=get_ui_font(12, "bold"),
+            fg_color="#0277bd",
+            hover_color="#01579b",
+            corner_radius=BTN_RADIUS,
+            width=130,
+            command=self._connect_selected_advertising_peer
+        )
+        self.bt_quick_pair_btn.pack(side="right")
 
         self.bt_scan_status_lbl = ctk.CTkLabel(
             disc_card,
-            text="Tip: Click 'Scan Computers' to automatically find and select partner PCs.",
+            text="Tip: Click 'Advertise Lunifier' on one PC, then click 'Scan Hosts' here to link.",
             font=get_ui_font(11),
             text_color="#90a4ae"
         )
         self.bt_scan_status_lbl.pack(anchor="w", padx=15, pady=(2, 8))
 
-        # Main Peer Link Configuration Card
+        # Card 3: Inter-Host Sync Configuration
         bt_card = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS)
         bt_card.pack(fill="x", padx=5, pady=8, ipady=5)
 
         ctk.CTkLabel(
             bt_card,
-            text="Peer-to-Peer Inter-Host Sync (Zero Local Network)",
+            text="3. Active Peer Link & Security (Zero Network)",
             font=get_ui_font(14, "bold")
         ).pack(anchor="w", padx=15, pady=(10, 8))
 
@@ -670,13 +736,13 @@ class LunifierGUI:
 
         self.handshake_btn = ctk.CTkButton(
             handshake_row,
-            text="🤝 Request Pairing Handshake",
+            text="🤝 Manual Handshake",
             font=get_ui_font(12, "bold"),
-            fg_color="#0277bd",
-            hover_color="#01579b",
+            fg_color="#37474f",
+            hover_color="#455a64",
             corner_radius=BTN_RADIUS,
             command=self._request_bt_pairing,
-            width=210,
+            width=180,
             height=32
         )
         self.handshake_btn.pack(side="left")
@@ -933,6 +999,13 @@ class LunifierGUI:
         else:
             self.clip_switch.deselect()
 
+        if hasattr(self, 'adv_duration_var'):
+            dur_val = getattr(self.config, 'adv_duration_seconds', 60)
+            for opt in ["30s", "60s (1 min)", "120s (2 min)", "300s (5 min)"]:
+                if str(dur_val) in opt:
+                    self.adv_duration_var.set(opt)
+                    break
+
         conn_mode = getattr(self.config, 'connection_support', 'both').lower()
         rev_map = {
             "both": "Both (Unifying & Bluetooth)",
@@ -1062,6 +1135,11 @@ class LunifierGUI:
             self.config.bt_peer_address = self.peer_mac_entry.get().strip()
             self.config.bt_rfcomm_port = int(self.port_entry.get() or "4")
             self.config.sync_clipboard = bool(self.clip_switch.get())
+            if hasattr(self, 'adv_duration_var'):
+                try:
+                    self.config.adv_duration_seconds = int(self.adv_duration_var.get().split()[0].replace("s", ""))
+                except Exception:
+                    pass
             self.config.save()
 
             if self.app and self.app.edge_detector:
@@ -1361,43 +1439,122 @@ class LunifierGUI:
         conn_support = getattr(self.config, 'connection_support', 'both')
         self.hidpp.switch_all_to_channel(channel, keywords, backend=backend, connection_support=conn_support)
 
-    def _scan_bt_partners_async(self) -> None:
+    def _toggle_advertising(self) -> None:
+        link = self._get_or_create_bt_link()
+        if link.is_advertising:
+            link.stop_advertising()
+            self.adv_btn.configure(text="📡 Advertise Lunifier", fg_color="#00838f")
+            self.adv_status_lbl.configure(text="Status: Idle (Not advertising)", text_color="#90a4ae")
+            log("GUI", "Bluetooth advertising stopped manually.")
+        else:
+            dur_str = self.adv_duration_var.get().split()[0].replace("s", "")
+            try:
+                duration = int(dur_str)
+            except Exception:
+                duration = 60
+            self.adv_btn.configure(text="⏹ Stop Advertising", fg_color="#c62828")
+            self.adv_status_lbl.configure(text=f"● Advertising active ({duration}s remaining)", text_color="#81c784")
+
+            def on_tick(remaining: int):
+                def update():
+                    if hasattr(self, 'adv_status_lbl') and self.adv_status_lbl.winfo_exists():
+                        self.adv_status_lbl.configure(text=f"● Advertising active ({remaining}s remaining)", text_color="#81c784")
+                self.root.after(0, update)
+
+            def on_expired():
+                def update():
+                    if hasattr(self, 'adv_btn') and self.adv_btn.winfo_exists():
+                        self.adv_btn.configure(text="📡 Advertise Lunifier", fg_color="#00838f")
+                        self.adv_status_lbl.configure(text="Status: Idle (Timed out / Stopped)", text_color="#90a4ae")
+                self.root.after(0, update)
+
+            link.start_advertising(duration_seconds=duration, on_tick=on_tick, on_expired=on_expired)
+            log("GUI", f"Started Bluetooth advertising for {duration} seconds.")
+
+    def _scan_bt_advertising_peers_async(self) -> None:
         self.bt_scan_btn.configure(state="disabled", text="Scanning...")
-        self.bt_scan_status_lbl.configure(text="Scanning paired and nearby Bluetooth computers...", text_color="#80d8ff")
+        self.bt_scan_status_lbl.configure(
+            text="Scanning over Bluetooth for advertising Lunifier computers...",
+            text_color="#80d8ff"
+        )
 
         def worker():
-            partners = discover_potential_partners(timeout=3.5)
-            self.root.after(0, lambda: self._on_partners_scanned(partners))
+            port = 4
+            try:
+                port = int(self.port_entry.get().strip() or "4")
+            except Exception:
+                pass
+            peers = discover_advertising_lunifier_peers(
+                timeout=4.0,
+                rfcomm_port=port,
+                host_name=self.config.host_name
+            )
+            self.root.after(0, lambda: self._on_advertising_peers_scanned(peers))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_partners_scanned(self, partners: List[dict]) -> None:
-        self.bt_scan_btn.configure(state="normal", text="Scan Computers")
-        self._discovered_partners = {f"{p['name']} ({p['mac']}) [{p['source']}]": p['mac'] for p in partners}
-        options = list(self._discovered_partners.keys())
+    def _on_advertising_peers_scanned(self, peers: List[dict]) -> None:
+        self.bt_scan_btn.configure(state="normal", text="🔍 Scan Hosts")
+        self._discovered_peers = {}
+        for p in peers:
+            key = f"💻 {p['name']} ({p['mac']}) [Active {p.get('expires_in', 0)}s]"
+            self._discovered_peers[key] = p
+
+        options = list(self._discovered_peers.keys())
         if not options:
-            options = ["No Bluetooth devices found"]
-            self.bt_scan_status_lbl.configure(text="No devices found. Ensure partner Bluetooth is discoverable.", text_color="#ef5350")
+            options = ["(No advertising Lunifier hosts detected)"]
+            self.bt_scan_status_lbl.configure(
+                text="No advertising Lunifier hosts found. Click 'Advertise Lunifier' on the other PC first.",
+                text_color="#ef5350"
+            )
         else:
-            self.bt_scan_status_lbl.configure(text=f"Found {len(options)} potential partner device(s).", text_color="#81c784")
+            self.bt_scan_status_lbl.configure(
+                text=f"✓ Found {len(options)} actively advertising Lunifier host(s). Ready to link!",
+                text_color="#81c784"
+            )
 
         self.bt_discovery_menu.configure(values=options)
         self.bt_discovery_var.set(options[0])
-        if options[0] in self._discovered_partners:
-            self._on_partner_selected(options[0])
+        if options[0] in self._discovered_peers:
+            self._on_advertising_peer_selected(options[0])
 
-    def _on_partner_selected(self, choice: str) -> None:
-        mac = getattr(self, '_discovered_partners', {}).get(choice)
-        if mac:
+    def _on_advertising_peer_selected(self, choice: str) -> None:
+        peer = getattr(self, '_discovered_peers', {}).get(choice)
+        if peer and "mac" in peer:
+            mac = peer["mac"]
             self.peer_mac_entry.delete(0, "end")
             self.peer_mac_entry.insert(0, mac)
             self.config.bt_peer_address = mac
+
+    def _connect_selected_advertising_peer(self) -> None:
+        choice = self.bt_discovery_var.get()
+        peer = getattr(self, '_discovered_peers', {}).get(choice)
+        target_mac = self.peer_mac_entry.get().strip().upper()
+        token = peer.get("token", "") if peer else ""
+
+        if not target_mac:
+            self.bt_scan_status_lbl.configure(text="Please select an advertising peer or enter MAC first.", text_color="#ffa726")
+            return
+
+        self.bt_quick_pair_btn.configure(state="disabled", text="Linking...")
+        self.bt_link_status_lbl.configure(text=f"Connecting to {target_mac} over Bluetooth...", text_color="#80d8ff")
+
+        link = self._get_or_create_bt_link()
+
+        def on_err(err):
+            def update():
+                self.bt_quick_pair_btn.configure(state="normal", text="🤝 Connect & Link")
+                self.bt_link_status_lbl.configure(text=f"Handshake failed: {err}", text_color="#ef5350")
+            self.root.after(0, update)
+
+        link.request_pairing(target_mac, adv_token=token, on_error=on_err)
 
     def _get_or_create_bt_link(self) -> BluetoothLink:
         if self.app and getattr(self.app, 'bt_link', None):
             self.bt_link = self.app.bt_link
             self.bt_link.on_pair_request = self._on_bt_pair_request_received
             self.bt_link.on_pair_response = self._on_bt_pair_response_received
+            self.bt_link.on_peer_status_changed = self._on_bt_status_changed
             return self.bt_link
         if not self.bt_link:
             self.bt_link = BluetoothLink(
@@ -1417,14 +1574,14 @@ class LunifierGUI:
             self.bt_link_status_lbl.configure(text="Please select or enter partner MAC first", text_color="#ffa726")
             return
 
-        self.bt_link_status_lbl.configure(text="Initiating handshake... Request sent to partner...", text_color="#80d8ff")
+        self.bt_link_status_lbl.configure(text="Initiating handshake over Bluetooth... Request sent...", text_color="#80d8ff")
         self.handshake_btn.configure(state="disabled", text="Pairing...")
 
         link = self._get_or_create_bt_link()
 
         def on_err(err):
             def update():
-                self.handshake_btn.configure(state="normal", text="🤝 Request Pairing Handshake")
+                self.handshake_btn.configure(state="normal", text="🤝 Manual Handshake")
                 self.bt_link_status_lbl.configure(text=f"Pairing connection failed: {err}", text_color="#ef5350")
             self.root.after(0, update)
 
@@ -1443,15 +1600,16 @@ class LunifierGUI:
                 self.config.save()
             except Exception:
                 pass
-            self.bt_link_status_lbl.configure(text=f"✓ Auto-linked and bound to '{from_host}'", text_color="#81c784")
+            self.bt_link_status_lbl.configure(text=f"✓ Paired & Linked to '{from_host}' (Bluetooth Encrypted)", text_color="#81c784")
         self.root.after(0, update_ui)
         return True
 
     def _on_bt_pair_response_received(self, accepted: bool, from_host: str, info: str) -> None:
         def update_ui():
-            self.handshake_btn.configure(state="normal", text="🤝 Request Pairing Handshake")
+            self.handshake_btn.configure(state="normal", text="🤝 Manual Handshake")
+            self.bt_quick_pair_btn.configure(state="normal", text="🤝 Connect & Link")
             if accepted:
-                self.bt_link_status_lbl.configure(text=f"✓ Partner '{from_host}' ACCEPTED pairing!", text_color="#81c784")
+                self.bt_link_status_lbl.configure(text=f"✓ Partner '{from_host}' ACCEPTED pairing! (Bluetooth Encrypted)", text_color="#81c784")
                 self.p2p_switch.select()
                 self.config.bt_p2p_enabled = True
                 try:
@@ -1466,7 +1624,7 @@ class LunifierGUI:
         def update_ui():
             if hasattr(self, 'bt_link_status_lbl'):
                 if is_connected:
-                    self.bt_link_status_lbl.configure(text="Status: Connected & Synchronized", text_color="#81c784")
+                    self.bt_link_status_lbl.configure(text="Status: Connected & Synchronized (Bluetooth)", text_color="#81c784")
                 else:
                     self.bt_link_status_lbl.configure(text="Status: Standby", text_color="#90a4ae")
         self.root.after(0, update_ui)
@@ -1515,7 +1673,7 @@ class LunifierGUI:
         ctk.CTkLabel(meta_card, text="Program Information", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
 
         rows = [
-            ("Version:", "1.0.6 (Production Stable)"),
+            ("Version:", "1.0.7 (Production Stable)"),
             ("Author & Maintainer:", "Silviu Vlasceanu"),
             ("License:", "MIT License (Open Source)"),
             ("Copyright:", "© 2026 Silviu Vlasceanu. All rights reserved.")

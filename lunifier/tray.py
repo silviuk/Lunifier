@@ -250,7 +250,7 @@ class LunifierTray:
         self._thread: Optional[threading.Thread] = None
 
     def _create_icon_image(self) -> Image.Image:
-        pil_img = get_icon_pil()
+        pil_img = get_icon_pil(size=64)
         if pil_img:
             return pil_img
 

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: silviuk.Lunifier
-PackageVersion: 1.0.6
+PackageVersion: 1.0.7
 PackageLocale: en-US
 Publisher: Silviu Vlasceanu
 PublisherUrl: https://github.com/silviuk
@@ -30,6 +30,6 @@ Tags:
   - bluetooth
   - unifying
   - bolt
-ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v1.0.6
+ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v1.0.7
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

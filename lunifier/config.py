@@ -80,6 +80,7 @@ class AppConfig:
     bt_p2p_enabled: bool = False
     bt_peer_address: str = ""   # e.g. "00:11:22:33:44:55"
     bt_rfcomm_port: int = 4     # RFCOMM channel 1-30
+    adv_duration_seconds: int = 60 # Advertising timeout in seconds
     sync_cursor_position: bool = True
     sync_clipboard: bool = False
 

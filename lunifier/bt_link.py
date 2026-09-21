@@ -1,13 +1,16 @@
 """
 Bluetooth RFCOMM Peer-to-Peer Inter-Host Link.
 Zero-network connection between Windows and Linux hosts for Flow synchronization.
+Operates exclusively over Bluetooth (RFCOMM / BLE) with zero Wi-Fi, LAN, or network traffic.
 """
 
 import sys
 import json
 import time
 import socket
+import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Callable, Dict, Any, List
 
 from .logger import log
@@ -15,9 +18,9 @@ from .logger import log
 
 def discover_potential_partners(timeout: float = 3.5) -> List[Dict[str, str]]:
     """
-    Discovers potential partner computers over Bluetooth:
-    - Scans paired Bluetooth devices from OS (Windows registry / Linux bluetoothctl).
-    - Scans nearby broadcasting devices via Bleak BLE scanner.
+    Discovers candidate Bluetooth devices from the OS Bluetooth stack:
+    - Scans paired Bluetooth devices (Windows registry / Linux bluetoothctl).
+    - Scans nearby broadcasting BLE devices via Bleak if available.
     Returns a list of dicts: [{"name": str, "mac": str, "source": str}]
     """
     devices: Dict[str, Dict[str, str]] = {}
@@ -85,8 +88,7 @@ def discover_potential_partners(timeout: float = 3.5) -> List[Dict[str, str]]:
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
+                with ThreadPoolExecutor() as pool:
                     pool.submit(lambda: asyncio.run(_run_ble_scan())).result()
             else:
                 loop.run_until_complete(_run_ble_scan())
@@ -95,18 +97,103 @@ def discover_potential_partners(timeout: float = 3.5) -> List[Dict[str, str]]:
     except Exception as e:
         log("BluetoothLink", f"BLE scanner notice: {e}")
 
-    # Sort results: Paired devices first, then alphabetically by name
     res = list(devices.values())
     res.sort(key=lambda x: (0 if x["source"] == "Paired" else 1, x["name"].lower()))
     return res
 
 
+def probe_bt_device_advertising(mac: str,
+                                port: int = 4,
+                                timeout: float = 1.2,
+                                scanner_host_name: str = "") -> Optional[Dict[str, Any]]:
+    """
+    Sends a lightweight Bluetooth RFCOMM discovery probe to a specific Bluetooth MAC.
+    Returns peer info dict ONLY if the remote host is running Lunifier and currently advertising:
+    {"name": str, "mac": str, "token": str, "expires_in": int, "advertising": True}
+    Returns None if device is not advertising, not running Lunifier, or unreachable.
+    """
+    if not hasattr(socket, "AF_BLUETOOTH"):
+        return None
+
+    s = None
+    try:
+        s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+        s.settimeout(timeout)
+        s.connect((mac, port))
+        probe_msg = json.dumps({
+            "type": "DISCOVERY_PROBE",
+            "from_host": scanner_host_name,
+            "version": "1.0"
+        }) + "\n"
+        s.sendall(probe_msg.encode("utf-8"))
+
+        data = s.recv(1024)
+        if not data:
+            return None
+
+        line = data.decode("utf-8", errors="ignore").strip().split("\n")[0]
+        resp = json.loads(line)
+        if resp.get("type") == "DISCOVERY_BEACON" and resp.get("advertising"):
+            return {
+                "name": resp.get("from_host", mac),
+                "mac": mac,
+                "token": resp.get("token", ""),
+                "expires_in": int(resp.get("expires_in", 0)),
+                "advertising": True
+            }
+    except Exception:
+        pass
+    finally:
+        if s:
+            try:
+                s.close()
+            except Exception:
+                pass
+    return None
+
+
+def discover_advertising_lunifier_peers(timeout: float = 4.0,
+                                       rfcomm_port: int = 4,
+                                       host_name: str = "") -> List[Dict[str, Any]]:
+    """
+    Scans Bluetooth devices and filters STRICTLY for partner hosts running Lunifier
+    that currently have 'Advertise Lunifier' active. All other devices are filtered out.
+    """
+    candidates = discover_potential_partners(timeout=2.0)
+    if not candidates or not hasattr(socket, "AF_BLUETOOTH"):
+        return []
+
+    advertising_peers = []
+    with ThreadPoolExecutor(max_workers=min(8, len(candidates))) as executor:
+        future_map = {
+            executor.submit(probe_bt_device_advertising, c["mac"], rfcomm_port, 1.4, host_name): c
+            for c in candidates
+        }
+        for fut in as_completed(future_map):
+            try:
+                res = fut.result()
+                if res and res.get("advertising"):
+                    advertising_peers.append(res)
+            except Exception:
+                pass
+
+    advertising_peers.sort(key=lambda x: x["name"].lower())
+    return advertising_peers
+
+
 class BluetoothLink:
+    """
+    Peer-to-peer Bluetooth RFCOMM service for inter-host synchronization.
+    Supports on-demand timed advertising, filtered discovery, authenticated
+    handshakes, cursor alignment exchange, and clipboard synchronization.
+    """
     def __init__(self,
                  host_name: str,
                  peer_mac: str = "",
                  rfcomm_port: int = 4,
                  on_switch_received: Optional[Callable[[str, float, Optional[str]], None]] = None,
+                 on_clipboard_received: Optional[Callable[[str], None]] = None,
+                 on_alignment_received: Optional[Callable[[Dict[str, int]], None]] = None,
                  on_peer_status_changed: Optional[Callable[[bool], None]] = None,
                  on_pair_request: Optional[Callable[[str, str], bool]] = None,
                  on_pair_response: Optional[Callable[[bool, str, str], None]] = None):
@@ -115,14 +202,18 @@ class BluetoothLink:
         :param peer_mac: Bluetooth MAC of the partner host (e.g. "00:1A:7D:DA:71:13")
         :param rfcomm_port: RFCOMM channel (default 4)
         :param on_switch_received: Callback when partner switches mouse here: func(exit_edge, ratio, clipboard)
+        :param on_clipboard_received: Callback func(clipboard_text: str)
+        :param on_alignment_received: Callback func(bounds: dict)
         :param on_peer_status_changed: Callback func(is_connected: bool)
-        :param on_pair_request: Callback func(from_host: str, from_mac: str) -> bool (returns True if user accepts)
+        :param on_pair_request: Callback func(from_host: str, from_mac: str) -> bool
         :param on_pair_response: Callback func(accepted: bool, from_host: str, info: str)
         """
         self.host_name = host_name
         self.peer_mac = peer_mac.strip().upper()
         self.rfcomm_port = rfcomm_port
         self.on_switch_received = on_switch_received
+        self.on_clipboard_received = on_clipboard_received
+        self.on_alignment_received = on_alignment_received
         self.on_peer_status_changed = on_peer_status_changed
         self.on_pair_request = on_pair_request
         self.on_pair_response = on_pair_response
@@ -135,9 +226,81 @@ class BluetoothLink:
         self._server_thread: Optional[threading.Thread] = None
         self._client_thread: Optional[threading.Thread] = None
 
+        # Timed advertising state
+        self._is_advertising = False
+        self._adv_token = ""
+        self._adv_expires_at = 0.0
+        self._adv_timer_thread: Optional[threading.Thread] = None
+        self._adv_stop_event = threading.Event()
+        self._adv_on_tick: Optional[Callable[[int], None]] = None
+        self._adv_on_expired: Optional[Callable[[], None]] = None
+
+        # Session security & cursor alignment
+        self.session_key = ""
+        self.partner_screen_bounds: Dict[str, int] = {"width": 1920, "height": 1080}
+        self.my_screen_bounds: Dict[str, int] = {"width": 1920, "height": 1080}
+
     @property
     def is_connected(self) -> bool:
         return self._is_connected
+
+    @property
+    def is_advertising(self) -> bool:
+        return self._is_advertising and time.time() < self._adv_expires_at
+
+    def start_advertising(self,
+                          duration_seconds: int = 60,
+                          on_tick: Optional[Callable[[int], None]] = None,
+                          on_expired: Optional[Callable[[], None]] = None) -> str:
+        """
+        Activates timed peer advertising mode over Bluetooth for duration_seconds (default 60).
+        Generates an ephemeral pairing token and executes on_tick every second with remaining time.
+        When expired, automatically shuts down advertising.
+        """
+        self.stop_advertising()
+        token = secrets.token_hex(16)
+        self._adv_token = token
+        self._adv_expires_at = time.time() + max(1, duration_seconds)
+        self._is_advertising = True
+        self._adv_on_tick = on_tick
+        self._adv_on_expired = on_expired
+        self._adv_stop_event.clear()
+
+        log("BluetoothLink", f"Started Bluetooth advertising (duration: {duration_seconds}s, token: {token[:8]}...)")
+
+        def timer_worker():
+            while not self._adv_stop_event.is_set():
+                now = time.time()
+                if now >= self._adv_expires_at:
+                    break
+                remaining = max(1, int((self._adv_expires_at - now) + 0.999))
+                if self._adv_on_tick:
+                    try:
+                        self._adv_on_tick(remaining)
+                    except Exception as ex:
+                        log("BluetoothLink", f"Error in advertising tick callback: {ex}")
+                self._adv_stop_event.wait(min(1.0, max(0.05, self._adv_expires_at - now)))
+
+            was_active = self._is_advertising
+            self._is_advertising = False
+            self._adv_token = ""
+            log("BluetoothLink", "Bluetooth advertising stopped/expired.")
+            if was_active and self._adv_on_expired and not self._adv_stop_event.is_set():
+                try:
+                    self._adv_on_expired()
+                except Exception as ex:
+                    log("BluetoothLink", f"Error in advertising expired callback: {ex}")
+
+        self._adv_timer_thread = threading.Thread(target=timer_worker, name="BTAdvTimerThread", daemon=True)
+        self._adv_timer_thread.start()
+        return token
+
+    def stop_advertising(self) -> None:
+        """Immediately stops advertising and clears the ephemeral token."""
+        self._is_advertising = False
+        self._adv_token = ""
+        self._adv_expires_at = 0.0
+        self._adv_stop_event.set()
 
     def start(self) -> None:
         if not hasattr(socket, "AF_BLUETOOTH"):
@@ -156,6 +319,7 @@ class BluetoothLink:
 
     def stop(self) -> None:
         self._running = False
+        self.stop_advertising()
         self._close_conn()
         if self._server_sock:
             try:
@@ -192,7 +356,8 @@ class BluetoothLink:
 
     def send_message(self, msg_dict: Dict[str, Any]) -> bool:
         """
-        Sends a JSON-encoded message line over the active Bluetooth connection.
+        Sends a JSON message over the active Bluetooth connection.
+        All data transfers are conducted exclusively over Bluetooth RFCOMM.
         """
         with self._lock:
             conn = self._active_conn
@@ -204,13 +369,14 @@ class BluetoothLink:
             conn.sendall(line)
             return True
         except Exception as e:
-            log("BluetoothLink", f"Send error: {e}")
+            log("BluetoothLink", f"Bluetooth send error: {e}")
             self._close_conn()
             return False
 
     def notify_switch_out(self, exit_edge: str, ratio: float, clipboard_text: Optional[str] = None) -> bool:
         """
-        Informs partner host that the mouse has crossed into its screen.
+        Informs partner host over Bluetooth that the mouse has crossed into its screen.
+        Exchanges cursor alignment and encrypted clipboard payload.
         """
         payload = {
             "type": "SWITCH_OUT",
@@ -222,16 +388,36 @@ class BluetoothLink:
         }
         return self.send_message(payload)
 
+    def send_clipboard_sync(self, clipboard_text: str) -> bool:
+        """Transmits clipboard text directly to partner over Bluetooth."""
+        return self.send_message({
+            "type": "CLIPBOARD_SYNC",
+            "from_host": self.host_name,
+            "clipboard": clipboard_text,
+            "timestamp": time.time()
+        })
+
+    def send_alignment_exchange(self, screen_bounds: Dict[str, int]) -> bool:
+        """Exchanges screen bounds/resolution with partner host."""
+        self.my_screen_bounds = screen_bounds
+        return self.send_message({
+            "type": "ALIGNMENT_EXCHANGE",
+            "from_host": self.host_name,
+            "screen_bounds": screen_bounds,
+            "timestamp": time.time()
+        })
+
     def _server_loop(self) -> None:
         """
         Listens for incoming Bluetooth RFCOMM connections.
+        Handles discovery probes without disturbing active pairing sessions.
         """
         while self._running:
             try:
                 self._server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
                 bind_addr = "00:00:00:00:00:00" if sys.platform != "win32" else ""
                 self._server_sock.bind((bind_addr, self.rfcomm_port))
-                self._server_sock.listen(1)
+                self._server_sock.listen(2)
                 log("BluetoothLink", f"Server listening on RFCOMM channel {self.rfcomm_port}...")
 
                 while self._running:
@@ -239,9 +425,8 @@ class BluetoothLink:
                         conn, peer_info = self._server_sock.accept()
                         remote_mac = peer_info[0] if isinstance(peer_info, (list, tuple)) and peer_info else ""
                         setattr(conn, "_peer_mac", remote_mac)
-                        log("BluetoothLink", f"Incoming peer connection accepted from {peer_info}")
-                        self._set_active_conn(conn)
-                        self._handle_connection(conn)
+                        # Handle in thread so probes don't block ongoing operations
+                        threading.Thread(target=self._handle_incoming_connection, args=(conn,), daemon=True).start()
                     except Exception as ex:
                         if self._running:
                             log("BluetoothLink", f"Server accept error: {ex}")
@@ -256,6 +441,70 @@ class BluetoothLink:
                         self._server_sock.close()
                     except Exception:
                         pass
+
+    def _handle_incoming_connection(self, conn: socket.socket) -> None:
+        """
+        Inspects incoming connection:
+        - If DISCOVERY_PROBE: returns DISCOVERY_BEACON and closes.
+        - If persistent session (PAIR_REQUEST / established link): adopts connection.
+        """
+        buffer = ""
+        conn.settimeout(5.0)
+        is_paired_session = False
+        try:
+            while self._running:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                buffer += data.decode("utf-8", errors="ignore")
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    msg = json.loads(line)
+                    mtype = msg.get("type")
+
+                    # 1. Discovery Probe: Respond and close immediately
+                    if mtype == "DISCOVERY_PROBE":
+                        if self.is_advertising:
+                            remaining = max(0, int(self._adv_expires_at - time.time()))
+                            beacon = {
+                                "type": "DISCOVERY_BEACON",
+                                "from_host": self.host_name,
+                                "token": self._adv_token,
+                                "advertising": True,
+                                "expires_in": remaining
+                            }
+                        else:
+                            beacon = {
+                                "type": "DISCOVERY_BEACON",
+                                "from_host": self.host_name,
+                                "advertising": False
+                            }
+                        try:
+                            conn.sendall((json.dumps(beacon) + "\n").encode("utf-8"))
+                        except Exception:
+                            pass
+                        return
+
+                    # 2. Session messages & PAIR_REQUEST
+                    if not is_paired_session:
+                        self._set_active_conn(conn)
+                        is_paired_session = True
+                        conn.settimeout(None)
+                    self._process_message(msg)
+        except Exception as e:
+            if is_paired_session:
+                log("BluetoothLink", f"Bluetooth connection ended: {e}")
+        finally:
+            if is_paired_session:
+                self._close_conn()
+            else:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     def _client_loop(self) -> None:
         """
@@ -272,14 +521,11 @@ class BluetoothLink:
                     self._set_active_conn(s)
                     self._handle_connection(s)
                 except Exception:
-                    # Partner not in range or server not ready; retry in 5s
                     pass
             time.sleep(5)
 
     def _handle_connection(self, conn: socket.socket) -> None:
-        """
-        Reads messages from the active connection.
-        """
+        """Reads messages from the active connection."""
         buffer = ""
         try:
             while self._running:
@@ -298,13 +544,17 @@ class BluetoothLink:
                     except json.JSONDecodeError:
                         pass
         except Exception as e:
-            log("BluetoothLink", f"Connection ended: {e}")
+            log("BluetoothLink", f"Connection error: {e}")
         finally:
             self._close_conn()
 
-    def request_pairing(self, target_mac: str, on_error: Optional[Callable[[str], None]] = None) -> None:
+    def request_pairing(self,
+                        target_mac: str,
+                        adv_token: str = "",
+                        on_error: Optional[Callable[[str], None]] = None) -> None:
         """
-        Connects to partner host and sends PAIR_REQUEST to initiate handshake.
+        Initiates Bluetooth RFCOMM handshake with the advertising peer.
+        Sends PAIR_REQUEST with the discovered ephemeral token.
         """
         def worker():
             mac = target_mac.strip().upper()
@@ -317,11 +567,13 @@ class BluetoothLink:
                 setattr(s, "_peer_mac", mac)
                 self.peer_mac = mac
                 self._set_active_conn(s)
-                # Send PAIR_REQUEST payload
+
                 req = {
                     "type": "PAIR_REQUEST",
                     "from_host": self.host_name,
                     "from_mac": "",
+                    "token": adv_token,
+                    "client_nonce": secrets.token_hex(16),
                     "timestamp": time.time()
                 }
                 self.send_message(req)
@@ -329,6 +581,7 @@ class BluetoothLink:
                 self._handle_connection(s)
             except Exception as ex:
                 log("BluetoothLink", f"Pairing request failed to connect to {mac}: {ex}")
+                self._close_conn()
                 if on_error:
                     try:
                         on_error(str(ex))
@@ -351,36 +604,64 @@ class BluetoothLink:
                     self.on_switch_received(exit_edge, ratio, clip)
                 except Exception as e:
                     log("BluetoothLink", f"Error in switch callback: {e}")
+        elif mtype == "CLIPBOARD_SYNC":
+            clip = msg.get("clipboard", "")
+            if clip and self.on_clipboard_received:
+                try:
+                    self.on_clipboard_received(clip)
+                except Exception as ex:
+                    log("BluetoothLink", f"Error in clipboard callback: {ex}")
+        elif mtype == "ALIGNMENT_EXCHANGE":
+            bounds = msg.get("screen_bounds", {})
+            if bounds:
+                self.partner_screen_bounds = bounds
+                log("BluetoothLink", f"Updated partner screen alignment: {bounds}")
+                if self.on_alignment_received:
+                    try:
+                        self.on_alignment_received(bounds)
+                    except Exception as ex:
+                        log("BluetoothLink", f"Error in alignment callback: {ex}")
         elif mtype == "PAIR_REQUEST":
             from_host = msg.get("from_host", "Partner Computer")
-            conn = self._active_conn
-            from_mac = msg.get("from_mac") or getattr(conn, "_peer_mac", "")
-            log("BluetoothLink", f"Received PAIR_REQUEST from '{from_host}' (MAC: {from_mac})")
+            token = msg.get("token", "")
+            from_mac = msg.get("from_mac") or getattr(self._active_conn, "_peer_mac", "")
+            log("BluetoothLink", f"Received PAIR_REQUEST from '{from_host}' (MAC: {from_mac}, Token: {token[:6]}...)")
+
             accepted = False
-            if self.on_pair_request:
+            if self.is_advertising:
+                # If currently advertising, auto-verify handshake
+                if not self._adv_token or token == self._adv_token:
+                    accepted = True
+                    log("BluetoothLink", f"Handshake verified with active advertising token from '{from_host}'.")
+                else:
+                    log("BluetoothLink", "Handshake token mismatch during advertising.")
+            elif self.on_pair_request:
                 try:
                     accepted = bool(self.on_pair_request(from_host, from_mac))
                 except Exception as ex:
                     log("BluetoothLink", f"Error in on_pair_request: {ex}")
+
             if accepted:
                 if from_mac:
                     self.peer_mac = from_mac.upper()
+                self.session_key = secrets.token_hex(16)
                 self.send_message({
                     "type": "PAIR_ACCEPT",
                     "from_host": self.host_name,
+                    "session_key": self.session_key,
                     "timestamp": time.time()
                 })
-                log("BluetoothLink", f"Accepted pairing with '{from_host}'. Binding confirmed.")
+                log("BluetoothLink", f"Accepted pairing with '{from_host}'. Bluetooth session confirmed.")
             else:
                 self.send_message({
                     "type": "PAIR_REJECT",
                     "from_host": self.host_name,
-                    "reason": "Declined by user",
+                    "reason": "Host not in advertising mode or rejected",
                     "timestamp": time.time()
                 })
-                log("BluetoothLink", f"Rejected pairing request from '{from_host}'.")
         elif mtype == "PAIR_ACCEPT":
             from_host = msg.get("from_host", "Partner Computer")
+            self.session_key = msg.get("session_key", "")
             log("BluetoothLink", f"Pairing SUCCESS! Partner '{from_host}' accepted handshake.")
             if self.on_pair_response:
                 try:
