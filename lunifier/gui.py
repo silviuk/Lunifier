@@ -28,7 +28,12 @@ from .logger import (
 from .border_overlay import BorderOverlayManager
 from .monitors import get_monitors, MonitorInfo
 from .tray import LunifierTray
-from .bt_link import BluetoothLink, discover_potential_partners, discover_advertising_lunifier_peers
+from .bt_link import (
+    BluetoothLink,
+    discover_potential_partners,
+    discover_advertising_lunifier_peers,
+    get_local_bluetooth_mac
+)
 from .autostart import is_autostart_enabled, set_autostart_enabled
 from .icons import set_window_icon, get_icon_ctk
 
@@ -73,8 +78,12 @@ class LunifierGUI:
         ctk.set_default_color_theme("blue")
 
         self.root.title("Lunifier - Logitech Easy-Switch Flow")
-        self.root.geometry("740x950")
-        self.root.minsize(640, 750)
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        win_w = min(780, max(720, screen_w - 40))
+        win_h = min(1020, max(700, screen_h - 70))
+        self.root.geometry(f"{win_w}x{win_h}")
+        self.root.minsize(680, min(650, win_h))
         self._set_app_icon()
 
         self._last_rendered_device_sig: Optional[str] = None
@@ -176,7 +185,9 @@ class LunifierGUI:
         self.flow_scroll.pack(fill="both", expand=True)
         self._build_flow_tab(self.flow_scroll)
         self._build_devices_tab(self.tab_devices)
-        self._build_bt_tab(self.tab_bt)
+        self.bt_scroll = ctk.CTkScrollableFrame(self.tab_bt, fg_color="transparent")
+        self.bt_scroll.pack(fill="both", expand=True)
+        self._build_bt_tab(self.bt_scroll)
         self._build_logs_tab(self.tab_logs)
         self.about_scroll = ctk.CTkScrollableFrame(self.tab_about, fg_color="transparent")
         self.about_scroll.pack(fill="both", expand=True)
@@ -582,18 +593,79 @@ class LunifierGUI:
 
         ctk.CTkLabel(
             adv_card,
-            text="1. Advertise Lunifier (Bluetooth)",
+            text="Host A: Advertise This Computer (Quick Pair)",
             font=get_ui_font(14, "bold")
         ).pack(anchor="w", padx=15, pady=(10, 4))
 
         ctk.CTkLabel(
             adv_card,
-            text="Temporarily enables discovery over Bluetooth so your other PC can find and link this computer. Automatically turns off after duration.",
+            text="Step 1: Click on ONE computer to make it discoverable over Bluetooth for 60 seconds (no Wi-Fi needed). Automatically turns off after the duration.",
             font=get_ui_font(11),
             text_color=("gray30", "#b0bec5"),
             wraplength=580,
             justify="left"
         ).pack(anchor="w", padx=15, pady=(0, 6))
+
+        # Local Host Bluetooth Address (Copyable)
+        mac_row = ctk.CTkFrame(adv_card, fg_color="transparent")
+        mac_row.pack(fill="x", padx=15, pady=(2, 6))
+
+        ctk.CTkLabel(
+            mac_row,
+            text="This Computer's Bluetooth Address:",
+            font=get_ui_font(12, "bold")
+        ).pack(side="left")
+
+        local_mac = get_local_bluetooth_mac() or "(No adapter detected)"
+        self.local_mac_entry = ctk.CTkEntry(
+            mac_row,
+            width=175,
+            corner_radius=BTN_RADIUS,
+            font=get_ui_font(12)
+        )
+        self.local_mac_entry.insert(0, local_mac)
+        self.local_mac_entry.pack(side="left", padx=(10, 8))
+
+        def copy_local_bt_mac():
+            val = self.local_mac_entry.get().strip()
+            if val and not val.startswith("("):
+                self.root.clipboard_clear()
+                self.root.clipboard_append(val)
+                self.copy_local_mac_btn.configure(text="✓ Copied")
+                self.root.after(2000, lambda: self.copy_local_mac_btn.configure(text="📋 Copy Address"))
+
+        self.copy_local_mac_btn = ctk.CTkButton(
+            mac_row,
+            text="📋 Copy Address",
+            font=get_ui_font(11, "bold"),
+            fg_color="#37474f",
+            hover_color="#455a64",
+            corner_radius=BTN_RADIUS,
+            width=110,
+            height=28,
+            command=copy_local_bt_mac
+        )
+        self.copy_local_mac_btn.pack(side="left")
+
+        def refresh_local_bt_mac():
+            from . import bt_link
+            bt_link._cached_local_bt_mac = None
+            mac = get_local_bluetooth_mac() or "(No adapter detected)"
+            self.local_mac_entry.delete(0, "end")
+            self.local_mac_entry.insert(0, mac)
+
+        self.refresh_local_mac_btn = ctk.CTkButton(
+            mac_row,
+            text="🔄",
+            font=get_ui_font(11),
+            fg_color="#455a64",
+            hover_color="#546e7a",
+            corner_radius=BTN_RADIUS,
+            width=36,
+            height=28,
+            command=refresh_local_bt_mac
+        )
+        self.refresh_local_mac_btn.pack(side="left", padx=(6, 0))
 
         adv_row = ctk.CTkFrame(adv_card, fg_color="transparent")
         adv_row.pack(fill="x", padx=15, pady=4)
@@ -636,15 +708,17 @@ class LunifierGUI:
 
         ctk.CTkLabel(
             disc_card,
-            text="2. Find Advertising Lunifier Hosts",
+            text="Host B: Find & Link Advertising Computer (Quick Pair)",
             font=get_ui_font(14, "bold")
         ).pack(anchor="w", padx=15, pady=(10, 4))
 
         ctk.CTkLabel(
             disc_card,
-            text="Scans over Bluetooth and detects ONLY hosts running Lunifier that have pressed 'Advertise Lunifier':",
+            text="Step 2: On your OTHER computer, click 'Scan Hosts' to detect Host A, then click 'Connect & Link'. Both computers will automatically authenticate and enable the Peer Link below:",
             font=get_ui_font(11),
-            text_color=("gray30", "#b0bec5")
+            text_color=("gray30", "#b0bec5"),
+            wraplength=580,
+            justify="left"
         ).pack(anchor="w", padx=15, pady=(0, 6))
 
         disc_row = ctk.CTkFrame(disc_card, fg_color="transparent")
@@ -685,7 +759,7 @@ class LunifierGUI:
 
         self.bt_scan_status_lbl = ctk.CTkLabel(
             disc_card,
-            text="Tip: Click 'Advertise Lunifier' on one PC, then click 'Scan Hosts' here to link.",
+            text="Tip: Click 'Advertise Lunifier' on Host A, then click 'Scan Hosts' here.",
             font=get_ui_font(11),
             text_color="#90a4ae"
         )
@@ -697,9 +771,18 @@ class LunifierGUI:
 
         ctk.CTkLabel(
             bt_card,
-            text="3. Active Peer Link & Security (Zero Network)",
+            text="Peer Link Status & Settings (Zero Network Bluetooth)",
             font=get_ui_font(14, "bold")
-        ).pack(anchor="w", padx=15, pady=(10, 8))
+        ).pack(anchor="w", padx=15, pady=(10, 4))
+
+        ctk.CTkLabel(
+            bt_card,
+            text="Underlying Bluetooth RFCOMM link state. Automatically configured and enabled by Quick Pair above, or you can manage it manually:",
+            font=get_ui_font(11),
+            text_color=("gray30", "#b0bec5"),
+            wraplength=580,
+            justify="left"
+        ).pack(anchor="w", padx=15, pady=(0, 6))
 
         self.p2p_switch = ctk.CTkSwitch(
             bt_card,
@@ -754,6 +837,15 @@ class LunifierGUI:
             text_color="#90a4ae"
         )
         self.bt_link_status_lbl.pack(side="left", padx=15)
+
+        ctk.CTkLabel(
+            bt_card,
+            text="Tip: If linked via Host A & B above, the connection establishes automatically. Use 'Manual Handshake' only if you entered the partner MAC address manually.",
+            font=get_ui_font(11),
+            text_color="#90a4ae",
+            wraplength=580,
+            justify="left"
+        ).pack(anchor="w", padx=15, pady=(0, 8))
 
         desc_box = ctk.CTkFrame(parent, corner_radius=CARD_RADIUS, fg_color=("#f0f0f0", "#1e1e1e"))
         desc_box.pack(fill="x", padx=5, pady=8, ipady=6)
@@ -1673,7 +1765,7 @@ class LunifierGUI:
         ctk.CTkLabel(meta_card, text="Program Information", font=get_ui_font(14, "bold")).pack(anchor="w", padx=15, pady=(10, 6))
 
         rows = [
-            ("Version:", "1.0.8 (Production Stable)"),
+            ("Version:", "1.0.9 (Production Stable)"),
             ("Author & Maintainer:", "Silviu Vlasceanu"),
             ("License:", "MIT License (Open Source)"),
             ("Copyright:", "© 2026 Silviu Vlasceanu. All rights reserved.")

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.9] - 2026-09-22
+
+### Added
+- **Local Bluetooth Address Field & 1-Click Copy**:
+  - Added a copyable entry field showing the local machine's primary Bluetooth adapter MAC address directly in the "Host A: Advertise This Computer" card.
+  - Added a `📋 Copy Address` button with clipboard integration and visual feedback (`✓ Copied`).
+  - Added a `🔄` adapter refresh button and implemented universal local Bluetooth MAC resolution across Windows (Winsock socket bind) and Linux (sysfs `/sys/class/bluetooth/hci*/address` and `bluetoothctl list`).
+
+### Fixed
+- **Windows Bluetooth RFCOMM Server Socket Bind**:
+  - Resolved `bad bluetooth address` error on Windows Winsock by universally binding to `"00:00:00:00:00:00"` (`BDADDR_ANY`) instead of an empty string.
+  - Eliminated the periodic 5-second server retry loop log spam and enabled reliable discovery probe detection and pairing between peer hosts.
+- **Window Sizing & Layout Responsive Optimization**:
+  - Made default window geometry dynamically scale to `780x1020` on both Windows and Linux, fitting comfortably without exceeding available screen heights.
+  - Wrapped the Bluetooth Inter-Host Link page in a `CTkScrollableFrame` so content scrolls smoothly on smaller screens and displays with DPI scaling, completely preventing the "Test Switch Channel Now" and "Save Configuration" buttons from being squeezed or clipped.
+
+### Changed
+- **Bluetooth Pairing & Link Configuration Clarity**:
+  - Clarified UI cards into "Host A: Advertise This Computer (Quick Pair)", "Host B: Find & Link Advertising Computer (Quick Pair)", and "Peer Link Status & Settings (Zero Network Bluetooth)".
+  - Added explicit instructions distinguishing the automated 1-click Quick Pairing wizard from the persistent underlying RFCOMM link configuration and manual fallback handshake.
+
+---
+
 ## [1.0.8] - 2026-09-21
 
 ### Changed

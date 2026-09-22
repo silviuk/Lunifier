@@ -1,6 +1,6 @@
 # PowerShell script to build MSIX package for Windows Store submission
 param (
-    [string]$Version = "1.0.8.0",
+    [string]$Version = "1.0.9.0",
     [string]$DistDir = "$PSScriptRoot\..\dist",
     [string]$SourceAppDir = "$PSScriptRoot\..\dist\Lunifier",
     [string]$ManifestPath = "$PSScriptRoot\..\packaging\msix\AppxManifest.xml",
