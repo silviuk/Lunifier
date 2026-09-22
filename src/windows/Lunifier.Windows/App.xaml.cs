@@ -87,6 +87,8 @@ namespace Lunifier.Windows
                 args.Handled = true;
             };
 
+            ThemeManager.Initialize();
+
             base.OnStartup(e);
         }
 

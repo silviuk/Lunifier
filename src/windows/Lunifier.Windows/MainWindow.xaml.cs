@@ -72,6 +72,13 @@ namespace Lunifier.Windows
         {
             try
             {
+                var helper = new WindowInteropHelper(this);
+                ThemeManager.ApplyTitleBarTheme(helper.Handle, ThemeManager.IsDark);
+                ThemeManager.ThemeChanged += isDark =>
+                {
+                    Dispatcher.InvokeAsync(() => ThemeManager.ApplyTitleBarTheme(helper.Handle, isDark));
+                };
+
                 _overlay = new BorderOverlayWindow { Owner = this };
                 SetupBorderCombos();
                 LoadMonitors();
@@ -80,6 +87,12 @@ namespace Lunifier.Windows
 
                 InitializeTrayIcon();
                 RegisterGlobalHotkeys();
+
+                // Auto-start service on launch if not running
+                if (!_service.IsRunning)
+                {
+                    _service.Start();
+                }
 
                 // Trigger initial device scan in background
                 RefreshDevicesAsync();
@@ -471,7 +484,14 @@ namespace Lunifier.Windows
         {
             SaveConfigInternal();
             _service.ReloadConfig(_config);
-            MessageBox.Show("Configuration saved successfully.", "Lunifier", MessageBoxButton.OK, MessageBoxImage.Information);
+            SaveStatusText.Text = "✓ Configuration saved";
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            timer.Tick += (s, ev) =>
+            {
+                SaveStatusText.Text = "";
+                timer.Stop();
+            };
+            timer.Start();
         }
 
         private void SaveConfigInternal()
@@ -573,7 +593,14 @@ namespace Lunifier.Windows
         private void CopyLogs_Click(object sender, RoutedEventArgs e)
         {
             ClipboardHelper.SetText(LogsBox.Text);
-            MessageBox.Show("Logs copied to clipboard.", "Lunifier", MessageBoxButton.OK, MessageBoxImage.Information);
+            CopyLogsBtn.Content = "✓ Copied";
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (s, ev) =>
+            {
+                CopyLogsBtn.Content = "Copy Logs";
+                timer.Stop();
+            };
+            timer.Start();
         }
 
         private void OnLogReceived(string logLine)
@@ -729,21 +756,23 @@ namespace Lunifier.Windows
                         _service.ReloadConfig(_config);
                         _service.BtPeer.Start();
 
-                        btn.Content = "Paired!";
-                        MessageBox.Show($"Successfully paired with {peer.Name} ({peer.MacAddress})!\nBluetooth P2P inter-host link is now active.",
-                            "Lunifier Pairing Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                        btn.Content = "✓ Paired";
+                        BtScanStatusText.Text = $"✓ Paired with {peer.Name} ({peer.MacAddress}) on port {peer.Port}. Link active!";
+                        BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4ADE80"));
                     }
                     else
                     {
                         btn.Content = "Failed";
-                        MessageBox.Show($"Pairing handshake with {peer.MacAddress} failed or timed out: {reason}. Ensure the host is still actively advertising.",
-                            "Lunifier Pairing Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        BtScanStatusText.Text = $"Pairing with {peer.MacAddress} failed: {reason}. Ensure advertising is active.";
+                        BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
                     }
                 }
                 catch (Exception ex)
                 {
                     AppLogger.Log("GUI", $"Pairing exception: {ex.Message}");
                     btn.Content = "Error";
+                    BtScanStatusText.Text = $"Pairing error: {ex.Message}";
+                    BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
                 }
                 finally
                 {

@@ -391,7 +391,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp = Adw.PreferencesGroup()
         page.add(grp)
 
-        row_about = Adw.ActionRow(title="Lunifier 2.1.2 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        row_about = Adw.ActionRow(title="Lunifier 2.1.3 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
         icon_img = Gtk.Image.new_from_icon_name("lunifier")
         icon_img.set_pixel_size(48)
         row_about.add_prefix(icon_img)

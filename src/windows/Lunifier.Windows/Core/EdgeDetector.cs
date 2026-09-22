@@ -155,14 +155,14 @@ namespace Lunifier.Windows.Core
 
         private (string Edge, double Ratio, string MonitorId, int TargetChannel)? GetTriggeredEdgeInfo(int x, int y)
         {
-            var m = MonitorManager.GetMonitorForPoint(_monitors, x, y);
+            var m = MonitorManager.GetMonitorForPoint(_monitors, x, y, tol: 5);
             if (m == null) return null;
 
             var mid = m.Id;
             var mCfg = GetMonitorConfig(mid);
             if (!mCfg.Enabled || mCfg.Edges == null) return null;
 
-            const int tol = 2;
+            const int tol = 5;
 
             foreach (var (edgeName, ch) in mCfg.Edges)
             {
@@ -201,25 +201,33 @@ namespace Lunifier.Windows.Core
         {
             lock (_cursorHistory)
             {
-                if (_cursorHistory.Count == 0) return true;
+                if (_cursorHistory.Count < 2) return true;
 
-                var targetTime = (holdStart ?? NowSeconds) - 0.10;
+                var targetTime = (holdStart ?? NowSeconds) - 0.08;
                 (int X, int Y) prev = (_cursorHistory.Peek().X, _cursorHistory.Peek().Y);
+                bool found = false;
 
                 foreach (var item in _cursorHistory)
                 {
                     if (item.Time <= targetTime)
                     {
                         prev = (item.X, item.Y);
+                        found = true;
                     }
                 }
 
+                if (!found)
+                {
+                    prev = (_cursorHistory.Peek().X, _cursorHistory.Peek().Y);
+                }
+
+                const int minDisplacement = 8;
                 return edge switch
                 {
-                    "right" => (currentX - prev.X) >= MinApproachDisplacement,
-                    "left" => (prev.X - currentX) >= MinApproachDisplacement,
-                    "bottom" => (currentY - prev.Y) >= MinApproachDisplacement,
-                    "top" => (prev.Y - currentY) >= MinApproachDisplacement,
+                    "right" => (currentX - prev.X) >= minDisplacement,
+                    "left" => (prev.X - currentX) >= minDisplacement,
+                    "bottom" => (currentY - prev.Y) >= minDisplacement,
+                    "top" => (prev.Y - currentY) >= minDisplacement,
                     _ => true
                 };
             }
@@ -305,6 +313,7 @@ namespace Lunifier.Windows.Core
                             _currentEdge = key;
                             _currentMonitorId = mid;
                             _holdStartTime = now;
+                            AppLogger.Log("EdgeDetector", $"Cursor reached border '{edge}' on Monitor {mid} at ({x}, {y}) [Ratio: {ratio:F2}] -> Holding for {HoldDelayMs}ms...");
                         }
                         else
                         {
@@ -313,7 +322,8 @@ namespace Lunifier.Windows.Core
 
                             if (elapsedMs >= requiredHold)
                             {
-                                if (IsApproachingEdge(edge, x, y, _holdStartTime))
+                                bool isApproaching = IsApproachingEdge(edge, x, y, _holdStartTime);
+                                if (isApproaching || elapsedMs >= Math.Max(requiredHold, 300))
                                 {
                                     if (KnockEnabled)
                                     {
@@ -363,10 +373,6 @@ namespace Lunifier.Windows.Core
                                             AppLogger.Log("EdgeDetector", $"Error executing trigger callback: {cbEx.Message}");
                                         }
                                     }
-                                }
-                                else
-                                {
-                                    _holdStartTime = now;
                                 }
                             }
                         }

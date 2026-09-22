@@ -4,7 +4,7 @@
         Title="Lunifier - Logitech Easy-Switch Flow"
         Width="780" Height="1020"
         MinWidth="680" MinHeight="750"
-        Background="{StaticResource WindowBackground}"
+        Background="{DynamicResource WindowBackground}"
         WindowStartupLocation="CenterScreen"
         Icon="Resources/icon.ico">
     <Grid Margin="20">
@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15,12" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+        <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15,12" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -23,8 +23,8 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="Lunifier" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
-                    <TextBlock Text="Seamless Logitech Easy-Switch Flow" FontSize="12" Foreground="#38BDF8" Margin="0,2,0,0" />
+                    <TextBlock Text="Lunifier" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                    <TextBlock Text="Seamless Logitech Easy-Switch Flow" FontSize="12" Foreground="{DynamicResource SectionHeader}" Margin="0,2,0,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -43,15 +43,15 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                     <StackPanel>
                         <!-- Host Identity Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Host Identity" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <TextBlock Text="Host Identity" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,10" />
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Host Name:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Host Name:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <TextBox x:Name="HostNameBox" Grid.Column="1" Text="Host" />
                                 </Grid>
                                 <Grid>
@@ -59,38 +59,38 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="This Host Channel:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="This Host Channel:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="MyChannelCombo" Grid.Column="1">
                                         <ComboBoxItem Content="Channel 1 (Slot 1)" />
                                         <ComboBoxItem Content="Channel 2 (Slot 2)" />
                                         <ComboBoxItem Content="Channel 3 (Slot 3)" />
                                     </ComboBox>
                                 </Grid>
-                                <CheckBox x:Name="AutostartCheck" Content="Start Lunifier automatically on Windows login" Foreground="{StaticResource TextPrimary}" Margin="0,12,0,4" />
-                                <TextBlock Text="Global Hotkeys: Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3 to switch channels instantly." FontSize="11" Foreground="#94A3B8" />
+                                <CheckBox x:Name="AutostartCheck" Content="Start Lunifier automatically on Windows login" Foreground="{DynamicResource TextPrimary}" Margin="0,12,0,4" />
+                                <TextBlock Text="Global Hotkeys: Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3 to switch channels instantly." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                             </StackPanel>
                         </Border>
 
                         <!-- Multi-Monitor Configuration Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Display &amp; Border Configuration" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <TextBlock Text="Display &amp; Border Configuration" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,10" />
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Selected Monitor:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Selected Monitor:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="MonitorSelectorCombo" Grid.Column="1" SelectionChanged="MonitorSelectorCombo_SelectionChanged" />
                                 </Grid>
-                                <CheckBox x:Name="MonitorEnabledCheck" Content="Enable border switching for this monitor" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" Checked="MonitorEnabledCheck_Changed" Unchecked="MonitorEnabledCheck_Changed" />
+                                <CheckBox x:Name="MonitorEnabledCheck" Content="Enable border switching for this monitor" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" Checked="MonitorEnabledCheck_Changed" Unchecked="MonitorEnabledCheck_Changed" />
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Left Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Left Border:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="LeftBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
                                 </Grid>
                                 <Grid Margin="0,0,0,8">
@@ -98,7 +98,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Right Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Right Border:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="RightBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
                                 </Grid>
                                 <Grid Margin="0,0,0,8">
@@ -106,7 +106,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Top Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Top Border:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="TopBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
                                 </Grid>
                                 <Grid>
@@ -114,16 +114,16 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Bottom Border:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Bottom Border:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="BottomBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
                                 </Grid>
                             </StackPanel>
                         </Border>
 
                         <!-- Edge Sensitivity Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Edge Trigger Sensitivity" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <TextBlock Text="Edge Trigger Sensitivity" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,10" />
 
                                 <!-- Active Zone Slider -->
                                 <Grid Margin="0,0,0,12">
@@ -132,8 +132,8 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <Grid Grid.Row="0" Margin="0,0,0,4">
-                                        <TextBlock Text="Active Border Zone (%):" Foreground="{StaticResource TextSecondary}" />
-                                        <TextBlock x:Name="ActiveZoneText" Text="50%" HorizontalAlignment="Right" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                        <TextBlock Text="Active Border Zone (%):" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock x:Name="ActiveZoneText" Text="50%" HorizontalAlignment="Right" Foreground="{DynamicResource SectionHeader}" FontWeight="SemiBold" />
                                     </Grid>
                                     <Slider x:Name="ActiveZoneSlider" Grid.Row="1" Minimum="10" Maximum="100" Value="50" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="ActiveZoneSlider_ValueChanged" />
                                 </Grid>
@@ -145,8 +145,8 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <Grid Grid.Row="0" Margin="0,0,0,4">
-                                        <TextBlock Text="Dwell Hold Delay (ms):" Foreground="{StaticResource TextSecondary}" />
-                                        <TextBlock x:Name="HoldDelayText" Text="250ms" HorizontalAlignment="Right" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                        <TextBlock Text="Dwell Hold Delay (ms):" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock x:Name="HoldDelayText" Text="250ms" HorizontalAlignment="Right" Foreground="{DynamicResource SectionHeader}" FontWeight="SemiBold" />
                                     </Grid>
                                     <Slider x:Name="HoldDelaySlider" Grid.Row="1" Minimum="50" Maximum="1000" Value="250" TickFrequency="25" IsSnapToTickEnabled="True" ValueChanged="HoldDelaySlider_ValueChanged" />
                                 </Grid>
@@ -158,35 +158,35 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <Grid Grid.Row="0" Margin="0,0,0,4">
-                                        <TextBlock Text="Switch Cooldown (ms):" Foreground="{StaticResource TextSecondary}" />
-                                        <TextBlock x:Name="CooldownText" Text="2500ms" HorizontalAlignment="Right" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                        <TextBlock Text="Switch Cooldown (ms):" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock x:Name="CooldownText" Text="2500ms" HorizontalAlignment="Right" Foreground="{DynamicResource SectionHeader}" FontWeight="SemiBold" />
                                     </Grid>
                                     <Slider x:Name="CooldownSlider" Grid.Row="1" Minimum="500" Maximum="5000" Value="2500" TickFrequency="100" IsSnapToTickEnabled="True" ValueChanged="CooldownSlider_ValueChanged" />
                                 </Grid>
 
                                 <!-- Border Knock -->
-                                <CheckBox x:Name="KnockEnabledCheck" Content="Require double-touch 'Border Knock' to switch" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
+                                <CheckBox x:Name="KnockEnabledCheck" Content="Require double-touch 'Border Knock' to switch" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" />
                                 <Grid Margin="20,0,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Knock Timeout (ms):" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Knock Timeout (ms):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <TextBox x:Name="KnockTimeoutBox" Grid.Column="1" Text="1000" />
                                 </Grid>
                             </StackPanel>
                         </Border>
 
                         <!-- Hardware & Logging Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Hardware &amp; Logging Options" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <TextBlock Text="Hardware &amp; Logging Options" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,10" />
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Connection Support:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Connection Support:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="ConnectionSupportCombo" Grid.Column="1">
                                         <ComboBoxItem Content="Both (Wireless Receivers &amp; Bluetooth)" Tag="both" />
                                         <ComboBoxItem Content="Unifying / Bolt / Receivers Only" Tag="unifying" />
@@ -198,7 +198,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Logging Level:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Logging Level:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="LogLevelCombo" Grid.Column="1">
                                         <ComboBoxItem Content="Normal (Standard logs)" Tag="normal" />
                                         <ComboBoxItem Content="Debug (Verbose diagnostics)" Tag="debug" />
@@ -222,15 +222,15 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                         <Button x:Name="RefreshDevicesBtn" Content="Refresh Devices" Width="130" Height="30" Margin="0,0,10,0" Click="RefreshDevicesBtn_Click" />
-                        <TextBlock x:Name="DevicesCountText" Text="Scanning devices..." VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock x:Name="DevicesCountText" Text="Scanning devices..." VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                     </StackPanel>
 
-                    <Border Grid.Row="1" Background="{StaticResource CardBackground}" CornerRadius="8" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" Padding="10">
-                        <ListBox x:Name="DevicesList" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextPrimary}" />
+                    <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" Padding="10">
+                        <ListBox x:Name="DevicesList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimary}" />
                     </Border>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
-                        <TextBlock Text="Manual Test Switch:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0" />
+                        <TextBlock Text="Manual Test Switch:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,10,0" />
                         <Button Content="To Channel 1" Width="100" Height="28" Margin="0,0,8,0" Click="TestSwitch1_Click" />
                         <Button Content="To Channel 2" Width="100" Height="28" Margin="0,0,8,0" Click="TestSwitch2_Click" />
                         <Button Content="To Channel 3" Width="100" Height="28" Click="TestSwitch3_Click" />
@@ -243,10 +243,10 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                     <StackPanel>
                         <!-- Timed Advertising Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Host A: Advertise This Computer (Quick Pair)" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,6" />
-                                <TextBlock Text="Step 1: Make this computer detectable over Bluetooth for 60 seconds (no Wi-Fi needed). Automatically disables when time expires." Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
+                                <TextBlock Text="Host A: Advertise This Computer (Quick Pair)" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,6" />
+                                <TextBlock Text="Step 1: Make this computer detectable over Bluetooth for 60 seconds (no Wi-Fi needed). Automatically disables when time expires." Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
 
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
@@ -255,7 +255,7 @@
                                         <ColumnDefinition Width="80" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="This Computer's BT Address:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="This Computer's BT Address:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <TextBox x:Name="LocalMacBox" Grid.Column="1" Text="Detecting..." IsReadOnly="True" VerticalAlignment="Center" Height="28" />
                                     <Button x:Name="CopyLocalMacBtn" Grid.Column="2" Content="Copy" Height="28" Margin="8,0,0,0" Click="CopyLocalMacBtn_Click" />
                                 </Grid>
@@ -267,7 +267,7 @@
                                         <ColumnDefinition Width="150" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Advertising Duration:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Advertising Duration:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="AdvDurationCombo" Grid.Column="1" VerticalAlignment="Center">
                                         <ComboBoxItem Content="30 seconds" Tag="30" />
                                         <ComboBoxItem Content="60 seconds" Tag="60" IsSelected="True" />
@@ -275,40 +275,40 @@
                                         <ComboBoxItem Content="300 seconds" Tag="300" />
                                     </ComboBox>
                                     <Button x:Name="ToggleAdvBtn" Grid.Column="2" Content="Advertise Lunifier" Height="30" Margin="10,0,0,0" Click="ToggleAdvBtn_Click" />
-                                    <TextBlock x:Name="AdvStatusText" Grid.Column="3" Text="Idle" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="AdvStatusText" Grid.Column="3" Text="Idle" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
                                 </Grid>
                             </StackPanel>
                         </Border>
 
                         <!-- Peer Discovery & Pairing Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Host B: Find &amp; Link Advertising Computer (Quick Pair)" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,6" />
-                                <TextBlock Text="Step 2: On your other computer, scan for Host A and connect. Both computers will automatically authenticate and enable the Peer Link below:" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
+                                <TextBlock Text="Host B: Find &amp; Link Advertising Computer (Quick Pair)" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,6" />
+                                <TextBlock Text="Step 2: On your other computer, scan for Host A and connect. Both computers will automatically authenticate and enable the Peer Link below:" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                     <Button x:Name="ScanBtHostsBtn" Content="Scan for Lunifier Hosts" Width="180" Height="30" Margin="0,0,10,0" Click="ScanBtHostsBtn_Click" />
-                                    <TextBlock x:Name="BtScanStatusText" Text="Ready to scan" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock x:Name="BtScanStatusText" Text="Ready to scan" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                 </StackPanel>
 
-                                <Border Background="#1E293B" CornerRadius="6" Padding="8" MinHeight="100">
-                                    <ListBox x:Name="DiscoveredPeersList" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextPrimary}" />
+                                <Border Background="{DynamicResource SubtleBackground}" CornerRadius="6" Padding="8" MinHeight="100">
+                                    <ListBox x:Name="DiscoveredPeersList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimary}" />
                                 </Border>
                             </StackPanel>
                         </Border>
 
                         <!-- Bluetooth Connection Settings Card -->
-                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="Peer Link Status &amp; Settings (Zero Network Bluetooth)" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
-                                <CheckBox x:Name="BtEnabledCheck" Content="Enable Bluetooth RFCOMM P2P Inter-Host Connection" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+                                <TextBlock Text="Peer Link Status &amp; Settings (Zero Network Bluetooth)" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,10" />
+                                <CheckBox x:Name="BtEnabledCheck" Content="Enable Bluetooth RFCOMM P2P Inter-Host Connection" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" />
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Partner Host MAC:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="Partner Host MAC:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <TextBox x:Name="PeerMacBox" Grid.Column="1" Text="" />
                                 </Grid>
 
@@ -317,15 +317,15 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="RFCOMM Port:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="RFCOMM Port:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <TextBox x:Name="RfcommPortBox" Grid.Column="1" Text="5" Width="80" HorizontalAlignment="Left" />
                                 </Grid>
 
-                                <CheckBox x:Name="SyncCursorCheck" Content="Synchronize cursor position at entry edge" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" IsChecked="True" />
-                                <CheckBox x:Name="SyncClipboardCheck" Content="Synchronize clipboard text across hosts" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+                                <CheckBox x:Name="SyncCursorCheck" Content="Synchronize cursor position at entry edge" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" IsChecked="True" />
+                                <CheckBox x:Name="SyncClipboardCheck" Content="Synchronize clipboard text across hosts" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" />
 
-                                <Border Background="#1E293B" CornerRadius="4" Padding="10" Margin="0,10,0,0">
-                                    <TextBlock Text="When enabled, Lunifier communicates directly between hosts over Bluetooth without WiFi or local network access." Foreground="#94A3B8" TextWrapping="Wrap" FontSize="11" />
+                                <Border Background="{DynamicResource SubtleBackground}" CornerRadius="4" Padding="10" Margin="0,10,0,0">
+                                    <TextBlock Text="When enabled, Lunifier communicates directly between hosts over Bluetooth without WiFi or local network access." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" FontSize="11" />
                                 </Border>
                             </StackPanel>
                         </Border>
@@ -343,11 +343,11 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Clear Logs" Width="90" Height="26" Margin="0,0,8,0" Click="ClearLogs_Click" />
-                        <Button Content="Copy Logs" Width="90" Height="26" Click="CopyLogs_Click" />
+                        <Button x:Name="CopyLogsBtn" Content="Copy Logs" Width="90" Height="26" Click="CopyLogs_Click" />
                     </StackPanel>
 
-                    <Border Grid.Row="1" Background="{StaticResource CardBackground}" CornerRadius="8" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" Padding="10">
-                        <TextBox x:Name="LogsBox" Background="Transparent" Foreground="#90CAF9" BorderThickness="0" FontFamily="Consolas, monospace" FontSize="11" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+                    <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" Padding="10">
+                        <TextBox x:Name="LogsBox" Background="Transparent" Foreground="{DynamicResource LogsBoxForeground}" BorderThickness="0" FontFamily="Consolas, monospace" FontSize="11" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
                     </Border>
                 </Grid>
             </TabItem>
@@ -355,27 +355,27 @@
             <!-- About Tab -->
             <TabItem Header="  About  ">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
-                    <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="25" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                    <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="25" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                         <StackPanel HorizontalAlignment="Center" MaxWidth="560">
-                            <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" />
-                            <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" />
-                            <TextBlock Text="Version 2.1.2 (Windows 11 Native .NET 9)" FontSize="13" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,2,0,15" />
+                            <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
+                            <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
+                            <TextBlock Text="Version 2.1.3 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
 
-                            <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
+                            <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
 
-                            <Border Background="#1E293B" CornerRadius="6" Padding="15" Margin="0,0,0,20">
+                            <Border Background="{DynamicResource SubtleBackground}" CornerRadius="6" Padding="15" Margin="0,0,0,20">
                                 <StackPanel>
-                                    <TextBlock Text="Key Features &amp; Architecture:" FontWeight="SemiBold" Foreground="#38BDF8" Margin="0,0,0,8" />
-                                    <TextBlock Text="• Native .NET 9 WPF Windows 11 Engine with zero Python dependency" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
-                                    <TextBlock Text="• Zero-network Bluetooth RFCOMM P2P link with timed advertising" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
-                                    <TextBlock Text="• Strict Lunifier peer filtering and 1-click mutual pairing handshake" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
-                                    <TextBlock Text="• Global hotkeys (Ctrl+Alt+1/2/3) for manual channel switching" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
-                                    <TextBlock Text="• Single-instance process lock and System Tray integration" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
-                                    <TextBlock Text="• Multi-monitor border configuration with edge knock detection" Foreground="{StaticResource TextPrimary}" />
+                                    <TextBlock Text="Key Features &amp; Architecture:" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,8" />
+                                    <TextBlock Text="• Native .NET 9 WPF Windows 11 Engine with zero Python dependency" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Zero-network Bluetooth RFCOMM P2P link with timed advertising" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Strict Lunifier peer filtering and 1-click mutual pairing handshake" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Global hotkeys (Ctrl+Alt+1/2/3) for manual channel switching" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Single-instance process lock and System Tray integration" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Multi-monitor border configuration with edge knock detection" Foreground="{DynamicResource TextPrimary}" />
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="Author: Silviu Vlasceanu  •  License: MIT" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                            <TextBlock Text="Author: Silviu Vlasceanu  •  License: MIT" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,12" />
                             <Button Content="Visit GitHub Repository" Width="180" Height="30" HorizontalAlignment="Center" Click="VisitGitHub_Click" />
                         </StackPanel>
                     </Border>
@@ -384,10 +384,11 @@
         </TabControl>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+        <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
             <Grid>
-                <TextBlock Text="Lunifier 2.1.2 Native for Windows 11" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" FontSize="11" />
+                <TextBlock Text="Lunifier 2.1.3 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock x:Name="SaveStatusText" Text="" Foreground="#22C55E" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <Button Content="Save Configuration" Width="140" Height="30" Click="SaveConfig_Click" />
                 </StackPanel>
             </Grid>

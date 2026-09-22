@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.3] - 2026-09-22
+
+### Fixed
+- **Screen Border Detection & Switching Reliability**:
+  - Auto-starts service on application launch so border detection is immediately active.
+  - Fixed dwell hold timer reset in `EdgeDetector` so resting at border correctly accumulates hold time towards `HoldDelayMs`.
+  - Added fallback trigger validation when dwelling at border for `>= 300ms`.
+  - Increased edge detection tolerance from 2px to 5px to reliably trigger on 4K and high-DPI displays.
+  - Added real-time arrival logging reporting monitor ID, coordinates, border zone ratio, and countdown timer.
+- **Dynamic Light/Dark Mode Theming & Readability**:
+  - Added `ThemeManager` dynamically synchronizing with Windows `AppsUseLightTheme` setting.
+  - Designed custom WPF `ControlTemplate` for `ComboBox` and dropdown popups, eliminating white-on-white text and unreadable controls.
+  - Applied Windows 11 DWM title bar dark/light mode attribute.
+- **Seamless Inline UI Feedback (No Intrusive Dialogs)**:
+  - Replaced blocking modal dialogs for Save Configuration, Copy Logs, and Bluetooth Pairing with clean inline status indicators.
+- **High-Quality Anti-Aliased Icon Rendering**:
+  - Enabled `RenderOptions.BitmapScalingMode="HighQuality"` and `SnapsToDevicePixels="True"` on About tab icon, eliminating jagged edges.
+- **Persistent Log File Support**:
+  - Added automatic logging to `%APPDATA%\Lunifier\lunifier.log` for troubleshooting and runtime diagnostics.
+
+---
+
 ## [2.1.2] - 2026-09-22
 
 ### Added

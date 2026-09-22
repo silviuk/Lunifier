@@ -15,6 +15,12 @@ namespace Lunifier.Windows.Core
 
         public static event Action<string>? LogReceived;
 
+        private static readonly string LogFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Lunifier",
+            "lunifier.log"
+        );
+
         public static void SetLogLevel(string? level)
         {
             lock (_lock)
@@ -79,6 +85,14 @@ namespace Lunifier.Windows.Core
             lock (_lock)
             {
                 Console.WriteLine(formatted);
+                try
+                {
+                    var dir = Path.GetDirectoryName(LogFilePath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        Directory.CreateDirectory(dir);
+                    File.AppendAllText(LogFilePath, formatted + Environment.NewLine);
+                }
+                catch { }
             }
 
             try
