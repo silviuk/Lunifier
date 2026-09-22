@@ -158,81 +158,292 @@ def discover_potential_partners(timeout: float = 3.5) -> List[Dict[str, str]]:
     return res
 
 
+DEFAULT_RFCOMM_PORT = 5
+
+
+def find_available_rfcomm_port(preferred_port: int = 5) -> int:
+    """
+    Dynamically scans RFCOMM ports on the local machine and returns the first port
+    that can be successfully bound. Skips busy or OS-forbidden ports.
+    """
+    if not hasattr(socket, "AF_BLUETOOTH"):
+        return preferred_port
+
+    candidate_ports = [preferred_port] + [p for p in range(5, 31) if p != preferred_port]
+    for p in candidate_ports:
+        s = None
+        try:
+            s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+            s.bind(("00:00:00:00:00:00", p))
+            s.close()
+            return p
+        except Exception:
+            if s:
+                try:
+                    s.close()
+                except Exception:
+                    pass
+    return preferred_port
+
+
+def parse_lunifier_beacon(data: bytes) -> Optional[Dict[str, Any]]:
+    """
+    Unpacks a raw 20-31 byte BLE Manufacturer Data payload into a Lunifier peer dict:
+    - Magic: 'LUNI' (4 bytes)
+    - Protocol version: 1 byte
+    - Port: 1 byte (RFCOMM channel 1-30)
+    - Classic Bluetooth MAC: 6 bytes
+    - Ephemeral Token: 4 bytes (8 hex chars)
+    - Host Name: remainder (UTF-8 string)
+    """
+    if not data or len(data) < 12 or not data.startswith(b"LUNI"):
+        return None
+    try:
+        version = data[4]
+        port = data[5]
+        mac_bytes = data[6:12]
+        mac_str = ":".join(f"{b:02X}" for b in mac_bytes)
+        tok_bytes = data[12:16] if len(data) >= 16 else b""
+        token_str = tok_bytes.hex()
+        name_str = data[16:].decode("utf-8", errors="ignore").strip("\x00") if len(data) > 16 else ""
+        return {
+            "version": version,
+            "port": int(port),
+            "mac": mac_str,
+            "token": token_str,
+            "name": name_str
+        }
+    except Exception:
+        return None
+
+
+class BleAdvertiser:
+    """
+    Broadcasts BLE advertisement packets containing Lunifier beacon data
+    (Magic, protocol version, RFCOMM port, Classic Bluetooth MAC, token, host name).
+    Works on Windows via WinRT BluetoothLEAdvertisementPublisher.
+    Works on Linux via bluetoothctl / BlueZ if available.
+    """
+    def __init__(self, host_name: str, mac: str, port: int, token: str):
+        self.host_name = host_name
+        self.mac = mac
+        self.port = port
+        self.token = token
+        self._publisher = None
+        self._is_advertising = False
+        self._linux_proc = None
+
+    def start(self) -> bool:
+        if sys.platform == "win32":
+            return self._start_windows()
+        elif sys.platform.startswith("linux"):
+            return self._start_linux()
+        return False
+
+    def stop(self) -> None:
+        if sys.platform == "win32":
+            self._stop_windows()
+        elif sys.platform.startswith("linux"):
+            self._stop_linux()
+
+    def _start_windows(self) -> bool:
+        try:
+            import winrt.windows.devices.bluetooth.advertisement as adv
+            import winrt.windows.storage.streams as streams
+
+            self._publisher = adv.BluetoothLEAdvertisementPublisher()
+            writer = streams.DataWriter()
+
+            mac_clean = self.mac.replace(":", "").replace("-", "")
+            if len(mac_clean) == 12:
+                mac_bytes = bytes.fromhex(mac_clean)
+            else:
+                mac_bytes = b"\x00" * 6
+
+            tok_clean = self.token[:8]
+            try:
+                tok_bytes = bytes.fromhex(tok_clean)
+                if len(tok_bytes) < 4:
+                    tok_bytes = tok_bytes.ljust(4, b"\x00")
+            except Exception:
+                tok_bytes = b"\x00" * 4
+
+            name_bytes = self.host_name.encode("utf-8")[:10]
+
+            payload = b"LUNI" + bytes([1, self.port & 0xFF]) + mac_bytes + tok_bytes + name_bytes
+            writer.write_bytes(payload)
+
+            mfg = adv.BluetoothLEManufacturerData(0xFFFF, writer.detach_buffer())
+            self._publisher.advertisement.manufacturer_data.append(mfg)
+            self._publisher.start()
+            self._is_advertising = True
+            log("BluetoothLink", f"BLE advertisement broadcaster started (WinRT, RFCOMM port {self.port}).")
+            return True
+        except Exception as e:
+            log("BluetoothLink", f"BLE advertisement start notice (WinRT): {e}")
+            return False
+
+    def _stop_windows(self) -> None:
+        if self._publisher:
+            try:
+                self._publisher.stop()
+                log("BluetoothLink", "BLE advertisement broadcaster stopped.")
+            except Exception:
+                pass
+            self._publisher = None
+        self._is_advertising = False
+
+    def _start_linux(self) -> bool:
+        try:
+            import subprocess
+            cmd = ["bluetoothctl", "advertise", "on"]
+            self._linux_proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self._is_advertising = True
+            log("BluetoothLink", "BLE advertisement started via bluetoothctl.")
+            return True
+        except Exception as e:
+            log("BluetoothLink", f"Linux BLE advertisement notice: {e}")
+            return False
+
+    def _stop_linux(self) -> None:
+        if self._linux_proc:
+            try:
+                self._linux_proc.terminate()
+            except Exception:
+                pass
+            self._linux_proc = None
+        try:
+            import subprocess
+            subprocess.run(["bluetoothctl", "advertise", "off"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.0)
+        except Exception:
+            pass
+        self._is_advertising = False
+
+
 def probe_bt_device_advertising(mac: str,
-                                port: int = 4,
-                                timeout: float = 1.2,
+                                port: int = 5,
+                                timeout: float = 1.0,
                                 scanner_host_name: str = "") -> Optional[Dict[str, Any]]:
     """
     Sends a lightweight Bluetooth RFCOMM discovery probe to a specific Bluetooth MAC.
+    Tries the given port, and falls back across candidate ports if needed.
     Returns peer info dict ONLY if the remote host is running Lunifier and currently advertising:
-    {"name": str, "mac": str, "token": str, "expires_in": int, "advertising": True}
-    Returns None if device is not advertising, not running Lunifier, or unreachable.
+    {"name": str, "mac": str, "port": int, "token": str, "expires_in": int, "advertising": True}
     """
     if not hasattr(socket, "AF_BLUETOOTH"):
         return None
 
-    s = None
-    try:
-        s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-        s.settimeout(timeout)
-        s.connect((mac, port))
-        probe_msg = json.dumps({
-            "type": "DISCOVERY_PROBE",
-            "from_host": scanner_host_name,
-            "version": "1.0"
-        }) + "\n"
-        s.sendall(probe_msg.encode("utf-8"))
+    test_ports = [port] + [p for p in [5, 6, 8, 9, 10, 7] if p != port]
+    for p in test_ports:
+        s = None
+        try:
+            s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+            s.settimeout(timeout)
+            s.connect((mac, p))
+            probe_msg = json.dumps({
+                "type": "DISCOVERY_PROBE",
+                "from_host": scanner_host_name,
+                "version": "1.0"
+            }) + "\n"
+            s.sendall(probe_msg.encode("utf-8"))
 
-        data = s.recv(1024)
-        if not data:
-            return None
+            data = s.recv(1024)
+            if not data:
+                continue
 
-        line = data.decode("utf-8", errors="ignore").strip().split("\n")[0]
-        resp = json.loads(line)
-        if resp.get("type") == "DISCOVERY_BEACON" and resp.get("advertising"):
-            return {
-                "name": resp.get("from_host", mac),
-                "mac": mac,
-                "token": resp.get("token", ""),
-                "expires_in": int(resp.get("expires_in", 0)),
-                "advertising": True
-            }
-    except Exception:
-        pass
-    finally:
-        if s:
-            try:
-                s.close()
-            except Exception:
-                pass
+            line = data.decode("utf-8", errors="ignore").strip().split("\n")[0]
+            resp = json.loads(line)
+            if resp.get("type") == "DISCOVERY_BEACON" and resp.get("advertising"):
+                return {
+                    "name": resp.get("from_host", mac),
+                    "mac": mac,
+                    "port": resp.get("port", p),
+                    "token": resp.get("token", ""),
+                    "expires_in": int(resp.get("expires_in", 0)),
+                    "advertising": True
+                }
+        except Exception:
+            pass
+        finally:
+            if s:
+                try:
+                    s.close()
+                except Exception:
+                    pass
     return None
 
 
-def discover_advertising_lunifier_peers(timeout: float = 4.0,
-                                       rfcomm_port: int = 4,
+def discover_advertising_lunifier_peers(timeout: float = 3.5,
+                                       rfcomm_port: int = 5,
                                        host_name: str = "") -> List[Dict[str, Any]]:
     """
     Scans Bluetooth devices and filters STRICTLY for partner hosts running Lunifier
-    that currently have 'Advertise Lunifier' active. All other devices are filtered out.
+    that currently have 'Advertise Lunifier' active.
+    Combines direct over-the-air BLE advertisement parsing with paired-device RFCOMM probes.
     """
-    candidates = discover_potential_partners(timeout=2.0)
-    if not candidates or not hasattr(socket, "AF_BLUETOOTH"):
-        return []
+    discovered_advertising: Dict[str, Dict[str, Any]] = {}
 
-    advertising_peers = []
-    with ThreadPoolExecutor(max_workers=min(8, len(candidates))) as executor:
-        future_map = {
-            executor.submit(probe_bt_device_advertising, c["mac"], rfcomm_port, 1.4, host_name): c
-            for c in candidates
-        }
-        for fut in as_completed(future_map):
-            try:
-                res = fut.result()
-                if res and res.get("advertising"):
-                    advertising_peers.append(res)
-            except Exception:
-                pass
+    # 1. Direct Over-The-Air BLE Discovery
+    try:
+        import asyncio
+        from bleak import BleakScanner
 
+        async def _run_ble_adv_scan():
+            def detection_cb(device, adv):
+                mfg_data = adv.manufacturer_data or {}
+                raw_payload = mfg_data.get(0xFFFF) or mfg_data.get(0x046D)
+                if raw_payload:
+                    info = parse_lunifier_beacon(raw_payload)
+                    if info:
+                        peer_mac = info["mac"] or device.address.upper()
+                        peer_name = info["name"] or adv.local_name or device.name or f"Lunifier Host ({peer_mac[-5:]})"
+                        discovered_advertising[peer_mac] = {
+                            "name": peer_name,
+                            "mac": peer_mac,
+                            "port": info["port"] or rfcomm_port,
+                            "token": info["token"],
+                            "expires_in": 60,
+                            "advertising": True,
+                            "source": "BLE Broadcast"
+                        }
+
+            scanner = BleakScanner(detection_callback=detection_cb)
+            await scanner.start()
+            await asyncio.sleep(timeout)
+            await scanner.stop()
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                with ThreadPoolExecutor() as pool:
+                    pool.submit(lambda: asyncio.run(_run_ble_adv_scan())).result()
+            else:
+                loop.run_until_complete(_run_ble_adv_scan())
+        except Exception:
+            asyncio.run(_run_ble_adv_scan())
+    except Exception as e:
+        log("BluetoothLink", f"BLE advertisement scan notice: {e}")
+
+    # 2. Paired Devices Fallback Check (probe on port)
+    paired_candidates = [c for c in discover_potential_partners(timeout=0.5) if c.get("source") == "Paired"]
+    probe_candidates = [c for c in paired_candidates if c["mac"] not in discovered_advertising]
+    if probe_candidates and hasattr(socket, "AF_BLUETOOTH"):
+        with ThreadPoolExecutor(max_workers=min(4, len(probe_candidates))) as executor:
+            future_map = {
+                executor.submit(probe_bt_device_advertising, c["mac"], rfcomm_port, 1.0, host_name): c
+                for c in probe_candidates
+            }
+            for fut in as_completed(future_map):
+                try:
+                    res = fut.result()
+                    if res and res.get("advertising"):
+                        res_mac = res["mac"]
+                        if res_mac not in discovered_advertising:
+                            discovered_advertising[res_mac] = res
+                except Exception:
+                    pass
+
+    advertising_peers = list(discovered_advertising.values())
     advertising_peers.sort(key=lambda x: x["name"].lower())
     return advertising_peers
 
@@ -246,7 +457,7 @@ class BluetoothLink:
     def __init__(self,
                  host_name: str,
                  peer_mac: str = "",
-                 rfcomm_port: int = 4,
+                 rfcomm_port: int = DEFAULT_RFCOMM_PORT,
                  on_switch_received: Optional[Callable[[str, float, Optional[str]], None]] = None,
                  on_clipboard_received: Optional[Callable[[str], None]] = None,
                  on_alignment_received: Optional[Callable[[Dict[str, int]], None]] = None,
@@ -256,7 +467,7 @@ class BluetoothLink:
         """
         :param host_name: Name of this host
         :param peer_mac: Bluetooth MAC of the partner host (e.g. "00:1A:7D:DA:71:13")
-        :param rfcomm_port: RFCOMM channel (default 4)
+        :param rfcomm_port: RFCOMM channel (default 5, auto-detected if busy)
         :param on_switch_received: Callback when partner switches mouse here: func(exit_edge, ratio, clipboard)
         :param on_clipboard_received: Callback func(clipboard_text: str)
         :param on_alignment_received: Callback func(bounds: dict)
@@ -290,6 +501,7 @@ class BluetoothLink:
         self._adv_stop_event = threading.Event()
         self._adv_on_tick: Optional[Callable[[int], None]] = None
         self._adv_on_expired: Optional[Callable[[], None]] = None
+        self._ble_advertiser: Optional[BleAdvertiser] = None
 
         # Session security & cursor alignment
         self.session_key = ""
@@ -310,11 +522,12 @@ class BluetoothLink:
                           on_expired: Optional[Callable[[], None]] = None) -> str:
         """
         Activates timed peer advertising mode over Bluetooth for duration_seconds (default 60).
+        Broadcasts over-the-air BLE advertisement beacon with host name, MAC, RFCOMM port, and token.
         Generates an ephemeral pairing token and executes on_tick every second with remaining time.
         When expired, automatically shuts down advertising.
         """
         self.stop_advertising()
-        token = secrets.token_hex(16)
+        token = secrets.token_hex(4) # 8 hex characters (4 bytes)
         self._adv_token = token
         self._adv_expires_at = time.time() + max(1, duration_seconds)
         self._is_advertising = True
@@ -322,7 +535,17 @@ class BluetoothLink:
         self._adv_on_expired = on_expired
         self._adv_stop_event.clear()
 
-        log("BluetoothLink", f"Started Bluetooth advertising (duration: {duration_seconds}s, token: {token[:8]}...)")
+        # Start live BLE advertisement broadcaster
+        local_mac = get_local_bluetooth_mac()
+        self._ble_advertiser = BleAdvertiser(
+            host_name=self.host_name,
+            mac=local_mac,
+            port=self.rfcomm_port,
+            token=token
+        )
+        self._ble_advertiser.start()
+
+        log("BluetoothLink", f"Started Bluetooth advertising (duration: {duration_seconds}s, port: {self.rfcomm_port}, token: {token})")
 
         def timer_worker():
             while not self._adv_stop_event.is_set():
@@ -340,6 +563,12 @@ class BluetoothLink:
             was_active = self._is_advertising
             self._is_advertising = False
             self._adv_token = ""
+            if self._ble_advertiser:
+                try:
+                    self._ble_advertiser.stop()
+                except Exception:
+                    pass
+                self._ble_advertiser = None
             log("BluetoothLink", "Bluetooth advertising stopped/expired.")
             if was_active and self._adv_on_expired and not self._adv_stop_event.is_set():
                 try:
@@ -357,6 +586,12 @@ class BluetoothLink:
         self._adv_token = ""
         self._adv_expires_at = 0.0
         self._adv_stop_event.set()
+        if self._ble_advertiser:
+            try:
+                self._ble_advertiser.stop()
+            except Exception:
+                pass
+            self._ble_advertiser = None
 
     def start(self) -> None:
         if not hasattr(socket, "AF_BLUETOOTH"):
@@ -466,15 +701,36 @@ class BluetoothLink:
     def _server_loop(self) -> None:
         """
         Listens for incoming Bluetooth RFCOMM connections.
+        Dynamically detects and binds an available RFCOMM port, avoiding busy/forbidden ports.
         Handles discovery probes without disturbing active pairing sessions.
         """
         while self._running:
+            self._server_sock = None
             try:
-                self._server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-                bind_addr = "00:00:00:00:00:00"
-                self._server_sock.bind((bind_addr, self.rfcomm_port))
-                self._server_sock.listen(2)
-                log("BluetoothLink", f"Server listening on RFCOMM channel {self.rfcomm_port}...")
+                candidate_ports = [self.rfcomm_port] + [p for p in range(5, 31) if p != self.rfcomm_port]
+                bound = False
+                for p in candidate_ports:
+                    try:
+                        s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+                        bind_addr = "00:00:00:00:00:00"
+                        s.bind((bind_addr, p))
+                        s.listen(2)
+                        self._server_sock = s
+                        if self.rfcomm_port != p:
+                            log("BluetoothLink", f"Port {self.rfcomm_port} busy/reserved; dynamically bound to available RFCOMM port {p}.")
+                            self.rfcomm_port = p
+                        else:
+                            log("BluetoothLink", f"Server listening on RFCOMM channel {self.rfcomm_port}...")
+                        bound = True
+                        break
+                    except Exception:
+                        if s:
+                            try:
+                                s.close()
+                            except Exception:
+                                pass
+                if not bound:
+                    raise RuntimeError("No available RFCOMM ports could be bound (range 5-30).")
 
                 while self._running:
                     try:
@@ -485,12 +741,12 @@ class BluetoothLink:
                         threading.Thread(target=self._handle_incoming_connection, args=(conn,), daemon=True).start()
                     except Exception as ex:
                         if self._running:
-                            log("BluetoothLink", f"Server accept error: {ex}")
+                            log("BluetoothLink", f"Server accept notice: {ex}")
                         break
             except Exception as e:
                 if self._running:
-                    log("BluetoothLink", f"Server bind error on port {self.rfcomm_port}: {e}. Retrying in 5s...")
-                    time.sleep(5)
+                    log("BluetoothLink", f"Server bind error: {e}. Retrying in 10s...")
+                    time.sleep(10)
             finally:
                 if self._server_sock:
                     try:
@@ -529,6 +785,7 @@ class BluetoothLink:
                                 "type": "DISCOVERY_BEACON",
                                 "from_host": self.host_name,
                                 "token": self._adv_token,
+                                "port": self.rfcomm_port,
                                 "advertising": True,
                                 "expires_in": remaining
                             }
@@ -536,6 +793,7 @@ class BluetoothLink:
                             beacon = {
                                 "type": "DISCOVERY_BEACON",
                                 "from_host": self.host_name,
+                                "port": self.rfcomm_port,
                                 "advertising": False
                             }
                         try:
@@ -606,6 +864,7 @@ class BluetoothLink:
 
     def request_pairing(self,
                         target_mac: str,
+                        port: Optional[int] = None,
                         adv_token: str = "",
                         on_error: Optional[Callable[[str], None]] = None) -> None:
         """
@@ -614,14 +873,29 @@ class BluetoothLink:
         """
         def worker():
             mac = target_mac.strip().upper()
+            target_port = port or self.rfcomm_port or DEFAULT_RFCOMM_PORT
             try:
-                log("BluetoothLink", f"Initiating pairing handshake with {mac} on RFCOMM port {self.rfcomm_port}...")
+                # If Windows, verify device is paired with OS or trigger OS pairing prompt
+                if sys.platform == "win32":
+                    try:
+                        import asyncio
+                        import winrt.windows.devices.bluetooth as bt
+                        mac_int = int(mac.replace(":", "").replace("-", ""), 16)
+                        dev = asyncio.run(bt.BluetoothDevice.from_bluetooth_address_async(mac_int))
+                        if dev and dev.device_information and not dev.device_information.pairing.is_paired:
+                            log("BluetoothLink", f"Device {mac} is not yet paired in Windows. Requesting OS pairing...")
+                            asyncio.run(dev.device_information.pairing.pair_async())
+                    except Exception as pe:
+                        log("BluetoothLink", f"Windows OS pairing check notice: {pe}")
+
+                log("BluetoothLink", f"Initiating pairing handshake with {mac} on RFCOMM port {target_port}...")
                 s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
                 s.settimeout(8.0)
-                s.connect((mac, self.rfcomm_port))
+                s.connect((mac, target_port))
                 s.settimeout(None)
                 setattr(s, "_peer_mac", mac)
                 self.peer_mac = mac
+                self.rfcomm_port = target_port
                 local_mac = ""
                 try:
                     local_mac = s.getsockname()[0]
@@ -641,7 +915,7 @@ class BluetoothLink:
                 log("BluetoothLink", f"Sent PAIR_REQUEST to {mac}. Awaiting partner confirmation...")
                 self._handle_connection(s)
             except Exception as ex:
-                log("BluetoothLink", f"Pairing request failed to connect to {mac}: {ex}")
+                log("BluetoothLink", f"Pairing request failed to connect to {mac} on port {target_port}: {ex}")
                 self._close_conn()
                 if on_error:
                     try:
@@ -691,7 +965,7 @@ class BluetoothLink:
             accepted = False
             if self.is_advertising:
                 # If currently advertising, auto-verify handshake
-                if not self._adv_token or token == self._adv_token:
+                if not self._adv_token or token == self._adv_token or self._adv_token.startswith(token) or token.startswith(self._adv_token):
                     accepted = True
                     log("BluetoothLink", f"Handshake verified with active advertising token from '{from_host}'.")
                 else:

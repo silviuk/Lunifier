@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Lunifier - Logitech Easy-Switch Flow"
-        Width="780" Height="980"
-        MinWidth="680" MinHeight="700"
+        Width="780" Height="1020"
+        MinWidth="680" MinHeight="750"
         Background="{StaticResource WindowBackground}"
         WindowStartupLocation="CenterScreen"
         Icon="Resources/icon.ico">
@@ -318,7 +318,7 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="RFCOMM Port:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
-                                    <TextBox x:Name="RfcommPortBox" Grid.Column="1" Text="4" Width="80" HorizontalAlignment="Left" />
+                                    <TextBox x:Name="RfcommPortBox" Grid.Column="1" Text="5" Width="80" HorizontalAlignment="Left" />
                                 </Grid>
 
                                 <CheckBox x:Name="SyncCursorCheck" Content="Synchronize cursor position at entry edge" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" IsChecked="True" />
@@ -359,7 +359,7 @@
                         <StackPanel HorizontalAlignment="Center" MaxWidth="560">
                             <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" />
                             <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" />
-                            <TextBlock Text="Version 2.1.1 (Windows 11 Native .NET 9)" FontSize="13" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,2,0,15" />
+                            <TextBlock Text="Version 2.1.2 (Windows 11 Native .NET 9)" FontSize="13" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,2,0,15" />
 
                             <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
 
@@ -386,7 +386,7 @@
         <!-- Footer -->
         <Border Grid.Row="2" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
             <Grid>
-                <TextBlock Text="Lunifier 2.1.1 Native for Windows 11" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" FontSize="11" />
+                <TextBlock Text="Lunifier 2.1.2 Native for Windows 11" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" FontSize="11" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Save Configuration" Width="140" Height="30" Click="SaveConfig_Click" />
                 </StackPanel>

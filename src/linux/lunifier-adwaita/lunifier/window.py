@@ -33,7 +33,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self._is_loading_config = True
 
         self.set_title("Lunifier")
-        self.set_default_size(760, 920)
+        self.set_default_size(780, 980)
 
         self._build_ui()
         self._populate_ui()
@@ -391,7 +391,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp = Adw.PreferencesGroup()
         page.add(grp)
 
-        row_about = Adw.ActionRow(title="Lunifier 2.1.1 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        row_about = Adw.ActionRow(title="Lunifier 2.1.2 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
         icon_img = Gtk.Image.new_from_icon_name("lunifier")
         icon_img.set_pixel_size(48)
         row_about.add_prefix(icon_img)
@@ -635,18 +635,19 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
             row = Adw.ActionRow(title=p.get("name", "Lunifier Host"))
             mac = p.get("mac", "")
             token = p.get("token", "")
+            port = p.get("port", 5)
             exp = p.get("expires_in", 0)
-            row.set_subtitle(f"MAC: {mac} | Token: {token[:8]} | Active: {exp}s remaining")
+            row.set_subtitle(f"MAC: {mac} | Port: {port} | Token: {token[:8]} | Active: {exp}s remaining")
 
             pair_btn = Gtk.Button(label="Pair & Connect")
             pair_btn.add_css_class("suggested-action")
-            pair_btn.connect("clicked", lambda b, m=mac, t=token: self._pair_peer(m, t, b))
+            pair_btn.connect("clicked", lambda b, m=mac, pt=port, t=token: self._pair_peer(m, pt, t, b))
             row.add_suffix(pair_btn)
 
             self.grp_discovered_peers.add(row)
             self._discovered_peer_rows.append(row)
 
-    def _pair_peer(self, mac: str, token: str, btn: Gtk.Button):
+    def _pair_peer(self, mac: str, port: int, token: str, btn: Gtk.Button):
         btn.set_sensitive(False)
         btn.set_label("Pairing...")
 
@@ -660,6 +661,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
                 if success:
                     btn.set_label("Paired!")
                     self.bt_peer_mac_row.set_text(mac)
+                    self.bt_port_row.set_value(port)
                     self.bt_enabled_row.set_active(True)
                     self._save_all_settings()
                     self.app_service.config = self.config
@@ -672,7 +674,10 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
                 return False
             GLib.idle_add(update)
 
-        bt.request_pairing(mac, adv_token=token, callback=on_result)
+        def on_err(err):
+            on_result(False, err)
+
+        bt.request_pairing(mac, port=port, adv_token=token, on_error=on_err)
 
     def _on_log_message(self, message: str):
         def append_text():

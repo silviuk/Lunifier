@@ -10,6 +10,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
+using Windows.Devices.Bluetooth.Advertisement;
+using Windows.Storage.Streams;
 
 namespace Lunifier.Windows.Core
 {
@@ -17,6 +19,7 @@ namespace Lunifier.Windows.Core
     {
         public string Name { get; set; } = string.Empty;
         public string MacAddress { get; set; } = string.Empty;
+        public int Port { get; set; } = 5;
         public string AdvertisingToken { get; set; } = string.Empty;
         public bool IsAdvertising { get; set; } = true;
     }
@@ -79,7 +82,7 @@ namespace Lunifier.Windows.Core
 
         public string HostName { get; set; } = "Host";
         public string PeerAddress { get; set; } = string.Empty;
-        public int RfcommPort { get; set; } = 4;
+        public int RfcommPort { get; set; } = 5;
 
         public Action<string, double, string?>? OnSwitchReceived { get; set; }
         public Action<bool>? OnPeerStatusChanged { get; set; }
@@ -89,6 +92,27 @@ namespace Lunifier.Windows.Core
         public Action<Dictionary<string, int>>? OnAlignmentReceived { get; set; }
 
         private static string? _cachedLocalMac;
+
+        public static int FindAvailableRfcommPort(int preferredPort = 5)
+        {
+            var candidates = new List<int> { preferredPort };
+            for (int p = 5; p <= 30; p++)
+            {
+                if (p != preferredPort) candidates.Add(p);
+            }
+            foreach (var p in candidates)
+            {
+                try
+                {
+                    using var sock = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
+                    var ep = new BluetoothEndPoint(0, p);
+                    sock.Bind(ep);
+                    return p;
+                }
+                catch { }
+            }
+            return preferredPort;
+        }
 
         public static string GetLocalBluetoothMac()
         {
@@ -125,6 +149,7 @@ namespace Lunifier.Windows.Core
         private string _advToken = string.Empty;
         private System.Threading.Timer? _advTimer;
         private readonly object _advLock = new();
+        private BluetoothLEAdvertisementPublisher? _blePublisher;
 
         public bool IsConnected
         {
@@ -158,7 +183,7 @@ namespace Lunifier.Windows.Core
             }
         }
 
-        public BluetoothPeer(string hostName, string peerAddress = "", int rfcommPort = 4)
+        public BluetoothPeer(string hostName, string peerAddress = "", int rfcommPort = 5)
         {
             HostName = hostName;
             PeerAddress = peerAddress.Trim().ToUpperInvariant();
@@ -224,6 +249,8 @@ namespace Lunifier.Windows.Core
                 _advTimer?.Dispose();
                 _advTimer = new System.Threading.Timer(OnAdvTimerTick, null, 1000, 1000);
 
+                StartBleBroadcaster();
+
                 AppLogger.Log("BluetoothPeer", $"Bluetooth advertising STARTED for {_advRemainingSeconds}s (Token: {_advToken})");
                 OnAdvertisingStateChanged?.Invoke(true, _advRemainingSeconds);
             }
@@ -240,8 +267,78 @@ namespace Lunifier.Windows.Core
                 _advTimer = null;
                 _advToken = string.Empty;
 
+                StopBleBroadcaster();
+
                 AppLogger.Log("BluetoothPeer", "Bluetooth advertising stopped/expired.");
                 OnAdvertisingStateChanged?.Invoke(false, 0);
+            }
+        }
+
+        private void StartBleBroadcaster()
+        {
+            try
+            {
+                StopBleBroadcaster();
+
+                var publisher = new BluetoothLEAdvertisementPublisher();
+                var writer = new DataWriter();
+
+                string macClean = (GetLocalBluetoothMac() ?? string.Empty).Replace(":", "").Replace("-", "");
+                byte[] macBytes = new byte[6];
+                if (macClean.Length == 12)
+                {
+                    try { macBytes = Convert.FromHexString(macClean); } catch { }
+                }
+
+                string tokClean = _advToken.Length >= 8 ? _advToken[..8] : _advToken;
+                byte[] tokBytes = new byte[4];
+                try
+                {
+                    byte[] parsed = Convert.FromHexString(tokClean);
+                    Array.Copy(parsed, tokBytes, Math.Min(parsed.Length, 4));
+                }
+                catch { }
+
+                byte[] nameBytes = Encoding.UTF8.GetBytes(HostName);
+                if (nameBytes.Length > 10) nameBytes = nameBytes[..10];
+
+                var payload = new List<byte>();
+                payload.AddRange(Encoding.ASCII.GetBytes("LUNI"));
+                payload.Add(1); // Protocol version
+                payload.Add((byte)(RfcommPort & 0xFF));
+                payload.AddRange(macBytes);
+                payload.AddRange(tokBytes);
+                payload.AddRange(nameBytes);
+
+                writer.WriteBytes(payload.ToArray());
+
+                var mfg = new BluetoothLEManufacturerData(0xFFFF, writer.DetachBuffer());
+                publisher.Advertisement.ManufacturerData.Add(mfg);
+                publisher.Start();
+
+                _blePublisher = publisher;
+                AppLogger.Log("BluetoothPeer", $"BLE advertisement broadcaster started (WinRT, RFCOMM port {RfcommPort}).");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogDebug("BluetoothPeer", $"BLE advertisement start notice (WinRT): {ex.Message}");
+            }
+        }
+
+        private void StopBleBroadcaster()
+        {
+            if (_blePublisher != null)
+            {
+                try
+                {
+                    _blePublisher.Stop();
+                    AppLogger.Log("BluetoothPeer", "BLE advertisement broadcaster stopped.");
+                }
+                catch { }
+                finally
+                {
+                    _blePublisher = null;
+                }
             }
         }
 
@@ -354,10 +451,46 @@ namespace Lunifier.Windows.Core
             {
                 try
                 {
-                    _serverSocket = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
-                    var ep = new BluetoothEndPoint(0, RfcommPort);
-                    _serverSocket.Bind(ep);
-                    _serverSocket.Listen(4);
+                    var candidates = new List<int> { RfcommPort };
+                    for (int p = 5; p <= 30; p++)
+                    {
+                        if (p != RfcommPort) candidates.Add(p);
+                    }
+
+                    Socket? boundSocket = null;
+                    int boundPort = RfcommPort;
+
+                    foreach (var p in candidates)
+                    {
+                        try
+                        {
+                            var sock = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
+                            var ep = new BluetoothEndPoint(0, p);
+                            sock.Bind(ep);
+                            sock.Listen(4);
+                            boundSocket = sock;
+                            boundPort = p;
+                            break;
+                        }
+                        catch
+                        {
+                            // Port unavailable, try next candidate
+                        }
+                    }
+
+                    if (boundSocket == null)
+                    {
+                        AppLogger.LogDebug("BluetoothPeer", "Could not bind RFCOMM server to any port in range [5..30]. Retrying in 5s...");
+                        Thread.Sleep(5000);
+                        continue;
+                    }
+
+                    _serverSocket = boundSocket;
+                    if (boundPort != RfcommPort)
+                    {
+                        AppLogger.Log("BluetoothPeer", $"Preferred RFCOMM port {RfcommPort} in use; dynamically bound to port {boundPort}.");
+                        RfcommPort = boundPort;
+                    }
 
                     AppLogger.Log("BluetoothPeer", $"Listening for incoming Bluetooth RFCOMM on port {RfcommPort}...");
 
@@ -418,7 +551,8 @@ namespace Lunifier.Windows.Core
                             { "type", "PROBE_REPLY" },
                             { "from_host", HostName },
                             { "is_advertising", IsAdvertising },
-                            { "token", IsAdvertising ? AdvertisingToken : "" }
+                            { "token", IsAdvertising ? AdvertisingToken : "" },
+                            { "port", RfcommPort }
                         };
                         var json = JsonSerializer.Serialize(reply) + "\n";
                         client.Send(Encoding.UTF8.GetBytes(json));
@@ -586,14 +720,14 @@ namespace Lunifier.Windows.Core
             }
         }
 
-        public Task<(bool Success, string? Message)> RequestPairingAsync(string targetMac, string advToken = "")
+        public Task<(bool Success, string? Message)> RequestPairingAsync(string targetMac, string advToken = "", int? port = null)
         {
             var tcs = new TaskCompletionSource<(bool, string?)>();
-            RequestPairing(targetMac, advToken, (ok, msg) => tcs.TrySetResult((ok, msg)));
+            RequestPairing(targetMac, advToken, (ok, msg) => tcs.TrySetResult((ok, msg)), port);
             return tcs.Task;
         }
 
-        public void RequestPairing(string targetMac, string advToken, Action<bool, string?> onResult)
+        public void RequestPairing(string targetMac, string advToken, Action<bool, string?> onResult, int? port = null)
         {
             Task.Run(() =>
             {
@@ -607,12 +741,13 @@ namespace Lunifier.Windows.Core
                         return;
                     }
 
-                    AppLogger.Log("BluetoothPeer", $"Initiating pairing handshake with {targetMac} (Port {RfcommPort})...");
+                    int connectPort = (port.HasValue && port.Value > 0) ? port.Value : RfcommPort;
+                    AppLogger.Log("BluetoothPeer", $"Initiating pairing handshake with {targetMac} (Port {connectPort})...");
                     sock = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
                     sock.ReceiveTimeout = 6000;
                     sock.SendTimeout = 6000;
 
-                    var ep = new BluetoothEndPoint(mac, RfcommPort);
+                    var ep = new BluetoothEndPoint(mac, connectPort);
                     sock.Connect(ep);
 
                     var req = new Dictionary<string, object?>
@@ -640,10 +775,11 @@ namespace Lunifier.Windows.Core
                         {
                             var partner = root.TryGetProperty("from_host", out var fh) ? fh.GetString() ?? "Partner" : "Partner";
                             PeerAddress = targetMac.ToUpperInvariant();
+                            RfcommPort = connectPort;
                             SetActiveConnection(sock);
                             sock = null; // ownership transferred to active connection
 
-                            AppLogger.Log("BluetoothPeer", $"Pairing confirmed with {partner} ({targetMac})!");
+                            AppLogger.Log("BluetoothPeer", $"Pairing confirmed with {partner} ({targetMac}) on port {connectPort}!");
                             onResult(true, partner);
                             return;
                         }
@@ -680,74 +816,175 @@ namespace Lunifier.Windows.Core
             Task.Run(() =>
             {
                 var discovered = new List<DiscoveredPeer>();
-                var candidates = GetCandidateBluetoothDevices();
+                BluetoothLEAdvertisementWatcher? bleWatcher = null;
 
-                if (candidates.Count == 0)
+                try
                 {
-                    onComplete(discovered);
-                    return;
-                }
-
-                AppLogger.Log("BluetoothPeer", $"Scanning {candidates.Count} candidate Bluetooth device(s) for active Lunifier advertising...");
-
-                Parallel.ForEach(candidates, new ParallelOptions { MaxDegreeOfParallelism = 4 }, cand =>
-                {
-                    try
+                    bleWatcher = new BluetoothLEAdvertisementWatcher
                     {
-                        ulong mac = BluetoothEndPoint.ParseMac(cand.Key);
-                        if (mac == 0) return;
+                        ScanningMode = BluetoothLEScanningMode.Active
+                    };
 
-                        using var probeSock = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
-                        probeSock.ReceiveTimeout = (int)(timeoutSeconds * 1000);
-                        probeSock.SendTimeout = 2000;
-
-                        var ep = new BluetoothEndPoint(mac, RfcommPort);
-                        var connectTask = Task.Run(() => probeSock.Connect(ep));
-                        if (!connectTask.Wait(TimeSpan.FromSeconds(timeoutSeconds)))
-                            return;
-
-                        var probeMsg = new Dictionary<string, object?>
+                    bleWatcher.Received += (w, args) =>
+                    {
+                        try
                         {
-                            { "type", "PROBE_ADV" },
-                            { "from_host", HostName }
-                        };
-                        var json = JsonSerializer.Serialize(probeMsg) + "\n";
-                        probeSock.Send(Encoding.UTF8.GetBytes(json));
-
-                        using var stream = new NetworkStream(probeSock, false);
-                        using var reader = new StreamReader(stream, Encoding.UTF8);
-                        var line = reader.ReadLine();
-
-                        if (!string.IsNullOrEmpty(line))
-                        {
-                            using var doc = JsonDocument.Parse(line);
-                            var root = doc.RootElement;
-                            var type = root.TryGetProperty("type", out var tProp) ? tProp.GetString() : null;
-
-                            if (type == "PROBE_REPLY")
+                            foreach (var md in args.Advertisement.ManufacturerData)
                             {
-                                var isAdv = root.TryGetProperty("is_advertising", out var aProp) && aProp.GetBoolean();
-                                var token = root.TryGetProperty("token", out var tk) ? tk.GetString() ?? "" : "";
-                                var fromHost = root.TryGetProperty("from_host", out var fh) ? fh.GetString() ?? cand.Value : cand.Value;
-
-                                if (isAdv)
+                                if (md.CompanyId == 0xFFFF)
                                 {
-                                    lock (discovered)
+                                    var reader = DataReader.FromBuffer(md.Data);
+                                    if (reader.UnconsumedBufferLength >= 12)
                                     {
-                                        discovered.Add(new DiscoveredPeer
+                                        byte[] data = new byte[reader.UnconsumedBufferLength];
+                                        reader.ReadBytes(data);
+                                        if (data[0] == 'L' && data[1] == 'U' && data[2] == 'N' && data[3] == 'I')
                                         {
-                                            Name = fromHost,
-                                            MacAddress = cand.Key,
-                                            AdvertisingToken = token,
-                                            IsAdvertising = true
-                                        });
+                                            int port = data[5];
+                                            string mac = $"{data[6]:X2}:{data[7]:X2}:{data[8]:X2}:{data[9]:X2}:{data[10]:X2}:{data[11]:X2}";
+                                            string tok = "";
+                                            if (data.Length >= 16)
+                                            {
+                                                tok = Convert.ToHexString(data[12..16]).ToUpperInvariant();
+                                            }
+                                            string hName = "";
+                                            if (data.Length > 16)
+                                            {
+                                                hName = Encoding.UTF8.GetString(data[16..]).TrimEnd('\0');
+                                            }
+                                            if (string.IsNullOrEmpty(hName)) hName = mac;
+
+                                            lock (discovered)
+                                            {
+                                                var existing = discovered.Find(d => d.MacAddress.Equals(mac, StringComparison.OrdinalIgnoreCase));
+                                                if (existing == null)
+                                                {
+                                                    discovered.Add(new DiscoveredPeer
+                                                    {
+                                                        Name = hName,
+                                                        MacAddress = mac,
+                                                        AdvertisingToken = tok,
+                                                        Port = port > 0 ? port : RfcommPort,
+                                                        IsAdvertising = true
+                                                    });
+                                                    AppLogger.Log("BluetoothPeer", $"Discovered via BLE beacon: {hName} ({mac}) on port {port}");
+                                                }
+                                                else
+                                                {
+                                                    existing.Port = port > 0 ? port : existing.Port;
+                                                    if (!string.IsNullOrEmpty(tok)) existing.AdvertisingToken = tok;
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    catch { }
-                });
+                        catch { }
+                    };
+
+                    bleWatcher.Start();
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogDebug("BluetoothPeer", $"BLE scan watcher notice: {ex.Message}");
+                }
+
+                var candidates = GetCandidateBluetoothDevices();
+                var probePorts = new List<int> { RfcommPort };
+                foreach (var p in new[] { 5, 6, 8, 9, 10, 7 })
+                {
+                    if (!probePorts.Contains(p)) probePorts.Add(p);
+                }
+
+                if (candidates.Count > 0)
+                {
+                    AppLogger.Log("BluetoothPeer", $"Scanning {candidates.Count} candidate Bluetooth device(s) for active Lunifier advertising...");
+
+                    Parallel.ForEach(candidates, new ParallelOptions { MaxDegreeOfParallelism = 4 }, cand =>
+                    {
+                        try
+                        {
+                            ulong mac = BluetoothEndPoint.ParseMac(cand.Key);
+                            if (mac == 0) return;
+
+                            foreach (var port in probePorts)
+                            {
+                                try
+                                {
+                                    using var probeSock = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
+                                    probeSock.ReceiveTimeout = (int)(Math.Min(timeoutSeconds, 1.5) * 1000);
+                                    probeSock.SendTimeout = 1500;
+
+                                    var ep = new BluetoothEndPoint(mac, port);
+                                    var connectTask = Task.Run(() => probeSock.Connect(ep));
+                                    if (!connectTask.Wait(TimeSpan.FromSeconds(Math.Min(timeoutSeconds, 1.5))))
+                                        continue;
+
+                                    var probeMsg = new Dictionary<string, object?>
+                                    {
+                                        { "type", "PROBE_ADV" },
+                                        { "from_host", HostName }
+                                    };
+                                    var json = JsonSerializer.Serialize(probeMsg) + "\n";
+                                    probeSock.Send(Encoding.UTF8.GetBytes(json));
+
+                                    using var stream = new NetworkStream(probeSock, false);
+                                    using var reader = new StreamReader(stream, Encoding.UTF8);
+                                    var line = reader.ReadLine();
+
+                                    if (!string.IsNullOrEmpty(line))
+                                    {
+                                        using var doc = JsonDocument.Parse(line);
+                                        var root = doc.RootElement;
+                                        var type = root.TryGetProperty("type", out var tProp) ? tProp.GetString() : null;
+
+                                        if (type == "PROBE_REPLY")
+                                        {
+                                            var isAdv = root.TryGetProperty("is_advertising", out var aProp) && aProp.GetBoolean();
+                                            var token = root.TryGetProperty("token", out var tk) ? tk.GetString() ?? "" : "";
+                                            var fromHost = root.TryGetProperty("from_host", out var fh) ? fh.GetString() ?? cand.Value : cand.Value;
+                                            int replyPort = root.TryGetProperty("port", out var pProp) && pProp.TryGetInt32(out var rp) ? rp : port;
+
+                                            if (isAdv)
+                                            {
+                                                lock (discovered)
+                                                {
+                                                    var existing = discovered.Find(d => d.MacAddress.Equals(cand.Key, StringComparison.OrdinalIgnoreCase));
+                                                    if (existing == null)
+                                                    {
+                                                        discovered.Add(new DiscoveredPeer
+                                                        {
+                                                            Name = fromHost,
+                                                            MacAddress = cand.Key,
+                                                            AdvertisingToken = token,
+                                                            Port = replyPort,
+                                                            IsAdvertising = true
+                                                        });
+                                                    }
+                                                    else
+                                                    {
+                                                        existing.Port = replyPort;
+                                                        if (!string.IsNullOrEmpty(token)) existing.AdvertisingToken = token;
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+                        }
+                        catch { }
+                    });
+                }
+
+                // Wait for remainder of timeout to catch BLE beacons
+                int remainingWaitMs = Math.Max(500, (int)(timeoutSeconds * 1000) - 1500);
+                Thread.Sleep(remainingWaitMs);
+
+                try { bleWatcher?.Stop(); } catch { }
 
                 AppLogger.Log("BluetoothPeer", $"Scan complete. Found {discovered.Count} active Lunifier advertising peer(s).");
                 onComplete(discovered);

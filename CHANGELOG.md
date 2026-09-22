@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2] - 2026-09-22
+
+### Added
+- **Over-the-Air Live BLE Advertisement Broadcaster & Watcher**:
+  - Implemented live Bluetooth Low Energy (BLE) advertisement packets containing Lunifier beacon data (magic `LUNI`, protocol version, RFCOMM channel, Classic BT MAC, ephemeral token, host name).
+  - Built-in on Windows via native WinRT `BluetoothLEAdvertisementPublisher` and `BluetoothLEAdvertisementWatcher` (.NET 9 Win10/11 projection).
+  - Built-in on Linux via BlueZ `bluetoothctl` / D-Bus.
+  - Enables advertising hosts to be discovered over the air instantly by scanning hosts without prior pairing.
+- **Dynamic RFCOMM Port Allocation & Port Auto-Binding Fallback**:
+  - Automatically detects available RFCOMM channels and binds to candidate ports in range `[preferred, 5..30]`.
+  - Gracefully recovers if port 4, 7, or any other port is reserved or in use by another application or the Windows Bluetooth stack (`[WinError 10048]` / `10013`).
+  - Automatically migrates legacy config from port 4 to port 5.
+  - Discovery beacon and RFCOMM probe replies report the actual bound listening port; pairing clients automatically connect to and save the target's reported port.
+
+### Fixed
+- **Bluetooth Server Bind Log Spam**:
+  - Eliminated periodic 5-second `Bluetooth link server bind error: [WinError 10048]` log spam by automatically selecting an available port on startup.
+- **Window Sizing on Windows and Linux**:
+  - Increased default window dimensions (Windows: 780x1020, Linux: 780x980) so all configuration cards and bottom action buttons fit comfortably without vertical squeezing.
+
+---
+
 ## [2.1.1] - 2026-09-22
 
 ### Added

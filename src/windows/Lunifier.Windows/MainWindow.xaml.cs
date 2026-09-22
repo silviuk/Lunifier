@@ -674,7 +674,7 @@ namespace Lunifier.Windows
                         });
                         info.Children.Add(new TextBlock
                         {
-                            Text = $"MAC: {p.MacAddress}  |  Token: {p.AdvertisingToken}",
+                            Text = $"MAC: {p.MacAddress}  |  Port: {p.Port}  |  Token: {p.AdvertisingToken}",
                             FontSize = 11,
                             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"))
                         });
@@ -714,14 +714,16 @@ namespace Lunifier.Windows
             {
                 btn.IsEnabled = false;
                 btn.Content = "Pairing...";
-                AppLogger.Log("GUI", $"Requesting pairing with {peer.Name} ({peer.MacAddress})...");
+                AppLogger.Log("GUI", $"Requesting pairing with {peer.Name} ({peer.MacAddress}) on port {peer.Port}...");
 
                 try
                 {
-                    var (success, reason) = await _service.BtPeer.RequestPairingAsync(peer.MacAddress, peer.AdvertisingToken);
+                    var (success, reason) = await _service.BtPeer.RequestPairingAsync(peer.MacAddress, peer.AdvertisingToken, peer.Port);
                     if (success)
                     {
                         PeerMacBox.Text = peer.MacAddress;
+                        RfcommPortBox.Text = peer.Port.ToString();
+                        _config.BtRfcommPort = peer.Port;
                         BtEnabledCheck.IsChecked = true;
                         SaveConfigInternal();
                         _service.ReloadConfig(_config);

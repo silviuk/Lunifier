@@ -112,7 +112,7 @@ namespace Lunifier.Windows.Config
         public string BtPeerAddress { get; set; } = string.Empty;
 
         [JsonPropertyName("bt_rfcomm_port")]
-        public int BtRfcommPort { get; set; } = 4;
+        public int BtRfcommPort { get; set; } = 5;
 
         [JsonPropertyName("sync_cursor_position")]
         public bool SyncCursorPosition { get; set; } = true;
@@ -349,6 +349,10 @@ namespace Lunifier.Windows.Config
             }
 
             configObj ??= new AppConfig();
+            if (configObj.BtRfcommPort == 4)
+            {
+                configObj.BtRfcommPort = 5;
+            }
             AppLogger.SetLogLevel(configObj.LogLevel);
             return configObj;
         }
