@@ -79,7 +79,7 @@ class AppConfig:
     # Bluetooth Inter-Host P2P options
     bt_p2p_enabled: bool = False
     bt_peer_address: str = ""   # e.g. "00:11:22:33:44:55"
-    bt_rfcomm_port: int = 4     # RFCOMM channel 1-30
+    bt_rfcomm_port: int = 5     # RFCOMM channel 1-30 (auto-detected if busy)
     adv_duration_seconds: int = 60 # Advertising timeout in seconds
     sync_cursor_position: bool = True
     sync_clipboard: bool = False
@@ -240,6 +240,10 @@ class AppConfig:
 
         if config_obj is None:
             config_obj = cls()
+
+        # Auto-migrate legacy port 4 which causes WinError 10048 conflicts
+        if getattr(config_obj, "bt_rfcomm_port", 4) == 4:
+            config_obj.bt_rfcomm_port = 5
 
         # Apply configured log level immediately
         set_log_level(config_obj.log_level)

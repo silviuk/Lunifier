@@ -802,7 +802,7 @@ class LunifierGUI:
         port_row = ctk.CTkFrame(bt_card, fg_color="transparent")
         port_row.pack(fill="x", padx=15, pady=6)
         ctk.CTkLabel(port_row, text="RFCOMM Channel / Port:", font=get_ui_font(13)).pack(side="left")
-        self.port_entry = ctk.CTkEntry(port_row, width=90, corner_radius=BTN_RADIUS, placeholder_text="4")
+        self.port_entry = ctk.CTkEntry(port_row, width=90, corner_radius=BTN_RADIUS, placeholder_text="5")
         self.port_entry.pack(side="right")
 
         self.clip_switch = ctk.CTkSwitch(
@@ -1225,7 +1225,7 @@ class LunifierGUI:
 
             self.config.bt_p2p_enabled = bool(self.p2p_switch.get())
             self.config.bt_peer_address = self.peer_mac_entry.get().strip()
-            self.config.bt_rfcomm_port = int(self.port_entry.get() or "4")
+            self.config.bt_rfcomm_port = int(self.port_entry.get() or "5")
             self.config.sync_clipboard = bool(self.clip_switch.get())
             if hasattr(self, 'adv_duration_var'):
                 try:
@@ -1571,9 +1571,9 @@ class LunifierGUI:
         )
 
         def worker():
-            port = 4
+            port = 5
             try:
-                port = int(self.port_entry.get().strip() or "4")
+                port = int(self.port_entry.get().strip() or "5")
             except Exception:
                 pass
             peers = discover_advertising_lunifier_peers(
@@ -1589,7 +1589,8 @@ class LunifierGUI:
         self.bt_scan_btn.configure(state="normal", text="🔍 Scan Hosts")
         self._discovered_peers = {}
         for p in peers:
-            key = f"💻 {p['name']} ({p['mac']}) [Active {p.get('expires_in', 0)}s]"
+            port_tag = f" [Port {p['port']}]" if "port" in p else ""
+            key = f"💻 {p['name']} ({p['mac']}){port_tag} [Active {p.get('expires_in', 0)}s]"
             self._discovered_peers[key] = p
 
         options = list(self._discovered_peers.keys())
@@ -1617,19 +1618,31 @@ class LunifierGUI:
             self.peer_mac_entry.delete(0, "end")
             self.peer_mac_entry.insert(0, mac)
             self.config.bt_peer_address = mac
+        if peer and "port" in peer:
+            self.port_entry.delete(0, "end")
+            self.port_entry.insert(0, str(peer["port"]))
+            self.config.bt_rfcomm_port = int(peer["port"])
 
     def _connect_selected_advertising_peer(self) -> None:
         choice = self.bt_discovery_var.get()
         peer = getattr(self, '_discovered_peers', {}).get(choice)
         target_mac = self.peer_mac_entry.get().strip().upper()
         token = peer.get("token", "") if peer else ""
+        target_port = None
+        if peer and "port" in peer:
+            target_port = int(peer["port"])
+        else:
+            try:
+                target_port = int(self.port_entry.get().strip() or "5")
+            except Exception:
+                target_port = 5
 
         if not target_mac:
             self.bt_scan_status_lbl.configure(text="Please select an advertising peer or enter MAC first.", text_color="#ffa726")
             return
 
         self.bt_quick_pair_btn.configure(state="disabled", text="Linking...")
-        self.bt_link_status_lbl.configure(text=f"Connecting to {target_mac} over Bluetooth...", text_color="#80d8ff")
+        self.bt_link_status_lbl.configure(text=f"Connecting to {target_mac} (Port {target_port}) over Bluetooth...", text_color="#80d8ff")
 
         link = self._get_or_create_bt_link()
 
@@ -1639,7 +1652,7 @@ class LunifierGUI:
                 self.bt_link_status_lbl.configure(text=f"Handshake failed: {err}", text_color="#ef5350")
             self.root.after(0, update)
 
-        link.request_pairing(target_mac, adv_token=token, on_error=on_err)
+        link.request_pairing(target_mac, port=target_port, adv_token=token, on_error=on_err)
 
     def _get_or_create_bt_link(self) -> BluetoothLink:
         if self.app and getattr(self.app, 'bt_link', None):
@@ -1666,7 +1679,12 @@ class LunifierGUI:
             self.bt_link_status_lbl.configure(text="Please select or enter partner MAC first", text_color="#ffa726")
             return
 
-        self.bt_link_status_lbl.configure(text="Initiating handshake over Bluetooth... Request sent...", text_color="#80d8ff")
+        try:
+            target_port = int(self.port_entry.get().strip() or "5")
+        except Exception:
+            target_port = 5
+
+        self.bt_link_status_lbl.configure(text=f"Initiating handshake over Bluetooth to {target_mac} (Port {target_port})...", text_color="#80d8ff")
         self.handshake_btn.configure(state="disabled", text="Pairing...")
 
         link = self._get_or_create_bt_link()
@@ -1677,7 +1695,7 @@ class LunifierGUI:
                 self.bt_link_status_lbl.configure(text=f"Pairing connection failed: {err}", text_color="#ef5350")
             self.root.after(0, update)
 
-        link.request_pairing(target_mac, on_error=on_err)
+        link.request_pairing(target_mac, port=target_port, on_error=on_err)
 
     def _on_bt_pair_request_received(self, from_host: str, from_mac: str) -> bool:
         log("GUI", f"Pair request received from {from_host} ({from_mac}) - auto-accepted.")
