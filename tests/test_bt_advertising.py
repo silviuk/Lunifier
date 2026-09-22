@@ -124,3 +124,45 @@ def test_discover_advertising_lunifier_peers_filtering():
                 assert peers[0]["name"] == "PartnerPC"
                 assert peers[0]["mac"] == "AA:BB:CC:11:22:33"
                 assert peers[0]["token"] == "tok_xyz"
+
+
+def test_bt_link_server_bind_address():
+    """Verify that BluetoothLink binds to 00:00:00:00:00:00 universally (Windows & Linux)."""
+    with patch("socket.socket") as mock_sock_cls:
+        mock_sock = MagicMock()
+        mock_sock_cls.return_value = mock_sock
+        # Stop loop after first bind attempt
+        link = BluetoothLink(host_name="HostA", peer_mac="", rfcomm_port=4)
+        link._running = True
+
+        def stop_after_bind(*args, **kwargs):
+            link._running = False
+            return None
+
+        mock_sock.bind.side_effect = stop_after_bind
+
+        link._server_loop()
+        assert mock_sock.bind.called
+        bind_args = mock_sock.bind.call_args[0][0]
+        assert bind_args == ("00:00:00:00:00:00", 4)
+
+
+def test_get_local_bluetooth_mac():
+    """Verify get_local_bluetooth_mac returns valid MAC or empty string."""
+    from lunifier.bt_link import get_local_bluetooth_mac
+    import lunifier.bt_link as bt_link_mod
+    # Reset cache
+    bt_link_mod._cached_local_bt_mac = None
+
+    with patch("socket.socket") as mock_sock_cls:
+        mock_sock = MagicMock()
+        mock_sock_cls.return_value = mock_sock
+        mock_sock.getsockname.return_value = ("11:22:33:44:55:66", 0)
+
+        mac = get_local_bluetooth_mac()
+        assert mac == "11:22:33:44:55:66"
+
+    # Reset cache again
+    bt_link_mod._cached_local_bt_mac = None
+
+

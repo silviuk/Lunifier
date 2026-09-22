@@ -298,6 +298,9 @@ namespace Lunifier.Windows
             BtEnabledCheck.IsChecked = _config.BtP2pEnabled;
             PeerMacBox.Text = _config.BtPeerAddress;
             RfcommPortBox.Text = _config.BtRfcommPort.ToString();
+
+            var localMac = BluetoothPeer.GetLocalBluetoothMac();
+            LocalMacBox.Text = string.IsNullOrEmpty(localMac) ? "(No adapter detected)" : localMac;
             SyncCursorCheck.IsChecked = _config.SyncCursorPosition;
             SyncClipboardCheck.IsChecked = _config.SyncClipboard;
 
@@ -599,6 +602,23 @@ namespace Lunifier.Windows
                     AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
                 }
             });
+        }
+
+        private void CopyLocalMacBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var mac = LocalMacBox.Text.Trim();
+            if (!string.IsNullOrEmpty(mac) && !mac.StartsWith("("))
+            {
+                System.Windows.Clipboard.SetText(mac);
+                CopyLocalMacBtn.Content = "✓ Copied";
+                var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                timer.Tick += (s, ev) =>
+                {
+                    CopyLocalMacBtn.Content = "Copy";
+                    timer.Stop();
+                };
+                timer.Start();
+            }
         }
 
         private void ToggleAdvBtn_Click(object sender, RoutedEventArgs e)

@@ -4,6 +4,9 @@ Zero-network connection between Windows and Linux hosts for Flow synchronization
 Operates exclusively over Bluetooth (RFCOMM / BLE) with zero Wi-Fi, LAN, or network traffic.
 """
 
+import os
+import glob
+import re
 import sys
 import json
 import time
@@ -14,6 +17,59 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Callable, Dict, Any, List
 
 from .logger import log
+
+_cached_local_bt_mac: Optional[str] = None
+
+
+def get_local_bluetooth_mac() -> str:
+    """
+    Returns the Bluetooth MAC address of the local machine's primary Bluetooth adapter.
+    Works across Windows and Linux. Returns empty string if no adapter is found.
+    """
+    global _cached_local_bt_mac
+    if _cached_local_bt_mac:
+        return _cached_local_bt_mac
+
+    mac = ""
+    # Method 1: RFCOMM socket bind to ('00:00:00:00:00:00', 0)
+    if hasattr(socket, "AF_BLUETOOTH"):
+        try:
+            s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+            s.bind(("00:00:00:00:00:00", 0))
+            sock_name = s.getsockname()
+            s.close()
+            if sock_name and isinstance(sock_name, (tuple, list)) and sock_name[0]:
+                candidate = str(sock_name[0]).upper()
+                if candidate != "00:00:00:00:00:00" and len(candidate.split(":")) == 6:
+                    mac = candidate
+        except Exception:
+            pass
+
+    # Method 2: Linux sysfs (/sys/class/bluetooth/hci*/address)
+    if not mac and sys.platform.startswith("linux"):
+        for path in glob.glob("/sys/class/bluetooth/hci*/address"):
+            try:
+                with open(path, "r") as f:
+                    candidate = f.read().strip().upper()
+                    if len(candidate.split(":")) == 6 and candidate != "00:00:00:00:00:00":
+                        mac = candidate
+                        break
+            except Exception:
+                pass
+
+        if not mac:
+            try:
+                import subprocess
+                out = subprocess.check_output(["bluetoothctl", "list"], text=True, timeout=1.5)
+                m = re.search(r"Controller\s+([0-9A-Fa-f:]{17})", out)
+                if m:
+                    mac = m.group(1).upper()
+            except Exception:
+                pass
+
+    if mac:
+        _cached_local_bt_mac = mac
+    return mac
 
 
 def discover_potential_partners(timeout: float = 3.5) -> List[Dict[str, str]]:
@@ -258,8 +314,6 @@ class BluetoothLink:
         When expired, automatically shuts down advertising.
         """
         self.stop_advertising()
-        if not self._running:
-            self.start()
         token = secrets.token_hex(16)
         self._adv_token = token
         self._adv_expires_at = time.time() + max(1, duration_seconds)
@@ -417,7 +471,7 @@ class BluetoothLink:
         while self._running:
             try:
                 self._server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-                bind_addr = "00:00:00:00:00:00" if sys.platform != "win32" else ""
+                bind_addr = "00:00:00:00:00:00"
                 self._server_sock.bind((bind_addr, self.rfcomm_port))
                 self._server_sock.listen(2)
                 log("BluetoothLink", f"Server listening on RFCOMM channel {self.rfcomm_port}...")
@@ -553,14 +607,11 @@ class BluetoothLink:
     def request_pairing(self,
                         target_mac: str,
                         adv_token: str = "",
-                        callback: Optional[Callable[[bool, str], None]] = None,
                         on_error: Optional[Callable[[str], None]] = None) -> None:
         """
         Initiates Bluetooth RFCOMM handshake with the advertising peer.
         Sends PAIR_REQUEST with the discovered ephemeral token.
         """
-        self._pairing_callback = callback
-
         def worker():
             mac = target_mac.strip().upper()
             try:
@@ -571,28 +622,27 @@ class BluetoothLink:
                 s.settimeout(None)
                 setattr(s, "_peer_mac", mac)
                 self.peer_mac = mac
-                self._set_active_conn(s)
+                local_mac = ""
+                try:
+                    local_mac = s.getsockname()[0]
+                except Exception:
+                    pass
 
                 req = {
                     "type": "PAIR_REQUEST",
                     "from_host": self.host_name,
-                    "from_mac": "",
+                    "from_mac": local_mac,
                     "token": adv_token,
                     "client_nonce": secrets.token_hex(16),
                     "timestamp": time.time()
                 }
+                self._set_active_conn(s)
                 self.send_message(req)
                 log("BluetoothLink", f"Sent PAIR_REQUEST to {mac}. Awaiting partner confirmation...")
                 self._handle_connection(s)
             except Exception as ex:
                 log("BluetoothLink", f"Pairing request failed to connect to {mac}: {ex}")
                 self._close_conn()
-                if self._pairing_callback:
-                    try:
-                        self._pairing_callback(False, str(ex))
-                    except Exception:
-                        pass
-                    self._pairing_callback = None
                 if on_error:
                     try:
                         on_error(str(ex))
@@ -674,12 +724,6 @@ class BluetoothLink:
             from_host = msg.get("from_host", "Partner Computer")
             self.session_key = msg.get("session_key", "")
             log("BluetoothLink", f"Pairing SUCCESS! Partner '{from_host}' accepted handshake.")
-            if hasattr(self, "_pairing_callback") and self._pairing_callback:
-                try:
-                    self._pairing_callback(True, from_host)
-                except Exception:
-                    pass
-                self._pairing_callback = None
             if self.on_pair_response:
                 try:
                     self.on_pair_response(True, from_host, self.peer_mac)
@@ -689,12 +733,6 @@ class BluetoothLink:
             from_host = msg.get("from_host", "Partner Computer")
             reason = msg.get("reason", "Declined by user")
             log("BluetoothLink", f"Pairing REJECTED by '{from_host}': {reason}")
-            if hasattr(self, "_pairing_callback") and self._pairing_callback:
-                try:
-                    self._pairing_callback(False, reason)
-                except Exception:
-                    pass
-                self._pairing_callback = None
             if self.on_pair_response:
                 try:
                     self.on_pair_response(False, from_host, reason)

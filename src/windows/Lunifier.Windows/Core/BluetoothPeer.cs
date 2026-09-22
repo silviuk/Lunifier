@@ -88,6 +88,28 @@ namespace Lunifier.Windows.Core
         public Action<string>? OnClipboardReceived { get; set; }
         public Action<Dictionary<string, int>>? OnAlignmentReceived { get; set; }
 
+        private static string? _cachedLocalMac;
+
+        public static string GetLocalBluetoothMac()
+        {
+            if (!string.IsNullOrEmpty(_cachedLocalMac)) return _cachedLocalMac;
+
+            try
+            {
+                using var sock = new Socket(AF_BTH, SocketType.Stream, BTHPROTO_RFCOMM);
+                var ep = new BluetoothEndPoint(0, 0);
+                sock.Bind(ep);
+                if (sock.LocalEndPoint is BluetoothEndPoint localEp && localEp.Address != 0)
+                {
+                    _cachedLocalMac = BluetoothEndPoint.FormatMac(localEp.Address);
+                    return _cachedLocalMac;
+                }
+            }
+            catch { }
+
+            return string.Empty;
+        }
+
         private bool _running;
         private bool _isConnected;
         private Socket? _serverSocket;

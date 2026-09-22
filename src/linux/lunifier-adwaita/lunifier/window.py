@@ -10,14 +10,14 @@ from typing import Optional, List
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, GLib, Gio
+from gi.repository import Gtk, Adw, GLib, Gio, Gdk
 
 from .config import AppConfig
 from .hidpp import HIDPPMaster
 from .logger import log, add_log_listener, remove_log_listener, set_log_level
 from .monitors import get_monitors, MonitorInfo
 from .app import LunifierApp
-from .bt_link import discover_advertising_lunifier_peers
+from .bt_link import discover_advertising_lunifier_peers, get_local_bluetooth_mac
 
 
 class LunifierAdwaitaWindow(Adw.ApplicationWindow):
@@ -33,7 +33,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self._is_loading_config = True
 
         self.set_title("Lunifier")
-        self.set_default_size(720, 840)
+        self.set_default_size(760, 920)
 
         self._build_ui()
         self._populate_ui()
@@ -259,10 +259,32 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
         # 1. Timed Advertising Group
         grp_adv = Adw.PreferencesGroup(
-            title="Timed Peer Advertising",
-            description="Make this computer detectable to partner Lunifier hosts. Automatically disables when timer expires."
+            title="Host A: Advertise This Computer (Quick Pair)",
+            description="Step 1: Click on ONE computer to make it discoverable over Bluetooth for 60 seconds (no Wi-Fi needed). Automatically turns off after duration."
         )
         page.add(grp_adv)
+
+        row_local_mac = Adw.ActionRow(title="This Computer's Bluetooth Address")
+        box_local_mac = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.local_mac_entry = Gtk.Entry()
+        self.local_mac_entry.set_text(get_local_bluetooth_mac() or "(No adapter detected)")
+        self.local_mac_entry.set_editable(False)
+        self.local_mac_entry.set_can_focus(True)
+        box_local_mac.append(self.local_mac_entry)
+        self.btn_copy_mac = Gtk.Button(label="Copy")
+
+        def _on_copy_mac(btn):
+            txt = self.local_mac_entry.get_text().strip()
+            if txt and not txt.startswith("("):
+                cb = Gdk.Display.get_default().get_clipboard()
+                cb.set(txt)
+                btn.set_label("Copied!")
+                GLib.timeout_add(1500, lambda: btn.set_label("Copy") or False)
+
+        self.btn_copy_mac.connect("clicked", _on_copy_mac)
+        box_local_mac.append(self.btn_copy_mac)
+        row_local_mac.add_suffix(box_local_mac)
+        grp_adv.add(row_local_mac)
 
         self.adv_duration_row = Adw.ComboRow(title="Advertising Duration")
         duration_model = Gtk.StringList.new(["30 seconds", "60 seconds", "120 seconds", "300 seconds"])
@@ -282,8 +304,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
         # 2. Peer Discovery & Pairing Group
         grp_disc = Adw.PreferencesGroup(
-            title="Find & Pair Lunifier Hosts",
-            description="Probes Bluetooth devices over RFCOMM and detects only hosts that are actively advertising Lunifier."
+            title="Host B: Find & Link Advertising Computer (Quick Pair)",
+            description="Step 2: On your OTHER computer, scan for Host A and connect. Both computers will automatically authenticate and enable the Peer Link below:"
         )
         page.add(grp_disc)
 
@@ -305,8 +327,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
         # 3. Connection Settings Group
         grp_conn = Adw.PreferencesGroup(
-            title="Zero-Network Bluetooth Link Settings",
-            description="Coordinates seamless handoff and clipboard synchronization without WiFi or LAN"
+            title="Peer Link Status & Settings (Zero Network Bluetooth)",
+            description="Underlying Bluetooth RFCOMM link state. Automatically configured and enabled by Quick Pair above, or you can manage it manually:"
         )
         page.add(grp_conn)
 
@@ -369,7 +391,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp = Adw.PreferencesGroup()
         page.add(grp)
 
-        row_about = Adw.ActionRow(title="Lunifier 2.1.0 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        row_about = Adw.ActionRow(title="Lunifier 2.1.1 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
         icon_img = Gtk.Image.new_from_icon_name("lunifier")
         icon_img.set_pixel_size(48)
         row_about.add_prefix(icon_img)
