@@ -1,12 +1,25 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
 using Lunifier.Windows.Config;
 using Lunifier.Windows.Core;
+using Application = System.Windows.Application;
+using Button = System.Windows.Controls.Button;
+using ComboBox = System.Windows.Controls.ComboBox;
+using MessageBox = System.Windows.MessageBox;
+using Forms = System.Windows.Forms;
+using Color = System.Windows.Media.Color;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using DrawingIcon = System.Drawing.Icon;
 
 namespace Lunifier.Windows
 {
@@ -19,6 +32,23 @@ namespace Lunifier.Windows
         private string _selectedMonitorId = "0";
         private bool _isLoadingConfig = true;
 
+        private Forms.NotifyIcon? _trayIcon;
+        private bool _isExiting = false;
+        private HwndSource? _hwndSource;
+        private const int WM_HOTKEY = 0x0312;
+        private const uint MOD_ALT = 0x0001;
+        private const uint MOD_CONTROL = 0x0002;
+        private const uint MOD_NOREPEAT = 0x4000;
+        private const int HOTKEY_ID_CH1 = 9001;
+        private const int HOTKEY_ID_CH2 = 9002;
+        private const int HOTKEY_ID_CH3 = 9003;
+
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
         public MainWindow()
         {
             _config = AppConfig.Load();
@@ -28,6 +58,11 @@ namespace Lunifier.Windows
 
             _service.StateChanged += OnServiceStateChanged;
             AppLogger.LogReceived += OnLogReceived;
+
+            if (_service.BtPeer != null)
+            {
+                _service.BtPeer.OnAdvertisingStateChanged += OnBtAdvertisingStateChanged;
+            }
 
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
@@ -43,6 +78,9 @@ namespace Lunifier.Windows
                 PopulateUiFromConfig();
                 _isLoadingConfig = false;
 
+                InitializeTrayIcon();
+                RegisterGlobalHotkeys();
+
                 // Trigger initial device scan in background
                 RefreshDevicesAsync();
             }
@@ -56,8 +94,131 @@ namespace Lunifier.Windows
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (!_isExiting)
+            {
+                e.Cancel = true;
+                Hide();
+                return;
+            }
+
             _service.Stop();
             try { _overlay?.Close(); } catch { }
+            UnregisterGlobalHotkeys();
+            _trayIcon?.Dispose();
+        }
+
+        private void InitializeTrayIcon()
+        {
+            try
+            {
+                _trayIcon = new Forms.NotifyIcon
+                {
+                    Text = "Lunifier - Logitech Easy-Switch Flow",
+                    Visible = true
+                };
+
+                var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "icon.ico");
+                if (File.Exists(iconPath))
+                {
+                    _trayIcon.Icon = new DrawingIcon(iconPath);
+                }
+                else
+                {
+                    var exePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Lunifier.exe");
+                    _trayIcon.Icon = DrawingIcon.ExtractAssociatedIcon(exePath);
+                }
+
+                var contextMenu = new Forms.ContextMenuStrip();
+                var showItem = new Forms.ToolStripMenuItem("Show Lunifier", null, (s, e) => RestoreFromTray());
+                var toggleServiceItem = new Forms.ToolStripMenuItem("Start / Stop Service", null, (s, e) => ToggleServiceBtn_Click(this, new RoutedEventArgs()));
+                var exitItem = new Forms.ToolStripMenuItem("Exit", null, (s, e) => ExitApplication());
+
+                contextMenu.Items.Add(showItem);
+                contextMenu.Items.Add(toggleServiceItem);
+                contextMenu.Items.Add(new Forms.ToolStripSeparator());
+                contextMenu.Items.Add(exitItem);
+
+                _trayIcon.ContextMenuStrip = contextMenu;
+                _trayIcon.DoubleClick += (s, e) => RestoreFromTray();
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("GUI", $"Failed to initialize system tray icon: {ex.Message}");
+            }
+        }
+
+        public void RestoreFromTray()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+            Focus();
+        }
+
+        private void ExitApplication()
+        {
+            _isExiting = true;
+            _service.Stop();
+            _trayIcon?.Dispose();
+            UnregisterGlobalHotkeys();
+            Application.Current.Shutdown();
+        }
+
+        private void RegisterGlobalHotkeys()
+        {
+            try
+            {
+                var helper = new WindowInteropHelper(this);
+                _hwndSource = HwndSource.FromHwnd(helper.Handle);
+                _hwndSource?.AddHook(HwndHook);
+
+                // Register Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3
+                RegisterHotKey(helper.Handle, HOTKEY_ID_CH1, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x31);
+                RegisterHotKey(helper.Handle, HOTKEY_ID_CH2, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x32);
+                RegisterHotKey(helper.Handle, HOTKEY_ID_CH3, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x33);
+                AppLogger.Log("GUI", "Registered global hotkeys: Ctrl+Alt+1/2/3 for instant channel switching.");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("GUI", $"Failed to register global hotkeys: {ex.Message}");
+            }
+        }
+
+        private void UnregisterGlobalHotkeys()
+        {
+            try
+            {
+                var helper = new WindowInteropHelper(this);
+                UnregisterHotKey(helper.Handle, HOTKEY_ID_CH1);
+                UnregisterHotKey(helper.Handle, HOTKEY_ID_CH2);
+                UnregisterHotKey(helper.Handle, HOTKEY_ID_CH3);
+                _hwndSource?.RemoveHook(HwndHook);
+            }
+            catch { }
+        }
+
+        private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_HOTKEY)
+            {
+                int id = wParam.ToInt32();
+                switch (id)
+                {
+                    case HOTKEY_ID_CH1:
+                        TestSwitch(1);
+                        handled = true;
+                        break;
+                    case HOTKEY_ID_CH2:
+                        TestSwitch(2);
+                        handled = true;
+                        break;
+                    case HOTKEY_ID_CH3:
+                        TestSwitch(3);
+                        handled = true;
+                        break;
+                }
+            }
+            return IntPtr.Zero;
         }
 
         private void SetupBorderCombos()
@@ -139,6 +300,8 @@ namespace Lunifier.Windows
             RfcommPortBox.Text = _config.BtRfcommPort.ToString();
             SyncCursorCheck.IsChecked = _config.SyncCursorPosition;
             SyncClipboardCheck.IsChecked = _config.SyncClipboard;
+
+            AutostartCheck.IsChecked = AppConfig.IsAutostartEnabled();
 
             UpdateMonitorUi(_selectedMonitorId);
         }
@@ -336,6 +499,9 @@ namespace Lunifier.Windows
             _config.SyncCursorPosition = SyncCursorCheck.IsChecked == true;
             _config.SyncClipboard = SyncClipboardCheck.IsChecked == true;
 
+            _config.Autostart = AutostartCheck.IsChecked == true;
+            AppConfig.SetAutostart(_config.Autostart);
+
             _config.Save();
         }
 
@@ -414,6 +580,167 @@ namespace Lunifier.Windows
                 LogsBox.AppendText(logLine + "\n");
                 LogsBox.ScrollToEnd();
             });
+        }
+
+        private void OnBtAdvertisingStateChanged(bool isAdvertising, int remainingSeconds)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (isAdvertising)
+                {
+                    ToggleAdvBtn.Content = "Stop Advertising";
+                    AdvStatusText.Text = $"Advertising ({remainingSeconds}s remaining)...";
+                    AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#81C784"));
+                }
+                else
+                {
+                    ToggleAdvBtn.Content = "Advertise Lunifier";
+                    AdvStatusText.Text = "Idle";
+                    AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
+                }
+            });
+        }
+
+        private void ToggleAdvBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_service.BtPeer == null) return;
+
+            if (_service.BtPeer.IsAdvertising)
+            {
+                _service.BtPeer.StopAdvertising();
+            }
+            else
+            {
+                int duration = 60;
+                if (AdvDurationCombo.SelectedItem is ComboBoxItem item &&
+                    int.TryParse(item.Tag?.ToString(), out var parsedDuration))
+                {
+                    duration = parsedDuration;
+                }
+                _service.BtPeer.StartAdvertising(duration);
+            }
+        }
+
+        private async void ScanBtHostsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_service.BtPeer == null) return;
+
+            ScanBtHostsBtn.IsEnabled = false;
+            BtScanStatusText.Text = "Scanning Bluetooth devices for Lunifier hosts...";
+            DiscoveredPeersList.Items.Clear();
+
+            try
+            {
+                var peers = await _service.BtPeer.ScanLunifierPeersAsync(timeoutSeconds: 4.0);
+                if (peers.Count == 0)
+                {
+                    BtScanStatusText.Text = "No advertising Lunifier hosts found.";
+                }
+                else
+                {
+                    BtScanStatusText.Text = $"Found {peers.Count} advertising Lunifier host(s):";
+                    foreach (var p in peers)
+                    {
+                        var panel = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+                        panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                        panel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                        var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                        info.Children.Add(new TextBlock
+                        {
+                            Text = string.IsNullOrEmpty(p.Name) ? "Lunifier Host" : p.Name,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"))
+                        });
+                        info.Children.Add(new TextBlock
+                        {
+                            Text = $"MAC: {p.MacAddress}  |  Token: {p.AdvertisingToken}",
+                            FontSize = 11,
+                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"))
+                        });
+                        Grid.SetColumn(info, 0);
+                        panel.Children.Add(info);
+
+                        var pairBtn = new Button
+                        {
+                            Content = "Pair & Connect",
+                            Width = 120,
+                            Height = 28,
+                            Margin = new Thickness(8, 0, 0, 0),
+                            Tag = p
+                        };
+                        pairBtn.Click += PairPeerBtn_Click;
+                        Grid.SetColumn(pairBtn, 1);
+                        panel.Children.Add(pairBtn);
+
+                        DiscoveredPeersList.Items.Add(panel);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("GUI", $"Bluetooth scan error: {ex.Message}");
+                BtScanStatusText.Text = "Scan error: " + ex.Message;
+            }
+            finally
+            {
+                ScanBtHostsBtn.IsEnabled = true;
+            }
+        }
+
+        private async void PairPeerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is DiscoveredPeer peer && _service.BtPeer != null)
+            {
+                btn.IsEnabled = false;
+                btn.Content = "Pairing...";
+                AppLogger.Log("GUI", $"Requesting pairing with {peer.Name} ({peer.MacAddress})...");
+
+                try
+                {
+                    var (success, reason) = await _service.BtPeer.RequestPairingAsync(peer.MacAddress, peer.AdvertisingToken);
+                    if (success)
+                    {
+                        PeerMacBox.Text = peer.MacAddress;
+                        BtEnabledCheck.IsChecked = true;
+                        SaveConfigInternal();
+                        _service.ReloadConfig(_config);
+                        _service.BtPeer.Start();
+
+                        btn.Content = "Paired!";
+                        MessageBox.Show($"Successfully paired with {peer.Name} ({peer.MacAddress})!\nBluetooth P2P inter-host link is now active.",
+                            "Lunifier Pairing Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        btn.Content = "Failed";
+                        MessageBox.Show($"Pairing handshake with {peer.MacAddress} failed or timed out: {reason}. Ensure the host is still actively advertising.",
+                            "Lunifier Pairing Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Log("GUI", $"Pairing exception: {ex.Message}");
+                    btn.Content = "Error";
+                }
+                finally
+                {
+                    btn.IsEnabled = true;
+                }
+            }
+        }
+
+        private void VisitGitHub_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/silviuk/Lunifier",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
         }
     }
 }

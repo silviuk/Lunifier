@@ -66,6 +66,8 @@
                                         <ComboBoxItem Content="Channel 3 (Slot 3)" />
                                     </ComboBox>
                                 </Grid>
+                                <CheckBox x:Name="AutostartCheck" Content="Start Lunifier automatically on Windows login" Foreground="{StaticResource TextPrimary}" Margin="0,12,0,4" />
+                                <TextBlock Text="Global Hotkeys: Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3 to switch channels instantly." FontSize="11" Foreground="#94A3B8" />
                             </StackPanel>
                         </Border>
 
@@ -237,39 +239,86 @@
             </TabItem>
 
             <!-- Bluetooth Inter-Host Link Tab -->
+            <!-- Bluetooth Inter-Host Link Tab -->
             <TabItem Header="  Bluetooth Inter-Host Link  ">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
-                    <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="Zero-Network Bluetooth Link" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
-                            <CheckBox x:Name="BtEnabledCheck" Content="Enable Bluetooth RFCOMM P2P Inter-Host Connection" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+                    <StackPanel>
+                        <!-- Timed Advertising Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Timed Peer Advertising" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,6" />
+                                <TextBlock Text="Make this computer detectable to partner Lunifier hosts for pairing. Automatically disables when time expires." Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="160" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Partner Host MAC:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
-                                <TextBox x:Name="PeerMacBox" Grid.Column="1" Text="" />
-                            </Grid>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Advertising Duration:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <ComboBox x:Name="AdvDurationCombo" Grid.Column="1" VerticalAlignment="Center">
+                                        <ComboBoxItem Content="30 seconds" Tag="30" />
+                                        <ComboBoxItem Content="60 seconds" Tag="60" IsSelected="True" />
+                                        <ComboBoxItem Content="120 seconds" Tag="120" />
+                                        <ComboBoxItem Content="300 seconds" Tag="300" />
+                                    </ComboBox>
+                                    <Button x:Name="ToggleAdvBtn" Grid.Column="2" Content="Advertise Lunifier" Height="30" Margin="10,0,0,0" Click="ToggleAdvBtn_Click" />
+                                    <TextBlock x:Name="AdvStatusText" Grid.Column="3" Text="Idle" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="160" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="RFCOMM Port:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
-                                <TextBox x:Name="RfcommPortBox" Grid.Column="1" Text="4" Width="80" HorizontalAlignment="Left" />
-                            </Grid>
+                        <!-- Peer Discovery & Pairing Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Find &amp; Pair Lunifier Hosts" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,6" />
+                                <TextBlock Text="Probes Bluetooth devices over RFCOMM and detects only hosts that are actively advertising Lunifier." Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
 
-                            <CheckBox x:Name="SyncCursorCheck" Content="Synchronize cursor position at entry edge" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" IsChecked="True" />
-                            <CheckBox x:Name="SyncClipboardCheck" Content="Synchronize clipboard text across hosts" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Button x:Name="ScanBtHostsBtn" Content="Scan for Lunifier Hosts" Width="180" Height="30" Margin="0,0,10,0" Click="ScanBtHostsBtn_Click" />
+                                    <TextBlock x:Name="BtScanStatusText" Text="Ready to scan" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                </StackPanel>
 
-                            <Border Background="#1E293B" CornerRadius="4" Padding="10" Margin="0,10,0,0">
-                                <TextBlock Text="When enabled, Lunifier communicates directly between hosts over Bluetooth without WiFi or local network access." Foreground="#94A3B8" TextWrapping="Wrap" FontSize="11" />
-                            </Border>
-                        </StackPanel>
-                    </Border>
+                                <Border Background="#1E293B" CornerRadius="6" Padding="8" MinHeight="100">
+                                    <ListBox x:Name="DiscoveredPeersList" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextPrimary}" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Bluetooth Connection Settings Card -->
+                        <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Zero-Network Bluetooth Link Settings" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10" />
+                                <CheckBox x:Name="BtEnabledCheck" Content="Enable Bluetooth RFCOMM P2P Inter-Host Connection" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Partner Host MAC:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBox x:Name="PeerMacBox" Grid.Column="1" Text="" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="RFCOMM Port:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBox x:Name="RfcommPortBox" Grid.Column="1" Text="4" Width="80" HorizontalAlignment="Left" />
+                                </Grid>
+
+                                <CheckBox x:Name="SyncCursorCheck" Content="Synchronize cursor position at entry edge" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" IsChecked="True" />
+                                <CheckBox x:Name="SyncClipboardCheck" Content="Synchronize clipboard text across hosts" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                                <Border Background="#1E293B" CornerRadius="4" Padding="10" Margin="0,10,0,0">
+                                    <TextBlock Text="When enabled, Lunifier communicates directly between hosts over Bluetooth without WiFi or local network access." Foreground="#94A3B8" TextWrapping="Wrap" FontSize="11" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
@@ -291,12 +340,42 @@
                     </Border>
                 </Grid>
             </TabItem>
+
+            <!-- About Tab -->
+            <TabItem Header="  About  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="25" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel HorizontalAlignment="Center" MaxWidth="560">
+                            <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" />
+                            <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" />
+                            <TextBlock Text="Version 2.1.0 (Windows 11 Native .NET 9)" FontSize="13" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,2,0,15" />
+
+                            <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
+
+                            <Border Background="#1E293B" CornerRadius="6" Padding="15" Margin="0,0,0,20">
+                                <StackPanel>
+                                    <TextBlock Text="Key Features &amp; Architecture:" FontWeight="SemiBold" Foreground="#38BDF8" Margin="0,0,0,8" />
+                                    <TextBlock Text="• Native .NET 9 WPF Windows 11 Engine with zero Python dependency" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Zero-network Bluetooth RFCOMM P2P link with timed advertising" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Strict Lunifier peer filtering and 1-click mutual pairing handshake" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Global hotkeys (Ctrl+Alt+1/2/3) for manual channel switching" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Single-instance process lock and System Tray integration" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="• Multi-monitor border configuration with edge knock detection" Foreground="{StaticResource TextPrimary}" />
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="Author: Silviu Vlasceanu  •  License: MIT" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                            <Button Content="Visit GitHub Repository" Width="180" Height="30" HorizontalAlignment="Center" Click="VisitGitHub_Click" />
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
 
         <!-- Footer -->
         <Border Grid.Row="2" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
             <Grid>
-                <TextBlock Text="Lunifier 2.0.1 Native for Windows 11" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" FontSize="11" />
+                <TextBlock Text="Lunifier 2.1.0 Native for Windows 11" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" FontSize="11" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Save Configuration" Width="140" Height="30" Click="SaveConfig_Click" />
                 </StackPanel>

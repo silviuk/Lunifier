@@ -8,6 +8,9 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Lunifier.Windows.Core;
+using Color = System.Windows.Media.Color;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace Lunifier.Windows
 {

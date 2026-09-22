@@ -48,14 +48,13 @@ class LunifierApp:
             on_trigger_callback=self._handle_edge_triggered
         )
 
-        if self.config.bt_p2p_enabled or self.config.bt_peer_address:
-            self.bt_link = BluetoothLink(
-                host_name=self.config.host_name,
-                peer_mac=self.config.bt_peer_address,
-                rfcomm_port=self.config.bt_rfcomm_port,
-                on_switch_received=self._handle_incoming_switch,
-                on_peer_status_changed=self._handle_peer_status_changed
-            )
+        self.bt_link = BluetoothLink(
+            host_name=self.config.host_name,
+            peer_mac=self.config.bt_peer_address,
+            rfcomm_port=self.config.bt_rfcomm_port,
+            on_switch_received=self._handle_incoming_switch,
+            on_peer_status_changed=self._handle_peer_status_changed
+        )
 
         threading.Thread(
             target=lambda: self.hidpp.scan_devices(self.config.devices, force_rescan=True, connection_support=self.config.connection_support),
@@ -133,7 +132,7 @@ class LunifierApp:
         self._running = True
         if self.edge_detector:
             self.edge_detector.start()
-        if self.bt_link:
+        if self.bt_link and (self.config.bt_p2p_enabled or self.config.bt_peer_address):
             self.bt_link.start()
 
         log("Lunifier", "==================================================")

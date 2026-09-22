@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Win32;
 using Lunifier.Windows.Core;
 
 namespace Lunifier.Windows.Config
@@ -121,6 +122,41 @@ namespace Lunifier.Windows.Config
 
         [JsonPropertyName("log_level")]
         public string LogLevel { get; set; } = "normal";
+
+        [JsonPropertyName("autostart")]
+        public bool Autostart { get; set; } = false;
+
+        public static bool IsAutostartEnabled()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false);
+                return key?.GetValue("Lunifier") != null;
+            }
+            catch { return false; }
+        }
+
+        public static void SetAutostart(bool enable)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true);
+                if (key == null) return;
+                if (enable)
+                {
+                    var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;
+                    key.SetValue("Lunifier", $"\"{exePath}\"");
+                }
+                else
+                {
+                    key.DeleteValue("Lunifier", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("Config", $"Failed to update autostart registry: {ex.Message}");
+            }
+        }
 
         public MonitorEdgeConfig GetMonitorConfig(string monitorId)
         {

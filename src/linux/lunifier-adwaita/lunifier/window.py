@@ -17,6 +17,7 @@ from .hidpp import HIDPPMaster
 from .logger import log, add_log_listener, remove_log_listener, set_log_level
 from .monitors import get_monitors, MonitorInfo
 from .app import LunifierApp
+from .bt_link import discover_advertising_lunifier_peers
 
 
 class LunifierAdwaitaWindow(Adw.ApplicationWindow):
@@ -81,6 +82,9 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         # --- Tab 4: Live Logs ---
         self._build_logs_page()
 
+        # --- Tab 5: About ---
+        self._build_about_page()
+
     def _build_screen_page(self):
         page = Adw.PreferencesPage()
         self.stack.add_titled(page, "screen", "Screen & Switching")
@@ -99,6 +103,10 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.my_channel_row.set_model(channel_model)
         self.my_channel_row.set_selected(max(0, min(2, self.config.my_channel - 1)))
         grp_host.add(self.my_channel_row)
+
+        self.autostart_row = Adw.SwitchRow(title="Start Lunifier automatically on login")
+        self.autostart_row.set_active(self.config.is_autostart_enabled())
+        grp_host.add(self.autostart_row)
 
         # Group 2: Monitor Border Configuration
         grp_monitors = Adw.PreferencesGroup(title="Display & Border Configuration", description="Configure borders per physical monitor")
@@ -249,32 +257,79 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.stack.add_titled(page, "bluetooth", "Bluetooth P2P Link")
         self.stack.get_page(page).set_icon_name("bluetooth-active-symbolic")
 
-        grp = Adw.PreferencesGroup(
-            title="Zero-Network Bluetooth Inter-Host Link",
+        # 1. Timed Advertising Group
+        grp_adv = Adw.PreferencesGroup(
+            title="Timed Peer Advertising",
+            description="Make this computer detectable to partner Lunifier hosts. Automatically disables when timer expires."
+        )
+        page.add(grp_adv)
+
+        self.adv_duration_row = Adw.ComboRow(title="Advertising Duration")
+        duration_model = Gtk.StringList.new(["30 seconds", "60 seconds", "120 seconds", "300 seconds"])
+        self.adv_duration_row.set_model(duration_model)
+        self.adv_duration_row.set_selected(1)  # 60s
+        grp_adv.add(self.adv_duration_row)
+
+        row_adv_action = Adw.ActionRow(title="Advertising Control")
+        box_adv = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.adv_status_label = Gtk.Label(label="Idle")
+        box_adv.append(self.adv_status_label)
+        self.adv_btn = Gtk.Button(label="Advertise Lunifier")
+        self.adv_btn.connect("clicked", self._toggle_advertising)
+        box_adv.append(self.adv_btn)
+        row_adv_action.add_suffix(box_adv)
+        grp_adv.add(row_adv_action)
+
+        # 2. Peer Discovery & Pairing Group
+        grp_disc = Adw.PreferencesGroup(
+            title="Find & Pair Lunifier Hosts",
+            description="Probes Bluetooth devices over RFCOMM and detects only hosts that are actively advertising Lunifier."
+        )
+        page.add(grp_disc)
+
+        row_scan = Adw.ActionRow(title="Discovery Action")
+        box_scan = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.scan_spinner = Gtk.Spinner()
+        box_scan.append(self.scan_spinner)
+        self.scan_status_label = Gtk.Label(label="Ready to scan")
+        box_scan.append(self.scan_status_label)
+        self.scan_bt_btn = Gtk.Button(label="Scan for Lunifier Hosts")
+        self.scan_bt_btn.connect("clicked", self._scan_bt_hosts)
+        box_scan.append(self.scan_bt_btn)
+        row_scan.add_suffix(box_scan)
+        grp_disc.add(row_scan)
+
+        self.grp_discovered_peers = Adw.PreferencesGroup(title="Discovered Lunifier Hosts")
+        page.add(self.grp_discovered_peers)
+        self._discovered_peer_rows = []
+
+        # 3. Connection Settings Group
+        grp_conn = Adw.PreferencesGroup(
+            title="Zero-Network Bluetooth Link Settings",
             description="Coordinates seamless handoff and clipboard synchronization without WiFi or LAN"
         )
-        page.add(grp)
+        page.add(grp_conn)
 
         self.bt_enabled_row = Adw.SwitchRow(title="Enable Bluetooth RFCOMM P2P Link")
         self.bt_enabled_row.set_active(self.config.bt_p2p_enabled)
-        grp.add(self.bt_enabled_row)
+        grp_conn.add(self.bt_enabled_row)
 
         self.bt_peer_mac_row = Adw.EntryRow(title="Partner Host Bluetooth MAC")
         self.bt_peer_mac_row.set_text(self.config.bt_peer_address)
-        grp.add(self.bt_peer_mac_row)
+        grp_conn.add(self.bt_peer_mac_row)
 
         self.bt_port_row = Adw.SpinRow.new_with_range(1, 30, 1)
         self.bt_port_row.set_title("RFCOMM Channel Port")
         self.bt_port_row.set_value(self.config.bt_rfcomm_port)
-        grp.add(self.bt_port_row)
+        grp_conn.add(self.bt_port_row)
 
         self.sync_cursor_row = Adw.SwitchRow(title="Synchronize cursor position at entry edge")
         self.sync_cursor_row.set_active(self.config.sync_cursor_position)
-        grp.add(self.sync_cursor_row)
+        grp_conn.add(self.sync_cursor_row)
 
         self.sync_clipboard_row = Adw.SwitchRow(title="Synchronize clipboard text across hosts")
         self.sync_clipboard_row.set_active(self.config.sync_clipboard)
-        grp.add(self.sync_clipboard_row)
+        grp_conn.add(self.sync_clipboard_row)
 
     def _build_logs_page(self):
         page = Adw.PreferencesPage()
@@ -305,6 +360,40 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         log_row = Adw.ActionRow()
         log_row.set_child(scrolled)
         grp.add(log_row)
+
+    def _build_about_page(self):
+        page = Adw.PreferencesPage()
+        self.stack.add_titled(page, "about", "About")
+        self.stack.get_page(page).set_icon_name("help-about-symbolic")
+
+        grp = Adw.PreferencesGroup()
+        page.add(grp)
+
+        row_about = Adw.ActionRow(title="Lunifier 2.1.0 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        icon_img = Gtk.Image.new_from_icon_name("lunifier")
+        icon_img.set_pixel_size(48)
+        row_about.add_prefix(icon_img)
+        grp.add(row_about)
+
+        grp_info = Adw.PreferencesGroup(title="Application Details")
+        page.add(grp_info)
+
+        row_desc = Adw.ActionRow(
+            title="Overview",
+            subtitle="Autonomous multi-monitor border switching for Logitech Easy-Switch keyboards and mice with zero-network Bluetooth P2P sync."
+        )
+        grp_info.add(row_desc)
+
+        row_author = Adw.ActionRow(title="Developer", subtitle="Silviu Vlasceanu")
+        grp_info.add(row_author)
+
+        row_license = Adw.ActionRow(title="License", subtitle="MIT License")
+        grp_info.add(row_license)
+
+        row_repo = Adw.ActionRow(title="Website / GitHub", subtitle="https://github.com/silviuk/Lunifier")
+        btn_repo = Gtk.LinkButton.new_with_label("https://github.com/silviuk/Lunifier", "Visit")
+        row_repo.add_suffix(btn_repo)
+        grp_info.add(row_repo)
 
     def _populate_ui(self):
         self._update_monitor_ui(self.selected_monitor_id)
@@ -409,6 +498,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.config.sync_cursor_position = self.sync_cursor_row.get_active()
         self.config.sync_clipboard = self.sync_clipboard_row.get_active()
 
+        self.config.set_autostart(self.autostart_row.get_active())
+
         self.config.save()
 
     def _rescan_devices(self):
@@ -449,6 +540,117 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
             target=lambda: self.hidpp.switch_all_to_channel(channel, self.config.devices, backend=self.config.switch_backend, connection_support=self.config.connection_support),
             daemon=True
         ).start()
+
+    def _toggle_advertising(self, btn):
+        bt = getattr(self.app_service, "bt_link", None)
+        if not bt:
+            return
+
+        if bt.is_advertising:
+            bt.stop_advertising()
+            self.adv_btn.set_label("Advertise Lunifier")
+            self.adv_btn.remove_css_class("destructive-action")
+            self.adv_status_label.set_text("Idle")
+        else:
+            sel = self.adv_duration_row.get_selected()
+            durations = [30, 60, 120, 300]
+            duration = durations[sel] if 0 <= sel < len(durations) else 60
+
+            def on_tick(remaining):
+                def update():
+                    self.adv_status_label.set_text(f"Advertising ({remaining}s)...")
+                    return False
+                GLib.idle_add(update)
+
+            def on_expired():
+                def update():
+                    self.adv_btn.set_label("Advertise Lunifier")
+                    self.adv_btn.remove_css_class("destructive-action")
+                    self.adv_status_label.set_text("Idle")
+                    return False
+                GLib.idle_add(update)
+
+            bt.start_advertising(duration_seconds=duration, on_tick=on_tick, on_expired=on_expired)
+            self.adv_btn.set_label("Stop Advertising")
+            self.adv_btn.add_css_class("destructive-action")
+            self.adv_status_label.set_text(f"Advertising ({duration}s)...")
+
+    def _scan_bt_hosts(self, btn):
+        self.scan_bt_btn.set_sensitive(False)
+        self.scan_spinner.start()
+        self.scan_status_label.set_text("Scanning for Lunifier hosts...")
+
+        def worker():
+            peers = discover_advertising_lunifier_peers(
+                timeout=4.0,
+                rfcomm_port=int(self.bt_port_row.get_value()),
+                host_name=self.config.host_name
+            )
+            GLib.idle_add(self._render_discovered_peers, peers)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _render_discovered_peers(self, peers):
+        self.scan_spinner.stop()
+        self.scan_bt_btn.set_sensitive(True)
+        self.scan_status_label.set_text(f"Found {len(peers)} host(s)")
+
+        for r in self._discovered_peer_rows:
+            try:
+                self.grp_discovered_peers.remove(r)
+            except Exception:
+                pass
+        self._discovered_peer_rows.clear()
+
+        if not peers:
+            empty_row = Adw.ActionRow(title="No advertising Lunifier hosts detected")
+            empty_row.set_subtitle("Ensure partner host has pressed 'Advertise Lunifier'")
+            self.grp_discovered_peers.add(empty_row)
+            self._discovered_peer_rows.append(empty_row)
+            return
+
+        for p in peers:
+            row = Adw.ActionRow(title=p.get("name", "Lunifier Host"))
+            mac = p.get("mac", "")
+            token = p.get("token", "")
+            exp = p.get("expires_in", 0)
+            row.set_subtitle(f"MAC: {mac} | Token: {token[:8]} | Active: {exp}s remaining")
+
+            pair_btn = Gtk.Button(label="Pair & Connect")
+            pair_btn.add_css_class("suggested-action")
+            pair_btn.connect("clicked", lambda b, m=mac, t=token: self._pair_peer(m, t, b))
+            row.add_suffix(pair_btn)
+
+            self.grp_discovered_peers.add(row)
+            self._discovered_peer_rows.append(row)
+
+    def _pair_peer(self, mac: str, token: str, btn: Gtk.Button):
+        btn.set_sensitive(False)
+        btn.set_label("Pairing...")
+
+        bt = getattr(self.app_service, "bt_link", None)
+        if not bt:
+            btn.set_label("Error")
+            return
+
+        def on_result(success, reason):
+            def update():
+                if success:
+                    btn.set_label("Paired!")
+                    self.bt_peer_mac_row.set_text(mac)
+                    self.bt_enabled_row.set_active(True)
+                    self._save_all_settings()
+                    self.app_service.config = self.config
+                    self.app_service._setup_subsystems()
+                    if getattr(self.app_service, "_running", False):
+                        self.app_service.bt_link.start()
+                else:
+                    btn.set_label("Failed")
+                    btn.set_sensitive(True)
+                return False
+            GLib.idle_add(update)
+
+        bt.request_pairing(mac, adv_token=token, callback=on_result)
 
     def _on_log_message(self, message: str):
         def append_text():

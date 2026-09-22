@@ -8,13 +8,13 @@ LINUX_SRC_DIR="$ROOT_DIR/src/linux/lunifier-adwaita"
 
 mkdir -p "$DIST_DIR"
 
-VERSION="${1:-2.0.1}"
+VERSION="${1:-2.1.0}"
 DEB_BUILD_DIR="/tmp/lunifier-deb"
 rm -rf "$DEB_BUILD_DIR"
 mkdir -p "$DEB_BUILD_DIR"
 chmod 755 "$DEB_BUILD_DIR"
 
-echo "=== Building Lunifier 2.0 Native Debian Package (v$VERSION) ==="
+echo "=== Building Lunifier 2.1 Native Debian Package (v$VERSION) ==="
 
 # 1. Create directory structure
 mkdir -p "$DEB_BUILD_DIR/DEBIAN"
@@ -23,7 +23,6 @@ mkdir -p "$DEB_BUILD_DIR/usr/bin"
 mkdir -p "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier"
 mkdir -p "$DEB_BUILD_DIR/etc/udev/rules.d"
 mkdir -p "$DEB_BUILD_DIR/usr/share/applications"
-mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/256x256/apps"
 mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
 mkdir -p "$DEB_BUILD_DIR/usr/share/pixmaps"
 mkdir -p "$DEB_BUILD_DIR/usr/lib/systemd/user"
@@ -76,7 +75,12 @@ cp -r "$LINUX_SRC_DIR/lunifier/"* "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/
 cp "$LINUX_SRC_DIR/run_lunifier.py" "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/run_lunifier.py"
 rm -rf "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/__pycache__"
 
-cp "$LINUX_SRC_DIR/resources/icon.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/256x256/apps/lunifier.png"
+for sz in 16 24 32 48 64 128 256 512; do
+    mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps"
+    if [ -f "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" ]; then
+        cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps/lunifier.png"
+    fi
+done
 cp "$LINUX_SRC_DIR/resources/icon.png" "$DEB_BUILD_DIR/usr/share/pixmaps/lunifier.png"
 cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/lunifier.svg"
 
@@ -102,7 +106,7 @@ EOF
 # 8. Systemd user service
 cat << 'EOF' > "$DEB_BUILD_DIR/usr/lib/systemd/user/lunifier.service"
 [Unit]
-Description=Lunifier 2.0 Native Daemon - Logitech Easy-Switch Flow
+Description=Lunifier 2.1 Native Daemon - Logitech Easy-Switch Flow
 After=graphical-session.target
 
 [Service]
@@ -122,7 +126,7 @@ rm -rf "$DEB_BUILD_DIR"
 
 echo " [OK] Created Debian Package: $DEB_PACKAGE"
 
-# 10. Create Lunifier-Linux-2.0.0.tar.gz
+# 10. Create Lunifier-Linux-2.1.0.tar.gz
 TAR_BUILD_DIR="$DIST_DIR/Lunifier-Linux-$VERSION"
 rm -rf "$TAR_BUILD_DIR"
 mkdir -p "$TAR_BUILD_DIR"

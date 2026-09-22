@@ -1,104 +1,96 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Background rounded squircle gradient -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a" />
-      <stop offset="100%" stop-color="#1e293b" />
-    </linearGradient>
-
-    <!-- Squircle Border gradient -->
-    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.4" />
-      <stop offset="50%" stop-color="#64748b" stop-opacity="0.3" />
-      <stop offset="100%" stop-color="#fb923c" stop-opacity="0.4" />
-    </linearGradient>
-
-    <!-- Star 1 (Top-Left) Cyan/Azure Glow -->
-    <radialGradient id="star1Glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.4" />
-      <stop offset="100%" stop-color="#00f0ff" stop-opacity="0" />
-    </radialGradient>
-    <linearGradient id="star1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="40%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#0284c7" />
-    </linearGradient>
-
-    <!-- Star 2 (Bottom-Right) Orange/Amber Glow -->
-    <radialGradient id="star2Glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ff6d00" stop-opacity="0.4" />
-      <stop offset="100%" stop-color="#ff6d00" stop-opacity="0" />
-    </radialGradient>
-    <linearGradient id="star2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="40%" stop-color="#fb923c" />
-      <stop offset="100%" stop-color="#ea580c" />
-    </linearGradient>
-
-    <!-- Dotted Wall Dot Gradient -->
-    <radialGradient id="dotGrad" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="45%" stop-color="#94a3b8" />
-      <stop offset="100%" stop-color="#475569" />
+    <!-- Dark slate radial background with subtle greenish/sage core tint -->
+    <radialGradient id="discBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#44554b" />
+      <stop offset="35%" stop-color="#384740" />
+      <stop offset="70%" stop-color="#232c37" />
+      <stop offset="100%" stop-color="#141c26" />
     </radialGradient>
 
-    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.5" />
+    <!-- Metallic border ring gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#556677" />
+      <stop offset="50%" stop-color="#414f5e" />
+      <stop offset="100%" stop-color="#303b47" />
+    </linearGradient>
+
+    <!-- Bead gradient -->
+    <radialGradient id="beadGrad" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#f0f7f3" />
+      <stop offset="55%" stop-color="#cad7cf" />
+      <stop offset="100%" stop-color="#9cb0a6" />
+    </radialGradient>
+
+    <!-- Soft outer drop shadow -->
+    <filter id="dropShadow" x="-25%" y="-20%" width="150%" height="155%">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#000000" flood-opacity="0.55" />
     </filter>
+
+    <!-- Lobe gradient -->
+    <linearGradient id="lobeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+
+    <!-- 4-lobe propeller path component -->
+    <path id="lobe" d="M 256 107
+             C 246 107, 237 122, 234 148
+             C 231 168, 232 188, 235 210
+             C 237 226, 241 242, 246 256
+             L 266 256
+             C 271 242, 275 226, 277 210
+             C 280 188, 281 168, 278 148
+             C 275 122, 266 107, 256 107 Z"
+          fill="url(#lobeGrad)" />
   </defs>
 
-  <!-- Base Squircle Container -->
-  <rect x="28" y="28" width="456" height="456" rx="100" ry="100"
-        fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="5" filter="url(#softShadow)" />
+  <!-- Outer Disc with Shadow and Border -->
+  <circle cx="256" cy="256" r="198" fill="url(#discBg)" stroke="url(#borderGrad)" stroke-width="5" filter="url(#dropShadow)" />
 
-  <!-- Dotted Wall (Separating Diagonal) -->
-  <!-- Line from (76, 436) to (436, 76) with discrete circular dots -->
-  <g id="dotted-wall">
-    <circle cx="96"  cy="416" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="123" cy="389" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="150" cy="362" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="177" cy="335" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="204" cy="308" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="231" cy="281" r="7.5" fill="url(#dotGrad)" />
-    <circle cx="256" cy="256" r="8.5" fill="#e2e8f0" />
-    <circle cx="281" cy="231" r="7.5" fill="url(#dotGrad)" />
-    <circle cx="308" cy="204" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="335" cy="177" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="362" cy="150" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="389" cy="123" r="6.5" fill="url(#dotGrad)" />
-    <circle cx="416" cy="96"  r="6.5" fill="url(#dotGrad)" />
+  <!-- Diagonal Bead Chain (Inter-host link) -->
+  <g id="beads">
+    <circle cx="132" cy="380" r="10.5" fill="url(#beadGrad)" opacity="0.92" />
+    <circle cx="144" cy="368" r="11" fill="url(#beadGrad)" opacity="0.94" />
+    <circle cx="156" cy="356" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="168" cy="344" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="180" cy="332" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="192" cy="320" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="204" cy="308" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="216" cy="296" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="228" cy="284" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="240" cy="272" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="256" cy="256" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="272" cy="240" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="284" cy="228" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="296" cy="216" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="308" cy="204" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="320" cy="192" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="332" cy="180" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="344" cy="168" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="356" cy="156" r="11.5" fill="url(#beadGrad)" />
+    <circle cx="368" cy="144" r="11" fill="url(#beadGrad)" opacity="0.94" />
+    <circle cx="380" cy="132" r="10.5" fill="url(#beadGrad)" opacity="0.92" />
+
+    <!-- Accent dots -->
+    <!-- Bottom left -->
+    <circle cx="154" cy="349" r="4.2" fill="#fb923c" />
+    <circle cx="160" cy="357" r="5.6" fill="#87b4c8" />
+
+    <!-- Top right -->
+    <circle cx="358" cy="163" r="4.2" fill="#fb923c" />
+    <circle cx="367" cy="173" r="5.6" fill="#87b4c8" />
   </g>
 
-  <!-- Top-Left Star (System 1) -->
-  <!-- Soft Glow Behind Star 1 -->
-  <circle cx="160" cy="160" r="100" fill="url(#star1Glow)" />
-  <!-- 4-pointed radiant Star 1 with curved flares -->
-  <path d="M 160 82
-           C 160 132, 132 160, 82 160
-           C 132 160, 160 188, 160 238
-           C 160 188, 188 160, 238 160
-           C 188 160, 160 132, 160 82 Z"
-        fill="url(#star1Grad)" />
-  <!-- Bright core center -->
-  <circle cx="160" cy="160" r="14" fill="#ffffff" />
-  <!-- Small secondary sparkle -->
-  <circle cx="215" cy="115" r="4.5" fill="#38bdf8" />
-  <circle cx="108" cy="210" r="3.5" fill="#38bdf8" />
+  <!-- 4 Lobes of the Propeller/Star -->
+  <g id="propeller">
+    <use href="#lobe" />
+    <use href="#lobe" transform="rotate(90 256 256)" />
+    <use href="#lobe" transform="rotate(180 256 256)" />
+    <use href="#lobe" transform="rotate(270 256 256)" />
+  </g>
 
-  <!-- Bottom-Right Star (System 2) -->
-  <!-- Soft Glow Behind Star 2 -->
-  <circle cx="352" cy="352" r="100" fill="url(#star2Glow)" />
-  <!-- 4-pointed radiant Star 2 with curved flares -->
-  <path d="M 352 274
-           C 352 324, 324 352, 274 352
-           C 324 352, 352 380, 352 430
-           C 352 380, 380 352, 430 352
-           C 380 352, 352 324, 352 274 Z"
-        fill="url(#star2Grad)" />
-  <!-- Bright core center -->
-  <circle cx="352" cy="352" r="14" fill="#ffffff" />
-  <!-- Small secondary sparkle -->
-  <circle cx="297" cy="397" r="4.5" fill="#fb923c" />
-  <circle cx="404" cy="302" r="3.5" fill="#fb923c" />
+  <!-- Center Core White Disc -->
+  <circle cx="256" cy="256" r="27" fill="#ffffff" />
 </svg>

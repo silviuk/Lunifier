@@ -59,6 +59,37 @@ class AppConfig:
     sync_cursor_position: bool = True
     sync_clipboard: bool = False
     log_level: str = "normal"
+    autostart: bool = False
+
+    @staticmethod
+    def is_autostart_enabled() -> bool:
+        path = os.path.expanduser("~/.config/autostart/lunifier.desktop")
+        return os.path.exists(path)
+
+    @staticmethod
+    def set_autostart(enable: bool) -> None:
+        path = os.path.expanduser("~/.config/autostart/lunifier.desktop")
+        try:
+            if enable:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                content = (
+                    "[Desktop Entry]\n"
+                    "Type=Application\n"
+                    "Name=Lunifier\n"
+                    "Comment=Seamless Logitech Easy-Switch Flow across Systems\n"
+                    "Exec=lunifier --gui\n"
+                    "Icon=lunifier\n"
+                    "Terminal=false\n"
+                    "Categories=Utility;Settings;HardwareSettings;\n"
+                    "X-GNOME-Autostart-enabled=true\n"
+                )
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+            else:
+                if os.path.exists(path):
+                    os.remove(path)
+        except Exception as ex:
+            log("Config", f"Failed to update autostart entry: {ex}")
 
     def get_monitor_config(self, monitor_id: str) -> Dict[str, Any]:
         mid = str(monitor_id)
