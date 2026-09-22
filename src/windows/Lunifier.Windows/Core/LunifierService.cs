@@ -98,41 +98,49 @@ namespace Lunifier.Windows.Core
             AppLogger.Log("Lunifier", $">>> SCREEN BORDER REACHED: '{edge.ToUpperInvariant()}' on Monitor {monitorId} at ({x}, {y}) (Ratio: {ratio:F2}) <<<");
             AppLogger.Log("Lunifier", $"Instantly switching devices to Channel {targetChannel} (Support: {Config.ConnectionSupport})...");
 
-            var t0 = Stopwatch.GetTimestamp();
-            var results = Hidpp.SwitchAllToChannel(targetChannel, Config.Devices);
-            var elapsed = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
-
-            foreach (var (devName, success) in results)
+            Task.Run(() =>
             {
-                AppLogger.Log("Lunifier", $"Device '{devName}' -> Channel {targetChannel}: {(success ? "SUCCESS" : "FAILED")}");
-            }
-            AppLogger.Log("Lunifier", $"Hardware switch sequence completed in {elapsed:F1}ms");
+                var t0 = Stopwatch.GetTimestamp();
+                var results = Hidpp.SwitchAllToChannel(targetChannel, Config.Devices);
+                var elapsed = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
+                bool anySuccess = results.Values.Any(v => v);
 
-            // Async notify peer over Bluetooth
-            if (BtPeer != null && BtPeer.IsConnected)
-            {
-                Task.Run(() =>
+                foreach (var (devName, success) in results)
+                {
+                    AppLogger.Log("Lunifier", $"Device '{devName}' -> Channel {targetChannel}: {(success ? "SUCCESS" : "FAILED")}");
+                }
+                AppLogger.Log("Lunifier", $"Hardware switch sequence completed in {elapsed:F1}ms");
+
+                // Async notify peer over Bluetooth
+                if (BtPeer != null && BtPeer.IsConnected)
                 {
                     string? clip = Config.SyncClipboard ? ClipboardHelper.GetText() : null;
                     BtPeer.NotifySwitchOut(edge, ratio, clip);
-                });
-            }
+                }
 
-            // Step cursor inward
-            const int stepBack = 160;
-            int newX = x;
-            int newY = y;
-            switch (edge.ToLowerInvariant())
-            {
-                case "right": newX = x - stepBack; break;
-                case "left": newX = x + stepBack; break;
-                case "top": newY = y + stepBack; break;
-                case "bottom": newY = y - stepBack; break;
-            }
+                if (anySuccess)
+                {
+                    // Step cursor inward
+                    const int stepBack = 160;
+                    int newX = x;
+                    int newY = y;
+                    switch (edge.ToLowerInvariant())
+                    {
+                        case "right": newX = x - stepBack; break;
+                        case "left": newX = x + stepBack; break;
+                        case "top": newY = y + stepBack; break;
+                        case "bottom": newY = y - stepBack; break;
+                    }
 
-            CursorHelper.SetPosition(newX, newY);
-            Detector?.NotifySwitchedOut(edge, newX, newY);
-            AppLogger.Log("Lunifier", $"Repositioned cursor {stepBack}px inward to ({newX}, {newY}) to prevent border bounceback");
+                    CursorHelper.SetPosition(newX, newY);
+                    Detector?.NotifySwitchedOut(edge, newX, newY);
+                    AppLogger.Log("Lunifier", $"Repositioned cursor {stepBack}px inward to ({newX}, {newY}) to prevent border bounceback");
+                }
+                else
+                {
+                    AppLogger.Log("Lunifier", "Hardware switch did not confirm any device; return guard not armed.");
+                }
+            });
         }
 
         private void OnIncomingSwitch(string partnerExitEdge, double ratio, string? clipboardText)

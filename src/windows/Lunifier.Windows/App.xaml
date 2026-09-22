@@ -30,11 +30,12 @@
 
         <!-- Global TextBox Style -->
         <Style TargetType="TextBox">
+            <Setter Property="Height" Value="32" />
             <Setter Property="Background" Value="{DynamicResource InputBackground}" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Padding" Value="8,0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontFamily" Value="Segoe UI, sans-serif" />
             <Setter Property="Template">
@@ -44,7 +45,7 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -85,7 +86,9 @@
         <Style TargetType="ComboBoxItem">
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -116,11 +119,13 @@
 
         <!-- Global ComboBox Style with Full Custom Popup Template -->
         <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource InputBackground}" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Padding" Value="8,0" />
             <Setter Property="FontFamily" Value="Segoe UI, sans-serif" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />

@@ -126,14 +126,15 @@ namespace Lunifier.Windows.Core
             var now = NowSeconds;
             _isSwitchedOut = false;
             _lastTriggerTime = now;
-            _returnGuardUntil = now + (CooldownMs / 1000.0);
+            var guardDur = Math.Min(CooldownMs, 1000) / 1000.0;
+            _returnGuardUntil = now + guardDur;
             _lastKnockEdge = null;
             _lastKnockTime = 0.0;
             _holdStartTime = null;
             _currentEdge = null;
             _currentMonitorId = null;
             lock (_cursorHistory) _cursorHistory.Clear();
-            AppLogger.Log("EdgeDetector", $"Mouse return detected (entry: {entryEdge ?? "unknown"}). Enforcing {CooldownMs}ms return guard.");
+            AppLogger.Log("EdgeDetector", $"Mouse return detected (entry: {entryEdge ?? "unknown"}). Return guard armed for {(int)(guardDur * 1000)}ms.");
         }
 
         private MonitorEdgeConfig GetMonitorConfig(string monitorId)
@@ -284,6 +285,12 @@ namespace Lunifier.Windows.Core
                     // Cooldown check
                     if ((now - _lastTriggerTime) * 1000 < CooldownMs || now < _returnGuardUntil)
                     {
+                        var trig = GetTriggeredEdgeInfo(x, y);
+                        if (trig.HasValue)
+                        {
+                            var remaining = Math.Max(0, (int)((Math.Max(_lastTriggerTime + CooldownMs / 1000.0, _returnGuardUntil) - now) * 1000));
+                            AppLogger.LogDebug("EdgeDetector", $"Border '{trig.Value.Edge}' touched during cooldown ({remaining}ms remaining)");
+                        }
                         _holdStartTime = null;
                         _currentEdge = null;
                         _currentMonitorId = null;

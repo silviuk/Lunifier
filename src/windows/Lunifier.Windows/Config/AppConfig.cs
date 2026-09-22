@@ -38,7 +38,7 @@ namespace Lunifier.Windows.Config
         );
 
         [JsonPropertyName("host_name")]
-        public string HostName { get; set; } = "Host";
+        public string HostName { get; set; } = Environment.MachineName;
 
         [JsonPropertyName("my_channel")]
         public int MyChannel { get; set; } = 1;
@@ -349,6 +349,10 @@ namespace Lunifier.Windows.Config
             }
 
             configObj ??= new AppConfig();
+            if (string.IsNullOrWhiteSpace(configObj.HostName) || configObj.HostName == "Host")
+            {
+                configObj.HostName = Environment.MachineName;
+            }
             if (configObj.BtRfcommPort == 4)
             {
                 configObj.BtRfcommPort = 5;

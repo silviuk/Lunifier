@@ -221,7 +221,7 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button x:Name="RefreshDevicesBtn" Content="Refresh Devices" Width="130" Height="30" Margin="0,0,10,0" Click="RefreshDevicesBtn_Click" />
+                        <Button x:Name="RefreshDevicesBtn" Content="Refresh Devices" Width="130" Height="32" Margin="0,0,10,0" Click="RefreshDevicesBtn_Click" />
                         <TextBlock x:Name="DevicesCountText" Text="Scanning devices..." VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                     </StackPanel>
 
@@ -231,9 +231,9 @@
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
                         <TextBlock Text="Manual Test Switch:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,10,0" />
-                        <Button Content="To Channel 1" Width="100" Height="28" Margin="0,0,8,0" Click="TestSwitch1_Click" />
-                        <Button Content="To Channel 2" Width="100" Height="28" Margin="0,0,8,0" Click="TestSwitch2_Click" />
-                        <Button Content="To Channel 3" Width="100" Height="28" Click="TestSwitch3_Click" />
+                        <Button Content="To Channel 1" Width="100" Height="32" Margin="0,0,8,0" Click="TestSwitch1_Click" />
+                        <Button Content="To Channel 2" Width="100" Height="32" Margin="0,0,8,0" Click="TestSwitch2_Click" />
+                        <Button Content="To Channel 3" Width="100" Height="32" Click="TestSwitch3_Click" />
                     </StackPanel>
                 </Grid>
             </TabItem>
@@ -256,8 +256,8 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="This Computer's BT Address:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
-                                    <TextBox x:Name="LocalMacBox" Grid.Column="1" Text="Detecting..." IsReadOnly="True" VerticalAlignment="Center" Height="28" />
-                                    <Button x:Name="CopyLocalMacBtn" Grid.Column="2" Content="Copy" Height="28" Margin="8,0,0,0" Click="CopyLocalMacBtn_Click" />
+                                    <TextBox x:Name="LocalMacBox" Grid.Column="1" Text="Detecting..." IsReadOnly="True" VerticalAlignment="Center" />
+                                    <Button x:Name="CopyLocalMacBtn" Grid.Column="2" Content="Copy" Height="32" Margin="8,0,0,0" Click="CopyLocalMacBtn_Click" />
                                 </Grid>
 
                                 <Grid Margin="0,0,0,10">
@@ -274,7 +274,7 @@
                                         <ComboBoxItem Content="120 seconds" Tag="120" />
                                         <ComboBoxItem Content="300 seconds" Tag="300" />
                                     </ComboBox>
-                                    <Button x:Name="ToggleAdvBtn" Grid.Column="2" Content="Advertise Lunifier" Height="30" Margin="10,0,0,0" Click="ToggleAdvBtn_Click" />
+                                    <Button x:Name="ToggleAdvBtn" Grid.Column="2" Content="Advertise Lunifier" Height="32" Margin="10,0,0,0" Click="ToggleAdvBtn_Click" />
                                     <TextBlock x:Name="AdvStatusText" Grid.Column="3" Text="Idle" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
                                 </Grid>
                             </StackPanel>
@@ -287,7 +287,7 @@
                                 <TextBlock Text="Step 2: On your other computer, scan for Host A and connect. Both computers will automatically authenticate and enable the Peer Link below:" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap" />
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <Button x:Name="ScanBtHostsBtn" Content="Scan for Lunifier Hosts" Width="180" Height="30" Margin="0,0,10,0" Click="ScanBtHostsBtn_Click" />
+                                    <Button x:Name="ScanBtHostsBtn" Content="Scan for Lunifier Hosts" Width="180" Height="32" Margin="0,0,10,0" Click="ScanBtHostsBtn_Click" />
                                     <TextBlock x:Name="BtScanStatusText" Text="Ready to scan" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                 </StackPanel>
 
@@ -342,12 +342,12 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Clear Logs" Width="90" Height="26" Margin="0,0,8,0" Click="ClearLogs_Click" />
-                        <Button x:Name="CopyLogsBtn" Content="Copy Logs" Width="90" Height="26" Click="CopyLogs_Click" />
+                        <Button Content="Clear Logs" Width="90" Height="32" Margin="0,0,8,0" Click="ClearLogs_Click" />
+                        <Button x:Name="CopyLogsBtn" Content="Copy Logs" Width="90" Height="32" Click="CopyLogs_Click" />
                     </StackPanel>
 
                     <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" Padding="10">
-                        <TextBox x:Name="LogsBox" Background="Transparent" Foreground="{DynamicResource LogsBoxForeground}" BorderThickness="0" FontFamily="Consolas, monospace" FontSize="11" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+                        <TextBox x:Name="LogsBox" Height="NaN" VerticalAlignment="Stretch" Padding="8" VerticalContentAlignment="Top" Background="Transparent" Foreground="{DynamicResource LogsBoxForeground}" BorderThickness="0" FontFamily="Consolas, monospace" FontSize="11" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
                     </Border>
                 </Grid>
             </TabItem>
@@ -359,7 +359,7 @@
                         <StackPanel HorizontalAlignment="Center" MaxWidth="560">
                             <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
                             <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
-                            <TextBlock Text="Version 2.1.3 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
+                            <TextBlock Text="Version 2.1.4 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
 
                             <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
 
@@ -376,7 +376,7 @@
                             </Border>
 
                             <TextBlock Text="Author: Silviu Vlasceanu  •  License: MIT" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,12" />
-                            <Button Content="Visit GitHub Repository" Width="180" Height="30" HorizontalAlignment="Center" Click="VisitGitHub_Click" />
+                            <Button Content="Visit GitHub Repository" Width="180" Height="32" HorizontalAlignment="Center" Click="VisitGitHub_Click" />
                         </StackPanel>
                     </Border>
                 </ScrollViewer>
@@ -386,10 +386,10 @@
         <!-- Footer -->
         <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
             <Grid>
-                <TextBlock Text="Lunifier 2.1.3 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+                <TextBlock Text="Lunifier 2.1.4 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBlock x:Name="SaveStatusText" Text="" Foreground="#22C55E" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <Button Content="Save Configuration" Width="140" Height="30" Click="SaveConfig_Click" />
+                    <Button Content="Save Configuration" Width="140" Height="32" Click="SaveConfig_Click" />
                 </StackPanel>
             </Grid>
         </Border>

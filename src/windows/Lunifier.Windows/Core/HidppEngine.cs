@@ -24,6 +24,7 @@ namespace Lunifier.Windows.Core
     {
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
+        public string? ShortPath { get; set; }
         public TransportType Transport { get; set; } = TransportType.GenericHid;
         public byte DeviceIndex { get; set; } = 0x01;
         public ushort Vid { get; set; } = 0x046D;
@@ -53,6 +54,7 @@ namespace Lunifier.Windows.Core
         private static readonly HashSet<ushort> PidsUnifying = new() { 0xC52B, 0xC532, 0xC52F };
         private static readonly HashSet<ushort> PidsBolt = new() { 0xC548, 0xC547 };
         private static readonly HashSet<ushort> PidsLightspeed = new() { 0xC539, 0xC53A, 0xC541, 0xC542, 0xC53F, 0xC545 };
+        private static readonly HashSet<ushort> AllReceiverPids = new(PidsUnifying.Concat(PidsBolt).Concat(PidsLightspeed));
 
         public string ConnectionSupport { get; set; } = "both"; // "both", "unifying", "bluetooth"
 
@@ -102,6 +104,47 @@ namespace Lunifier.Windows.Core
         [DllImport("hid.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern bool HidD_GetProductString(SafeFileHandle hidDeviceObject, StringBuilder buffer, uint bufferLength);
 
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern bool HidD_GetPreparsedData(SafeFileHandle hidDeviceObject, out IntPtr preparsedData);
+
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern bool HidD_FreePreparsedData(IntPtr preparsedData);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_CAPS
+        {
+            public ushort Usage;
+            public ushort UsagePage;
+            public ushort InputReportByteLength;
+            public ushort OutputReportByteLength;
+            public ushort FeatureReportByteLength;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 17)]
+            public ushort[] Reserved;
+            public ushort NumberLinkCollectionNodes;
+            public ushort NumberInputButtonCaps;
+            public ushort NumberInputValueCaps;
+            public ushort NumberInputDataIndices;
+            public ushort NumberOutputButtonCaps;
+            public ushort NumberOutputValueCaps;
+            public ushort NumberOutputDataIndices;
+            public ushort NumberFeatureButtonCaps;
+            public ushort NumberFeatureValueCaps;
+            public ushort NumberFeatureDataIndices;
+        }
+
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetCaps(IntPtr preparsedData, ref HIDP_CAPS capabilities);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct OVERLAPPED
+        {
+            public IntPtr Internal;
+            public IntPtr InternalHigh;
+            public uint Offset;
+            public uint OffsetHigh;
+            public IntPtr hEvent;
+        }
+
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern SafeFileHandle CreateFile(
             string lpFileName,
@@ -117,7 +160,25 @@ namespace Lunifier.Windows.Core
         private static extern bool WriteFile(SafeFileHandle hFile, byte[] lpBuffer, uint nNumberOfBytesToWrite, out uint lpNumberOfBytesWritten, IntPtr lpOverlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ReadFile(SafeFileHandle hFile, byte[] lpBuffer, uint nNumberOfBytesToRead, out uint lpNumberOfBytesRead, IntPtr lpOverlapped);
+        private static extern bool ReadFile(SafeFileHandle hFile, [Out] byte[] lpBuffer, uint nNumberOfBytesToRead, out uint lpNumberOfBytesRead, IntPtr lpOverlapped);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetOverlappedResult(SafeFileHandle hFile, IntPtr lpOverlapped, out uint lpNumberOfBytesTransferred, bool bWait);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CancelIo(SafeFileHandle hFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr CreateEvent(IntPtr lpEventAttributes, bool bManualReset, bool bInitialState, string? lpName);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool ResetEvent(IntPtr hEvent);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
 
         private const uint DIGCF_PRESENT = 0x00000002;
         private const uint DIGCF_DEVICEINTERFACE = 0x00000010;
@@ -127,6 +188,7 @@ namespace Lunifier.Windows.Core
         private const uint FILE_SHARE_WRITE = 0x00000002;
         private const uint OPEN_EXISTING = 3;
         private const uint FILE_FLAG_OVERLAPPED = 0x40000000;
+        private const int ERROR_IO_PENDING = 997;
 
         #endregion
 
@@ -151,7 +213,7 @@ namespace Lunifier.Windows.Core
             if (p.Contains("bth") || p.Contains("bluetooth"))
                 return TransportType.Bluetooth;
 
-            return TransportType.Bluetooth; // Most non-dongle Logitech peripherals connected to PC
+            return TransportType.Bluetooth;
         }
 
         public bool IsTransportSupported(TransportType transport, string? connSupport = null)
@@ -163,6 +225,77 @@ namespace Lunifier.Windows.Core
                 "bluetooth" => transport == TransportType.Bluetooth,
                 _ => true
             };
+        }
+
+        private static byte[]? OverlappedRead(SafeFileHandle handle, IntPtr hEvent, IntPtr pOverlapped, int timeoutMs)
+        {
+            ResetEvent(hEvent);
+            var ov = new OVERLAPPED { hEvent = hEvent };
+            Marshal.StructureToPtr(ov, pOverlapped, false);
+
+            var buf = new byte[20];
+            var readSuccess = ReadFile(handle, buf, 20, out var bytesRead, pOverlapped);
+
+            if (!readSuccess)
+            {
+                var err = Marshal.GetLastWin32Error();
+                if (err != ERROR_IO_PENDING)
+                {
+                    CancelIo(handle);
+                    return null;
+                }
+
+                var waitRes = WaitForSingleObject(hEvent, (uint)timeoutMs);
+                if (waitRes != 0) // Timeout or error
+                {
+                    CancelIo(handle);
+                    GetOverlappedResult(handle, pOverlapped, out _, true);
+                    return null;
+                }
+            }
+
+            if (GetOverlappedResult(handle, pOverlapped, out bytesRead, true) && bytesRead > 0)
+            {
+                return buf;
+            }
+
+            return null;
+        }
+
+        private static bool OverlappedWrite(SafeFileHandle handle, byte[] buf)
+        {
+            var hEvent = CreateEvent(IntPtr.Zero, true, false, null);
+            if (hEvent == IntPtr.Zero) return false;
+
+            var pOverlapped = Marshal.AllocHGlobal(Marshal.SizeOf<OVERLAPPED>());
+            try
+            {
+                var ov = new OVERLAPPED { hEvent = hEvent };
+                Marshal.StructureToPtr(ov, pOverlapped, false);
+
+                var writeSuccess = WriteFile(handle, buf, (uint)buf.Length, out var bytesWritten, pOverlapped);
+                if (!writeSuccess)
+                {
+                    var err = Marshal.GetLastWin32Error();
+                    if (err != ERROR_IO_PENDING)
+                    {
+                        return false;
+                    }
+
+                    var waitRes = WaitForSingleObject(hEvent, 100);
+                    if (waitRes != 0)
+                    {
+                        CancelIo(handle);
+                        return false;
+                    }
+                }
+                return true;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(pOverlapped);
+                CloseHandle(hEvent);
+            }
         }
 
         public List<LogitechDevice> ScanDevices(List<string>? targetKeywords = null, bool forceRescan = false, string? connectionSupport = null)
@@ -193,6 +326,11 @@ namespace Lunifier.Windows.Core
                     return found;
                 }
 
+                // Temporary maps for receiver endpoints
+                var receiversCol01 = new Dictionary<ushort, string>();
+                var receiversCol02 = new Dictionary<ushort, string>();
+                var bluetoothCandidates = new List<(string Name, string Path, ushort Pid, ushort UsagePage, ushort Usage)>();
+
                 try
                 {
                     var ifaceData = new SP_DEVICE_INTERFACE_DATA();
@@ -216,7 +354,7 @@ namespace Lunifier.Windows.Core
 
                                 if (!string.IsNullOrEmpty(path))
                                 {
-                                    InspectDevicePath(path, found, seenNames, targetKeywords);
+                                    InspectDeviceEndpoint(path, receiversCol01, receiversCol02, bluetoothCandidates);
                                 }
                             }
                         }
@@ -231,48 +369,14 @@ namespace Lunifier.Windows.Core
                     SetupDiDestroyDeviceInfoList(devInfoSet);
                 }
 
-                _cachedDevices = found;
-                _lastScanTime = now;
-
-                AppLogger.Log("HID++", $"Scan complete: found {found.Count} compatible Logitech device(s).");
-                return FilterDevices(found, targetKeywords);
-            }
-        }
-
-        private void InspectDevicePath(string path, List<LogitechDevice> found, HashSet<string> seenNames, List<string>? targetKeywords)
-        {
-            try
-            {
-                using var handle = CreateFile(
-                    path,
-                    GENERIC_READ | GENERIC_WRITE,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                    IntPtr.Zero,
-                    OPEN_EXISTING,
-                    0,
-                    IntPtr.Zero
-                );
-
-                if (handle.IsInvalid) return;
-
-                var attrs = new HIDD_ATTRIBUTES();
-                attrs.Size = Marshal.SizeOf(typeof(HIDD_ATTRIBUTES));
-
-                if (!HidD_GetAttributes(handle, ref attrs) || attrs.VendorID != LogitechVid)
-                    return;
-
-                var prodBuffer = new StringBuilder(256);
-                HidD_GetProductString(handle, prodBuffer, 256);
-                var prodName = prodBuffer.ToString().Trim();
-
-                var transport = IdentifyTransport(attrs.ProductID, path);
-                if (!IsTransportSupported(transport))
-                    return;
-
-                if (transport is TransportType.Unifying or TransportType.Bolt or TransportType.Lightspeed)
+                // Process discovered receivers
+                foreach (var (pid, longPath) in receiversCol02)
                 {
-                    // Query paired devices behind receiver
-                    var paired = QueryReceiverPairedDevices(handle, path, attrs.ProductID, transport);
+                    receiversCol01.TryGetValue(pid, out var shortPath);
+                    var transport = IdentifyTransport(pid, longPath);
+                    if (!IsTransportSupported(transport)) continue;
+
+                    var paired = QueryReceiverPairedDevices(longPath, shortPath, pid, transport);
                     foreach (var pDev in paired)
                     {
                         if (seenNames.Add(pDev.Name))
@@ -287,155 +391,276 @@ namespace Lunifier.Windows.Core
                         }
                     }
                 }
-                else
+
+                // Process direct Bluetooth candidates
+                foreach (var (name, path, pid, up, u) in bluetoothCandidates)
                 {
-                    // Direct Bluetooth / HID device
-                    var name = !string.IsNullOrEmpty(prodName) ? prodName : $"Logitech Device (PID 0x{attrs.ProductID:X4})";
+                    var transport = TransportType.Bluetooth;
+                    if (!IsTransportSupported(transport)) continue;
+
                     byte defaultFeat = name.ToLowerInvariant().Contains("master") ? (byte)0x08 : (byte)0x09;
 
-                    var dev = new LogitechDevice
+                    if (seenNames.Add(name))
                     {
-                        Name = name,
-                        Path = path,
-                        Transport = transport,
-                        DeviceIndex = 0xFF, // Bluetooth devices listen on index 0xFF
-                        Vid = attrs.VendorID,
-                        Pid = attrs.ProductID,
-                        ChangeHostFeatureIndex = defaultFeat,
-                        AllPaths = new List<string> { path }
-                    };
-
-                    if (seenNames.Add(dev.Name))
-                    {
+                        var dev = new LogitechDevice
+                        {
+                            Name = name,
+                            Path = path,
+                            Transport = transport,
+                            DeviceIndex = 0xFF,
+                            Vid = LogitechVid,
+                            Pid = pid,
+                            UsagePage = up,
+                            Usage = u,
+                            ChangeHostFeatureIndex = defaultFeat,
+                            AllPaths = new List<string> { path }
+                        };
                         found.Add(dev);
                     }
                     else
                     {
-                        var existing = found.FirstOrDefault(d => string.Equals(d.Name, dev.Name, StringComparison.OrdinalIgnoreCase));
+                        var existing = found.FirstOrDefault(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase));
                         if (existing != null && !existing.AllPaths.Contains(path))
                             existing.AllPaths.Add(path);
                     }
                 }
-            }
-            catch
-            {
-                // Access denied or unreadable interface
+
+                // Fallback: If a receiver was present but paired devices were sleeping, restore cached slots or generate fallback entries
+                if (found.Count == 0 && receiversCol02.Count > 0)
+                {
+                    foreach (var (pid, longPath) in receiversCol02)
+                    {
+                        receiversCol01.TryGetValue(pid, out var shortPath);
+                        var cachedForReceiver = _receiverSlotsCache.Where(kv => kv.Key.Pid == pid).Select(kv => kv.Value).ToList();
+                        if (cachedForReceiver.Count > 0)
+                        {
+                            foreach (var cDev in cachedForReceiver)
+                            {
+                                cDev.Path = longPath;
+                                cDev.ShortPath = shortPath;
+                                if (seenNames.Add(cDev.Name)) found.Add(cDev);
+                            }
+                        }
+                        else
+                        {
+                            // Synthesize paired slot 1 (Keyboard) and slot 3 (Mouse)
+                            var devKeyboard = new LogitechDevice
+                            {
+                                Name = "Logitech Keyboard (Receiver Slot 1)",
+                                Path = longPath,
+                                ShortPath = shortPath,
+                                Transport = IdentifyTransport(pid, longPath),
+                                DeviceIndex = 1,
+                                Vid = LogitechVid,
+                                Pid = pid,
+                                ChangeHostFeatureIndex = 0x09,
+                                AllPaths = new List<string> { longPath }
+                            };
+                            var devMouse = new LogitechDevice
+                            {
+                                Name = "Logitech Mouse (Receiver Slot 3)",
+                                Path = longPath,
+                                ShortPath = shortPath,
+                                Transport = IdentifyTransport(pid, longPath),
+                                DeviceIndex = 3,
+                                Vid = LogitechVid,
+                                Pid = pid,
+                                ChangeHostFeatureIndex = 0x09,
+                                AllPaths = new List<string> { longPath }
+                            };
+                            if (seenNames.Add(devKeyboard.Name)) found.Add(devKeyboard);
+                            if (seenNames.Add(devMouse.Name)) found.Add(devMouse);
+                        }
+                    }
+                }
+
+                _cachedDevices = found;
+                _lastScanTime = now;
+
+                AppLogger.Log("HID++", $"Scan complete: found {found.Count} compatible Logitech device(s).");
+                return FilterDevices(found, targetKeywords);
             }
         }
 
-        private List<LogitechDevice> QueryReceiverPairedDevices(SafeFileHandle handle, string receiverPath, ushort pid, TransportType transport)
+        private void InspectDeviceEndpoint(
+            string path,
+            Dictionary<ushort, string> receiversCol01,
+            Dictionary<ushort, string> receiversCol02,
+            List<(string Name, string Path, ushort Pid, ushort UsagePage, ushort Usage)> bluetoothCandidates)
+        {
+            try
+            {
+                using var handle = CreateFile(
+                    path,
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    IntPtr.Zero,
+                    OPEN_EXISTING,
+                    FILE_FLAG_OVERLAPPED,
+                    IntPtr.Zero
+                );
+
+                if (handle.IsInvalid) return;
+
+                var attrs = new HIDD_ATTRIBUTES();
+                attrs.Size = Marshal.SizeOf(typeof(HIDD_ATTRIBUTES));
+
+                if (!HidD_GetAttributes(handle, ref attrs) || attrs.VendorID != LogitechVid)
+                    return;
+
+                if (!HidD_GetPreparsedData(handle, out var ppd))
+                    return;
+
+                var caps = new HIDP_CAPS();
+                HidP_GetCaps(ppd, ref caps);
+                HidD_FreePreparsedData(ppd);
+
+                var pLower = path.ToLowerInvariant();
+
+                // Receiver endpoint classification
+                if (AllReceiverPids.Contains(attrs.ProductID) || caps.UsagePage == 0xFF00)
+                {
+                    if ((caps.UsagePage == 0xFF00 && caps.Usage == 0x0001) || pLower.Contains("col01"))
+                    {
+                        receiversCol01[attrs.ProductID] = path;
+                    }
+                    else if ((caps.UsagePage == 0xFF00 && caps.Usage == 0x0002) || pLower.Contains("col02"))
+                    {
+                        receiversCol02[attrs.ProductID] = path;
+                    }
+                    return;
+                }
+
+                // Direct Bluetooth endpoint classification
+                bool isBluetooth = (caps.UsagePage == 0xFF43 && caps.Usage == 0x0202)
+                    || pLower.Contains("bth")
+                    || pLower.Contains("bluetooth");
+
+                if (isBluetooth)
+                {
+                    var prodBuffer = new StringBuilder(256);
+                    HidD_GetProductString(handle, prodBuffer, 256);
+                    var prodName = prodBuffer.ToString().Trim();
+                    if (string.IsNullOrEmpty(prodName))
+                        prodName = $"Logitech Device (PID 0x{attrs.ProductID:X4})";
+
+                    bluetoothCandidates.Add((prodName, path, attrs.ProductID, caps.UsagePage, caps.Usage));
+                }
+            }
+            catch
+            {
+                // Unreadable or access denied interface
+            }
+        }
+
+        private List<LogitechDevice> QueryReceiverPairedDevices(string longPath, string? shortPath, ushort pid, TransportType transport)
         {
             var results = new List<LogitechDevice>();
 
-            // Query each paired slot (1..6)
-            for (byte idx = 1; idx <= 6; idx++)
+            try
             {
+                using var handle = CreateFile(
+                    longPath,
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    IntPtr.Zero,
+                    OPEN_EXISTING,
+                    FILE_FLAG_OVERLAPPED,
+                    IntPtr.Zero
+                );
+
+                if (handle.IsInvalid) return results;
+
+                var hReadEvent = CreateEvent(IntPtr.Zero, true, false, null);
+                if (hReadEvent == IntPtr.Zero) return results;
+
+                var pReadOverlapped = Marshal.AllocHGlobal(Marshal.SizeOf<OVERLAPPED>());
                 try
                 {
-                    // Wake ping to slot
-                    var ping = new byte[20];
-                    ping[0] = 0x11;
-                    ping[1] = idx;
-                    WriteFile(handle, ping, 20, out _, IntPtr.Zero);
-
-                    // Query Feature 0x0005 (Device Name)
-                    var queryName = new byte[20];
-                    queryName[0] = 0x11;
-                    queryName[1] = idx;
-                    queryName[4] = 0x00;
-                    queryName[5] = (byte)(FeatureDeviceName & 0xFF);
-
-                    WriteFile(handle, queryName, 20, out _, IntPtr.Zero);
-
-                    // Fast read attempt
-                    var resp = new byte[20];
-                    byte nameFeat = 0;
-                    for (int i = 0; i < 3; i++)
+                    // Query each slot 1..6 with safe 75ms non-blocking overlapped timeout
+                    for (byte idx = 1; idx <= 6; idx++)
                     {
-                        if (ReadFile(handle, resp, 20, out var readBytes, IntPtr.Zero) && readBytes >= 5)
+                        // Query feature 0x0005 (device name)
+                        var q = new byte[20];
+                        q[0] = 0x11;
+                        q[1] = idx;
+                        q[4] = 0x00;
+                        q[5] = (byte)(FeatureDeviceName & 0xFF);
+
+                        OverlappedWrite(handle, q);
+                        var resp = OverlappedRead(handle, hReadEvent, pReadOverlapped, 75);
+
+                        if (resp != null && resp.Length >= 5 && resp[0] == 0x11 && resp[1] == idx && resp[2] == 0x00 && resp[4] != 0)
                         {
-                            if (resp[0] == 0x11 && resp[1] == idx && resp[2] == 0x00 && resp[4] != 0)
+                            var nameFeat = resp[4];
+
+                            // Read name chunk 0
+                            var nq = new byte[20];
+                            nq[0] = 0x11;
+                            nq[1] = idx;
+                            nq[2] = nameFeat;
+                            nq[3] = 0x10;
+                            nq[4] = 0x00;
+                            OverlappedWrite(handle, nq);
+                            var nresp = OverlappedRead(handle, hReadEvent, pReadOverlapped, 75);
+
+                            string devName = "Unknown";
+                            if (nresp != null && nresp.Length >= 5 && nresp[0] == 0x11 && nresp[1] == idx)
                             {
-                                nameFeat = resp[4];
-                                break;
+                                devName = Encoding.UTF8.GetString(nresp, 4, 16).Trim('\0', ' ');
                             }
-                        }
-                    }
 
-                    if (nameFeat == 0) continue;
-
-                    // Read name chunks
-                    var nameChunk = new byte[20];
-                    nameChunk[0] = 0x11;
-                    nameChunk[1] = idx;
-                    nameChunk[2] = nameFeat;
-                    nameChunk[3] = 0x10; // get_device_name_type chunk 0
-
-                    WriteFile(handle, nameChunk, 20, out _, IntPtr.Zero);
-
-                    var nameBytes = new List<byte>();
-                    for (int i = 0; i < 3; i++)
-                    {
-                        if (ReadFile(handle, resp, 20, out var readBytes, IntPtr.Zero) && readBytes >= 5)
-                        {
-                            if (resp[0] == 0x11 && resp[1] == idx && resp[2] == nameFeat)
+                            if (string.IsNullOrEmpty(devName) || devName == "Unknown")
                             {
-                                for (int b = 4; b < readBytes && resp[b] != 0; b++)
-                                    nameBytes.Add(resp[b]);
-                                break;
+                                devName = $"Receiver Device Slot {idx}";
                             }
-                        }
-                    }
 
-                    var devName = Encoding.UTF8.GetString(nameBytes.ToArray()).Trim();
-                    if (string.IsNullOrEmpty(devName))
-                        devName = $"Receiver Device Slot {idx}";
+                            // Query feature 0x1814 (Change Host)
+                            var chq = new byte[20];
+                            chq[0] = 0x11;
+                            chq[1] = idx;
+                            chq[4] = (byte)((FeatureChangeHost >> 8) & 0xFF);
+                            chq[5] = (byte)(FeatureChangeHost & 0xFF);
+                            OverlappedWrite(handle, chq);
+                            var chresp = OverlappedRead(handle, hReadEvent, pReadOverlapped, 75);
 
-                    // Query Change Host feature index (0x1814)
-                    byte chFeat = (byte)(devName.ToLowerInvariant().Contains("master") ? 0x08 : 0x09);
-                    bool resolved = false;
-
-                    var queryCh = new byte[20];
-                    queryCh[0] = 0x11;
-                    queryCh[1] = idx;
-                    queryCh[4] = (byte)((FeatureChangeHost >> 8) & 0xFF);
-                    queryCh[5] = (byte)(FeatureChangeHost & 0xFF);
-
-                    WriteFile(handle, queryCh, 20, out _, IntPtr.Zero);
-
-                    for (int i = 0; i < 3; i++)
-                    {
-                        if (ReadFile(handle, resp, 20, out var readBytes, IntPtr.Zero) && readBytes >= 5)
-                        {
-                            if (resp[0] == 0x11 && resp[1] == idx && resp[2] == 0x00 && resp[4] != 0)
+                            byte chFeat = (byte)(devName.ToLowerInvariant().Contains("master") ? 0x08 : 0x09);
+                            bool resolved = false;
+                            if (chresp != null && chresp.Length >= 5 && chresp[0] == 0x11 && chresp[1] == idx && chresp[2] == 0x00 && chresp[4] != 0)
                             {
-                                chFeat = resp[4];
+                                chFeat = chresp[4];
                                 resolved = true;
-                                break;
                             }
+
+                            var dev = new LogitechDevice
+                            {
+                                Name = devName,
+                                Path = longPath,
+                                ShortPath = shortPath,
+                                Transport = transport,
+                                DeviceIndex = idx,
+                                Vid = LogitechVid,
+                                Pid = pid,
+                                ChangeHostFeatureIndex = chFeat,
+                                FeatureResolved = resolved,
+                                AllPaths = new List<string> { longPath }
+                            };
+
+                            results.Add(dev);
+                            _receiverSlotsCache[(pid, idx)] = dev;
+                            AppLogger.Log("HID++", $"Receiver paired device discovered on Slot {idx}: '{dev.Name}' (Feat=0x{chFeat:X2})");
                         }
                     }
-
-                    var dev = new LogitechDevice
-                    {
-                        Name = devName,
-                        Path = receiverPath,
-                        Transport = transport,
-                        DeviceIndex = idx,
-                        Vid = LogitechVid,
-                        Pid = pid,
-                        ChangeHostFeatureIndex = chFeat,
-                        FeatureResolved = resolved,
-                        AllPaths = new List<string> { receiverPath }
-                    };
-
-                    results.Add(dev);
-                    _receiverSlotsCache[(pid, idx)] = dev;
                 }
-                catch
+                finally
                 {
-                    // Slot not responding or receiver handle busy
+                    Marshal.FreeHGlobal(pReadOverlapped);
+                    CloseHandle(hReadEvent);
                 }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogDebug("HID++", $"Error querying receiver paired devices: {ex.Message}");
             }
 
             return results;
@@ -449,6 +674,8 @@ namespace Lunifier.Windows.Core
             return devices.Where(d =>
             {
                 var n = d.Name.ToLowerInvariant();
+                if (n.Contains("slot 1") || n.Contains("slot 2") || n.Contains("slot 3"))
+                    return true;
                 return keywords.Any(k => n.Contains(k.ToLowerInvariant()));
             }).ToList();
         }
@@ -492,7 +719,7 @@ namespace Lunifier.Windows.Core
                         FILE_SHARE_READ | FILE_SHARE_WRITE,
                         IntPtr.Zero,
                         OPEN_EXISTING,
-                        0,
+                        FILE_FLAG_OVERLAPPED,
                         IntPtr.Zero
                     );
 
@@ -508,17 +735,45 @@ namespace Lunifier.Windows.Core
                         packet[3] = 0x10;          // Function 1: set_current_host
                         packet[4] = channelIndex;
 
-                        if (WriteFile(handle, packet, 20, out var written, IntPtr.Zero) && written > 0)
+                        if (OverlappedWrite(handle, packet))
                         {
                             ok = true;
                             // For Bluetooth devices send an immediate follow-up to guarantee transmission
                             if (dev.Transport == TransportType.Bluetooth)
                             {
-                                Thread.Sleep(15);
-                                WriteFile(handle, packet, 20, out _, IntPtr.Zero);
+                                System.Threading.Thread.Sleep(15);
+                                OverlappedWrite(handle, packet);
                             }
                             break;
                         }
+                    }
+
+                    // Also transmit to short report endpoint if Unifying col01 is present
+                    if (dev.IsReceiver && !string.IsNullOrEmpty(dev.ShortPath))
+                    {
+                        try
+                        {
+                            using var shortHandle = CreateFile(
+                                dev.ShortPath,
+                                GENERIC_READ | GENERIC_WRITE,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                IntPtr.Zero,
+                                OPEN_EXISTING,
+                                FILE_FLAG_OVERLAPPED,
+                                IntPtr.Zero
+                            );
+                            if (!shortHandle.IsInvalid)
+                            {
+                                var shortPacket = new byte[7];
+                                shortPacket[0] = 0x10;
+                                shortPacket[1] = dev.DeviceIndex;
+                                shortPacket[2] = dev.ChangeHostFeatureIndex;
+                                shortPacket[3] = 0x1E;
+                                shortPacket[4] = channelIndex;
+                                OverlappedWrite(shortHandle, shortPacket);
+                            }
+                        }
+                        catch { }
                     }
 
                     if (ok)

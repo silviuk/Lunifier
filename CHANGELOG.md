@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.4] - 2026-09-22
+
+### Fixed
+- **Non-Blocking HID++ Device Scanning**: Overhauled `HidppEngine` with asynchronous Win32 Overlapped I/O and strict 75ms timeouts per slot, eliminating device scan hangs on Logitech receivers.
+- **Hardware Switching Reliability**: Routed receiver queries exclusively to `Col02` (Long Reports) and short reports to `Col01`, ensuring paired devices (MX Keys, M720 Triathlon) are recognized and switched without kernel blocking.
+- **Asynchronous Edge Trigger Dispatch**: Dispatched hardware switching in background threads via `Task.Run()`, preventing the screen border detection loop from stalling.
+- **Smarter Return Guard**: Clamped return guard to at most 1000ms and only armed guard when at least one hardware device successfully switched.
+- **Default Windows Hostname**: Automatically resolved default hostname from `Environment.MachineName` instead of hardcoded `"Host"`.
+- **Uniform 32px UI Controls Layout**: Standardized all text fields, dropdowns, and adjacent action buttons to a uniform height of 32px with centered vertical content alignment.
+
+---
+
 ## [2.1.3] - 2026-09-22
 
 ### Fixed
