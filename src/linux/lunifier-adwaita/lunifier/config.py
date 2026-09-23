@@ -77,7 +77,7 @@ class AppConfig:
                     "Type=Application\n"
                     "Name=Lunifier\n"
                     "Comment=Seamless Logitech Easy-Switch Flow across Systems\n"
-                    "Exec=lunifier --gui\n"
+                    "Exec=lunifier --minimized\n"
                     "Icon=lunifier\n"
                     "Terminal=false\n"
                     "Categories=Utility;Settings;HardwareSettings;\n"

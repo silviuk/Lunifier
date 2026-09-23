@@ -36,6 +36,34 @@ PIDS_BOLT = {0xC548, 0xC547}
 PIDS_LIGHTSPEED = {0xC539, 0xC53A, 0xC541, 0xC542, 0xC53F, 0xC545}
 ALL_RECEIVER_PIDS = PIDS_UNIFYING | PIDS_BOLT | PIDS_LIGHTSPEED
 
+PID_NAME_MAP: Dict[int, str] = {
+    0xB012: "Logitech MX Master",
+    0xB015: "Logitech M720 Triathlon",
+    0xB016: "Logitech M585 / M590 Mouse",
+    0xB017: "Logitech MX Master 2S",
+    0xB01B: "Logitech MX Ergo",
+    0xB01D: "Logitech Pebble M350",
+    0xB01E: "Logitech MX Anywhere 2S",
+    0xB01F: "Logitech M330 Silent Plus",
+    0xB023: "Logitech MX Master 3",
+    0xB025: "Logitech MX Vertical",
+    0xB028: "Logitech MX Master 3S",
+    0xB02A: "Logitech Lift Vertical Mouse",
+    0xB02F: "Logitech POP Mouse",
+    0xB034: "Logitech Signature M650",
+    0xB035: "Logitech Signature M650",
+    0xB342: "Logitech K380 Multi-Device Keyboard",
+    0xB34B: "Logitech K375s Multi-Device Keyboard",
+    0xB350: "Logitech Craft Keyboard",
+    0xB352: "Logitech K850 Performance Keyboard",
+    0xB354: "Logitech ERGO K860 Keyboard",
+    0xB359: "Logitech K780 Multi-Device Keyboard",
+    0xB35B: "Logitech MX Keys",
+    0xB366: "Logitech Signature K650",
+    0xB367: "Logitech POP Keys",
+    0xB369: "Logitech MX Keys Mini",
+}
+
 
 class TransportType(Enum):
     BLUETOOTH = "Bluetooth"
@@ -235,8 +263,12 @@ class HIDPPMaster:
                     receivers.append((dev_node, pid, transport))
                     continue
 
+                dev_name = hid_name
+                if not dev_name or dev_name.lower() in ("logitech device", "logitech"):
+                    dev_name = PID_NAME_MAP.get(pid, f"Logitech Device (PID 0x{pid:04x})")
+
                 dev = LogitechDevice(
-                    name=hid_name or f"Logitech Device (PID 0x{pid:04x})",
+                    name=dev_name,
                     path=dev_node,
                     transport=transport,
                     device_index=0xFF,
@@ -415,16 +447,40 @@ class HIDPPMaster:
 
         results: Dict[str, bool] = {}
 
-        def do_switch(d: LogitechDevice):
-            ok = self.switch_device_host(d, target_channel, backend=backend, connection_support=connection_support)
-            return (f"{d.name} ({d.transport.value})", ok)
+        # Group receiver devices by receiver endpoint so devices sharing the same physical dongle
+        # are switched sequentially with 30ms spacing to prevent 2.4GHz RF packet collision
+        receiver_groups: Dict[bytes, List[LogitechDevice]] = {}
+        direct_devices: List[LogitechDevice] = []
 
-        futures = [self._executor.submit(do_switch, dev) for dev in devices]
-        for f in futures:
-            try:
-                k, ok = f.result(timeout=4.0)
-                results[k] = ok
-            except Exception as ex:
-                log("HID++", f"Switch exception: {ex}")
+        for d in devices:
+            if d.is_receiver:
+                key = d.path or d.name.encode("utf-8")
+                receiver_groups.setdefault(key, []).append(d)
+            else:
+                direct_devices.append(d)
+
+        threads: List[threading.Thread] = []
+
+        for grp_path, dev_list in receiver_groups.items():
+            def run_group(items=dev_list):
+                for idx, dev in enumerate(items):
+                    ok = self.switch_device_host(dev, target_channel, backend=backend, connection_support=connection_support)
+                    results[f"{dev.name} ({dev.transport.value})"] = ok
+                    if idx < len(items) - 1:
+                        time.sleep(0.030)  # 30ms spacing on same physical receiver
+            t = threading.Thread(target=run_group, daemon=True)
+            threads.append(t)
+            t.start()
+
+        for dev in direct_devices:
+            def run_direct(d=dev):
+                ok = self.switch_device_host(d, target_channel, backend=backend, connection_support=connection_support)
+                results[f"{d.name} ({d.transport.value})"] = ok
+            t = threading.Thread(target=run_direct, daemon=True)
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join(timeout=4.0)
 
         return results

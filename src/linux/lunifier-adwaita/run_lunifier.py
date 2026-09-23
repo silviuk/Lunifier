@@ -66,6 +66,7 @@ def main():
     )
     parser.add_argument("--gui", action="store_true", help="Launch native GNOME Libadwaita GUI")
     parser.add_argument("--daemon", action="store_true", help="Run background daemon service without GUI")
+    parser.add_argument("--minimized", action="store_true", help="Start minimized as background daemon service")
     parser.add_argument("--log-level", choices=["none", "normal", "debug"], default=None, help="Override log level")
 
     args = parser.parse_args()
@@ -75,7 +76,7 @@ def main():
 
     if args.gui:
         sys.exit(run_gui())
-    elif args.daemon:
+    elif args.daemon or args.minimized:
         run_daemon()
     else:
         # If DISPLAY or WAYLAND_DISPLAY is set, launch GUI by default; otherwise daemon

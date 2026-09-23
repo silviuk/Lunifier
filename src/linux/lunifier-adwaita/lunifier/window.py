@@ -18,6 +18,7 @@ from .logger import log, add_log_listener, remove_log_listener, set_log_level
 from .monitors import get_monitors, MonitorInfo
 from .app import LunifierApp
 from .bt_link import discover_advertising_lunifier_peers, get_local_bluetooth_mac
+from .overlay import BorderOverlayManager
 
 
 class LunifierAdwaitaWindow(Adw.ApplicationWindow):
@@ -27,6 +28,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.config = AppConfig.load()
         self.app_service = LunifierApp(self.config)
         self.hidpp = self.app_service.hidpp
+        self.overlay = BorderOverlayManager(parent=self)
 
         self.monitors: List[MonitorInfo] = get_monitors()
         self.selected_monitor_id = "0"
@@ -54,6 +56,11 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         title_widget = Adw.WindowTitle(title="Lunifier", subtitle="Logitech Easy-Switch Flow")
         header.set_title_widget(title_widget)
 
+        # Save configuration button in header
+        self.save_btn = Gtk.Button(label="Save")
+        self.save_btn.connect("clicked", self._on_save_clicked)
+        header.pack_end(self.save_btn)
+
         # Service toggle button in header
         self.service_btn = Gtk.Button(label="Start Service")
         self.service_btn.add_css_class("suggested-action")
@@ -73,8 +80,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         # --- Tab 1: Screen & Switching ---
         self._build_screen_page()
 
-        # --- Tab 2: Connected Devices ---
-        self._build_devices_page()
+        # --- Tab 2: Advanced ---
+        self._build_advanced_page()
 
         # --- Tab 3: Bluetooth Inter-Host Link ---
         self._build_bluetooth_page()
@@ -146,7 +153,44 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.bottom_border_row.connect("notify::selected", self._on_border_changed)
         grp_monitors.add(self.bottom_border_row)
 
-        # Group 3: Trigger Sensitivity
+    def _build_advanced_page(self):
+        page = Adw.PreferencesPage()
+        self.stack.add_titled(page, "advanced", "Advanced")
+        self.stack.get_page(page).set_icon_name("preferences-system-symbolic")
+
+        grp_devices = Adw.PreferencesGroup(title="Connected Logitech Devices")
+        page.add(grp_devices)
+
+        # Refresh button & actions
+        row_actions = Adw.ActionRow(title="Hardware Device Controls")
+        btn_refresh = Gtk.Button(label="Rescan Devices")
+        btn_refresh.connect("clicked", lambda b: self._rescan_devices())
+        row_actions.add_suffix(btn_refresh)
+        grp_devices.add(row_actions)
+
+        # Test Switch Buttons
+        row_test = Adw.ActionRow(title="Manual Test Switch")
+        box_test = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        btn_ch1 = Gtk.Button(label="Channel 1")
+        btn_ch1.connect("clicked", lambda b: self._test_switch(1))
+        box_test.append(btn_ch1)
+
+        btn_ch2 = Gtk.Button(label="Channel 2")
+        btn_ch2.connect("clicked", lambda b: self._test_switch(2))
+        box_test.append(btn_ch2)
+
+        btn_ch3 = Gtk.Button(label="Channel 3")
+        btn_ch3.connect("clicked", lambda b: self._test_switch(3))
+        box_test.append(btn_ch3)
+
+        row_test.add_suffix(box_test)
+        grp_devices.add(row_test)
+
+        self.grp_devices_list = Adw.PreferencesGroup(title="Detected Hardware Devices")
+        page.add(self.grp_devices_list)
+
+        # Group 2: Trigger Sensitivity
         grp_sens = Adw.PreferencesGroup(title="Edge Trigger Sensitivity", description="Fine-tune boundary dwell timing and active span")
         page.add(grp_sens)
 
@@ -190,7 +234,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.knock_timeout_row.set_value(self.config.knock_timeout_ms)
         grp_sens.add(self.knock_timeout_row)
 
-        # Group 4: Hardware & Backend
+        # Group 3: Hardware & Backend
         grp_hw = Adw.PreferencesGroup(title="Hardware & Backend Options")
         page.add(grp_hw)
 
@@ -214,43 +258,6 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         ll_idx = 0 if self.config.log_level == "normal" else (1 if self.config.log_level == "debug" else 2)
         self.log_level_row.set_selected(ll_idx)
         grp_hw.add(self.log_level_row)
-
-    def _build_devices_page(self):
-        page = Adw.PreferencesPage()
-        self.stack.add_titled(page, "devices", "Connected Devices")
-        self.stack.get_page(page).set_icon_name("input-keyboard-symbolic")
-
-        grp = Adw.PreferencesGroup(title="Logitech Easy-Switch Peripherals")
-        page.add(grp)
-
-        # Refresh button & actions
-        row_actions = Adw.ActionRow(title="Hardware Device Controls")
-        btn_refresh = Gtk.Button(label="Rescan Devices")
-        btn_refresh.connect("clicked", lambda b: self._rescan_devices())
-        row_actions.add_suffix(btn_refresh)
-        grp.add(row_actions)
-
-        # Test Switch Buttons
-        row_test = Adw.ActionRow(title="Manual Test Switch")
-        box_test = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-
-        btn_ch1 = Gtk.Button(label="Channel 1")
-        btn_ch1.connect("clicked", lambda b: self._test_switch(1))
-        box_test.append(btn_ch1)
-
-        btn_ch2 = Gtk.Button(label="Channel 2")
-        btn_ch2.connect("clicked", lambda b: self._test_switch(2))
-        box_test.append(btn_ch2)
-
-        btn_ch3 = Gtk.Button(label="Channel 3")
-        btn_ch3.connect("clicked", lambda b: self._test_switch(3))
-        box_test.append(btn_ch3)
-
-        row_test.add_suffix(box_test)
-        grp.add(row_test)
-
-        self.grp_devices_list = Adw.PreferencesGroup(title="Detected Hardware Devices")
-        page.add(self.grp_devices_list)
 
     def _build_bluetooth_page(self):
         page = Adw.PreferencesPage()
@@ -391,7 +398,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp = Adw.PreferencesGroup()
         page.add(grp)
 
-        row_about = Adw.ActionRow(title="Lunifier 2.1.3 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        row_about = Adw.ActionRow(title="Lunifier 2.1.6 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
         icon_img = Gtk.Image.new_from_icon_name("lunifier")
         icon_img.set_pixel_size(48)
         row_about.add_prefix(icon_img)
@@ -453,6 +460,33 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         enabled = self.monitor_enabled_row.get_active()
         self.config.set_monitor_config(self.selected_monitor_id, enabled, edges)
 
+    def _show_overlay_for_current_monitor(self):
+        if self._is_loading_config or not hasattr(self, "overlay"):
+            return
+        edges_dict = {}
+        active = self.config.get_all_active_monitor_borders()
+        for mid, edge, _ in active:
+            edges_dict.setdefault(str(mid), []).append(edge)
+
+        # If no borders configured yet for this monitor, preview all 4 edges
+        if not edges_dict or str(self.selected_monitor_id) not in edges_dict:
+            edges_dict[str(self.selected_monitor_id)] = ["left", "right", "top", "bottom"]
+
+        self.overlay.show(
+            active_zone_pct=self.config.border_active_zone_pct,
+            edges=edges_dict,
+            monitor_id=str(self.selected_monitor_id)
+        )
+
+    def _on_save_clicked(self, btn):
+        self._save_all_settings()
+        if getattr(self.app_service, "_running", False):
+            self.app_service.config = self.config
+            self.app_service._setup_subsystems()
+        self.save_btn.set_label("✓ Saved")
+        GLib.timeout_add(1500, lambda: self.save_btn.set_label("Save") or False)
+        self._show_overlay_for_current_monitor()
+
     def _on_monitor_selected(self, row, param):
         if self._is_loading_config:
             return
@@ -461,17 +495,21 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         if 0 <= idx < len(self.monitors):
             self.selected_monitor_id = str(idx)
             self._update_monitor_ui(self.selected_monitor_id)
+            self._show_overlay_for_current_monitor()
 
     def _on_monitor_enabled_changed(self, row, param):
         self._save_current_monitor_state()
+        self._show_overlay_for_current_monitor()
 
     def _on_border_changed(self, row, param):
         self._save_current_monitor_state()
+        self._show_overlay_for_current_monitor()
 
     def _on_active_zone_changed(self, scale):
         val = int(scale.get_value())
         self.active_zone_row.set_subtitle(f"Central {val}%")
         self.config.border_active_zone_pct = val
+        self._show_overlay_for_current_monitor()
 
     def _on_hold_delay_changed(self, scale):
         val = int(scale.get_value())
@@ -692,6 +730,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
     def _on_close(self, *args):
         self._save_all_settings()
+        if hasattr(self, "overlay"):
+            self.overlay.close()
         if getattr(self.app_service, "_running", False):
             self.app_service.stop()
         remove_log_listener(self._on_log_message)

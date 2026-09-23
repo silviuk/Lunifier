@@ -72,26 +72,8 @@ class LunifierApp:
             return
 
         log("Lunifier", f">>> SCREEN BORDER REACHED: '{edge.upper()}' on Monitor {monitor_id or '0'} (Ratio: {ratio:.2f}) <<<")
-        log("Lunifier", f"Switching devices to Channel {target_channel} (Backend: {self.config.switch_backend})...")
 
-        t0 = time.perf_counter()
-        results = self.hidpp.switch_all_to_channel(
-            target_channel, self.config.devices,
-            backend=self.config.switch_backend,
-            connection_support=self.config.connection_support
-        )
-        elapsed_total = (time.perf_counter() - t0) * 1000.0
-
-        for dev_name, success in results.items():
-            log("Lunifier", f"Device '{dev_name}' -> Channel {target_channel}: {'SUCCESS' if success else 'FAILED'}")
-        log("Lunifier", f"Hardware switch sequence completed in {elapsed_total:.1f}ms")
-
-        if self.bt_link and self.bt_link.is_connected:
-            def notify_peer():
-                clipboard_content = ClipboardManager.get_text() if self.config.sync_clipboard else None
-                self.bt_link.notify_switch_out(edge, ratio, clipboard_content)
-            threading.Thread(target=notify_peer, daemon=True).start()
-
+        # Step cursor inward immediately and arm return guard to prevent border loop
         step_back = 160
         new_x, new_y = x, y
         if edge == "right":
@@ -106,6 +88,28 @@ class LunifierApp:
         self.cursor_mgr.set_cursor_pos(new_x, new_y)
         if self.edge_detector:
             self.edge_detector.notify_switched_out(edge, new_x, new_y)
+        log("Lunifier", f"Repositioned cursor {step_back}px inward to ({new_x}, {new_y}) and armed return guard.")
+
+        log("Lunifier", f"Instantly switching devices to Channel {target_channel} (Backend: {self.config.switch_backend})...")
+
+        def worker():
+            t0 = time.perf_counter()
+            results = self.hidpp.switch_all_to_channel(
+                target_channel, self.config.devices,
+                backend=self.config.switch_backend,
+                connection_support=self.config.connection_support
+            )
+            elapsed_total = (time.perf_counter() - t0) * 1000.0
+
+            for dev_name, success in results.items():
+                log("Lunifier", f"Device '{dev_name}' -> Channel {target_channel}: {'SUCCESS' if success else 'FAILED'}")
+            log("Lunifier", f"Hardware switch sequence completed in {elapsed_total:.1f}ms")
+
+            if self.bt_link and self.bt_link.is_connected:
+                clipboard_content = ClipboardManager.get_text() if self.config.sync_clipboard else None
+                self.bt_link.notify_switch_out(edge, ratio, clipboard_content)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _handle_incoming_switch(self, partner_exit_edge: str, ratio: float, clipboard_text: Optional[str]) -> None:
         log("Lunifier", f"<<< INCOMING TRANSFER from partner (Exit Edge: '{partner_exit_edge}', Ratio: {ratio:.2f}) <<<")

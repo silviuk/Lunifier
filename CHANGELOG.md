@@ -21,9 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unifying Receiver Keyboard Switching Reliability**:
   - Replaced concurrent parallel packet transmission to the same receiver with serialized device switching and a 30ms inter-device pause.
   - Added Short Report (`0x10`) switching fallback on `col01` and duplicate Long Report wake bursts to ensure battery-saving wireless keyboards reliably switch alongside the mouse.
-- **Start Minimized at Boot**:
-  - Added `--minimized` command-line argument support to start Lunifier cleanly in the Windows system tray without popping up the main window at boot time.
-  - Updated autostart registry configuration and Inno Setup installer tasks to pass `--minimized`.
+- **Linux Native GTK4/Libadwaita v2.1.6 Parity**:
+  - Reorganized window layout: renamed "Connected Devices" tab to **"Advanced"**, moved "Edge Trigger Sensitivity" and "Hardware & Backend Options" to "Advanced", and added a dedicated "Save" button to the top header bar.
+  - Implemented visual orange screen border indicator (`#FF5722`, 6px thickness) with 1.5-second auto-hide timer when adjusting active zone percentage or monitor border settings.
+  - Applied immediate inward cursor stepping (160px) and return guard arming prior to async hardware switching, preventing border bounceback loops.
+  - Increased physical mouse movement return threshold from 15px to 50px ($dx^2 + dy^2 > 2500$).
+  - Added serialized device switching (30ms delay) and wake bursts for multi-device Unifying/Bolt receivers.
+  - Added `--minimized` argument support and updated `~/.config/autostart/lunifier.desktop` to launch minimized on login.
+  - Updated Linux packaging metadata in `pyproject.toml`, `lunifier/__init__.py`, and About dialog from 2.1.3 to 2.1.6.
 
 ---
 

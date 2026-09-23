@@ -297,7 +297,7 @@ class ScreenEdgeDetector:
                         lx, ly = self._last_known_cursor_pos
                         dx = x - lx
                         dy = y - ly
-                        if (dx * dx + dy * dy) > 225:
+                        if (dx * dx + dy * dy) > 2500:  # Deliberate movement > 50 pixels
                             log("EdgeDetector", f"Physical mouse movement detected on host ({lx}, {ly}) -> ({x}, {y})")
                             self.notify_switched_in(self._switched_out_edge)
                             self._last_known_cursor_pos = (x, y)
