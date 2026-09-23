@@ -52,7 +52,11 @@ namespace Lunifier.Windows
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            if (MainWindow != null)
+                            if (MainWindow is MainWindow mw)
+                            {
+                                mw.RestoreFromTray();
+                            }
+                            else if (MainWindow != null)
                             {
                                 if (MainWindow.WindowState == WindowState.Minimized)
                                     MainWindow.WindowState = WindowState.Normal;
@@ -90,6 +94,36 @@ namespace Lunifier.Windows
             ThemeManager.Initialize();
 
             base.OnStartup(e);
+
+            bool startMinimized = false;
+            if (e.Args != null)
+            {
+                foreach (var arg in e.Args)
+                {
+                    var a = arg.Trim().ToLowerInvariant();
+                    if (a is "--minimized" or "-minimized" or "/minimized" or "--daemon" or "-d" or "/daemon")
+                    {
+                        startMinimized = true;
+                        break;
+                    }
+                }
+            }
+
+            var mainWindow = new MainWindow(startMinimized);
+            MainWindow = mainWindow;
+
+            if (startMinimized)
+            {
+                mainWindow.WindowState = WindowState.Minimized;
+                mainWindow.ShowInTaskbar = false;
+                mainWindow.Visibility = Visibility.Hidden;
+                mainWindow.Show();
+                mainWindow.Hide();
+            }
+            else
+            {
+                mainWindow.Show();
+            }
         }
 
         protected override void OnExit(ExitEventArgs e)

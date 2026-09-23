@@ -49,8 +49,13 @@ namespace Lunifier.Windows
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-        public MainWindow()
+        private readonly bool _startMinimized;
+
+        public MainWindow() : this(false) { }
+
+        public MainWindow(bool startMinimized)
         {
+            _startMinimized = startMinimized;
             _config = AppConfig.Load();
             _service = new LunifierService(_config);
 
@@ -96,6 +101,13 @@ namespace Lunifier.Windows
 
                 // Trigger initial device scan in background
                 RefreshDevicesAsync();
+
+                if (_startMinimized)
+                {
+                    Hide();
+                    WindowState = WindowState.Minimized;
+                    ShowInTaskbar = false;
+                }
             }
             catch (Exception ex)
             {
@@ -162,8 +174,10 @@ namespace Lunifier.Windows
 
         public void RestoreFromTray()
         {
-            Show();
+            ShowInTaskbar = true;
+            Visibility = Visibility.Visible;
             WindowState = WindowState.Normal;
+            Show();
             Activate();
             Focus();
         }

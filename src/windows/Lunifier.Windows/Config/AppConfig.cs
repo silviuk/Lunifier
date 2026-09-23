@@ -144,8 +144,8 @@ namespace Lunifier.Windows.Config
                 if (key == null) return;
                 if (enable)
                 {
-                    var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;
-                    key.SetValue("Lunifier", $"\"{exePath}\"");
+                    var exePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Lunifier.exe");
+                    key.SetValue("Lunifier", $"\"{exePath}\" --minimized");
                 }
                 else
                 {

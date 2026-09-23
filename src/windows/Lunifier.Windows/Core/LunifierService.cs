@@ -96,6 +96,23 @@ namespace Lunifier.Windows.Core
         private void OnEdgeTriggered(string edge, int x, int y, double ratio, string monitorId, int targetChannel)
         {
             AppLogger.Log("Lunifier", $">>> SCREEN BORDER REACHED: '{edge.ToUpperInvariant()}' on Monitor {monitorId} at ({x}, {y}) (Ratio: {ratio:F2}) <<<");
+
+            // Step cursor inward immediately and arm return guard to prevent border loop
+            const int stepBack = 160;
+            int newX = x;
+            int newY = y;
+            switch (edge.ToLowerInvariant())
+            {
+                case "right": newX = x - stepBack; break;
+                case "left": newX = x + stepBack; break;
+                case "top": newY = y + stepBack; break;
+                case "bottom": newY = y - stepBack; break;
+            }
+
+            CursorHelper.SetPosition(newX, newY);
+            Detector?.NotifySwitchedOut(edge, newX, newY);
+            AppLogger.Log("Lunifier", $"Repositioned cursor {stepBack}px inward to ({newX}, {newY}) and armed return guard.");
+
             AppLogger.Log("Lunifier", $"Instantly switching devices to Channel {targetChannel} (Support: {Config.ConnectionSupport})...");
 
             Task.Run(() =>
@@ -103,7 +120,6 @@ namespace Lunifier.Windows.Core
                 var t0 = Stopwatch.GetTimestamp();
                 var results = Hidpp.SwitchAllToChannel(targetChannel, Config.Devices);
                 var elapsed = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
-                bool anySuccess = results.Values.Any(v => v);
 
                 foreach (var (devName, success) in results)
                 {
@@ -116,29 +132,6 @@ namespace Lunifier.Windows.Core
                 {
                     string? clip = Config.SyncClipboard ? ClipboardHelper.GetText() : null;
                     BtPeer.NotifySwitchOut(edge, ratio, clip);
-                }
-
-                if (anySuccess)
-                {
-                    // Step cursor inward
-                    const int stepBack = 160;
-                    int newX = x;
-                    int newY = y;
-                    switch (edge.ToLowerInvariant())
-                    {
-                        case "right": newX = x - stepBack; break;
-                        case "left": newX = x + stepBack; break;
-                        case "top": newY = y + stepBack; break;
-                        case "bottom": newY = y - stepBack; break;
-                    }
-
-                    CursorHelper.SetPosition(newX, newY);
-                    Detector?.NotifySwitchedOut(edge, newX, newY);
-                    AppLogger.Log("Lunifier", $"Repositioned cursor {stepBack}px inward to ({newX}, {newY}) to prevent border bounceback");
-                }
-                else
-                {
-                    AppLogger.Log("Lunifier", "Hardware switch did not confirm any device; return guard not armed.");
                 }
             });
         }

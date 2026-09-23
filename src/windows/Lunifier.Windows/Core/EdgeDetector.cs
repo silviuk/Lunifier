@@ -258,7 +258,7 @@ namespace Lunifier.Windows.Core
                             var (lx, ly) = _lastKnownCursorPos.Value;
                             var dx = x - lx;
                             var dy = y - ly;
-                            if ((dx * dx + dy * dy) > 225) // Movement > 15 pixels
+                            if ((dx * dx + dy * dy) > 2500) // Deliberate movement > 50 pixels
                             {
                                 AppLogger.Log("EdgeDetector", $"Physical mouse movement detected on host ({lx}, {ly}) -> ({x}, {y})");
                                 NotifySwitchedIn(_switchedOutEdge);

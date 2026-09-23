@@ -1,6 +1,6 @@
 ; Inno Setup Script for Lunifier 2.1 Native
 #define MyAppName "Lunifier"
-#define MyAppVersion "2.1.5"
+#define MyAppVersion "2.1.6"
 #define MyAppPublisher "silviuk"
 #define MyAppURL "https://github.com/silviuk/Lunifier"
 #define MyAppExeName "Lunifier.exe"
@@ -47,7 +47,7 @@ Source: "..\dist\windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--daemon"; Tasks: startupicon
+Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--minimized"; Tasks: startupicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

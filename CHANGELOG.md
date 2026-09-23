@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.6] - 2026-09-23
+
+### Fixed & Improved
+- **Bluetooth Device Detection & Switching (Windows)**:
+  - Fixed Bluetooth Logitech device enumeration by opening endpoints with query access (`0`) instead of exclusive read/write access, bypassing Windows `hidbth.sys` / `mouhid.sys` sharing violations.
+  - Added support for Bluetooth Low Energy GATT HID paths (`{00001812-...}`) and device PID name mapping (e.g. M720 Triathlon, MX Master 3/3S, MX Keys/Mini, K380, K780, Craft, Lift).
+  - Enhanced device endpoint selection to prioritize vendor TLCs (`UsagePage 0xFF43`) and collections with long output report capabilities.
+  - Implemented multi-tiered Win32 write fallback (`Overlapped WriteFile` -> synchronous `WriteFile` -> `HidD_SetOutputReport` -> `HidD_SetFeature`) and 20ms connection-interval repeat bursts for reliable host switching over Bluetooth.
+- **Edge Detector Border Bounceback Loop Prevention**:
+  - Immediately repositioned cursor inward (160px) and armed the return guard upon screen border trigger, ensuring the cursor is never left pinned at the border edge even if hardware switching takes longer.
+  - Increased physical mouse return detection threshold to 50px to eliminate false-trigger loops caused by optical sensor jitter or tiny hand twitches.
+- **Unifying Receiver Keyboard Switching Reliability**:
+  - Replaced concurrent parallel packet transmission to the same receiver with serialized device switching and a 30ms inter-device pause.
+  - Added Short Report (`0x10`) switching fallback on `col01` and duplicate Long Report wake bursts to ensure battery-saving wireless keyboards reliably switch alongside the mouse.
+- **Start Minimized at Boot**:
+  - Added `--minimized` command-line argument support to start Lunifier cleanly in the Windows system tray without popping up the main window at boot time.
+  - Updated autostart registry configuration and Inno Setup installer tasks to pass `--minimized`.
+
+---
+
 ## [2.1.5] - 2026-09-23
 
 ### Fixed & Improved
