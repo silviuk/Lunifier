@@ -9,26 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.6] - 2026-09-23
 
-### Fixed & Improved
-- **Bluetooth Device Detection & Switching (Windows)**:
-  - Fixed Bluetooth Logitech device enumeration by opening endpoints with query access (`0`) instead of exclusive read/write access, bypassing Windows `hidbth.sys` / `mouhid.sys` sharing violations.
-  - Added support for Bluetooth Low Energy GATT HID paths (`{00001812-...}`) and device PID name mapping (e.g. M720 Triathlon, MX Master 3/3S, MX Keys/Mini, K380, K780, Craft, Lift).
-  - Enhanced device endpoint selection to prioritize vendor TLCs (`UsagePage 0xFF43`) and collections with long output report capabilities.
-  - Implemented multi-tiered Win32 write fallback (`Overlapped WriteFile` -> synchronous `WriteFile` -> `HidD_SetOutputReport` -> `HidD_SetFeature`) and 20ms connection-interval repeat bursts for reliable host switching over Bluetooth.
+### Fixed & Improved (Windows & Linux)
+
+- **Bluetooth Low Energy & Direct Bluetooth Device Switching**:
+  - **Windows**: Fixed device enumeration by opening HID endpoints with query access (`0`) instead of exclusive read/write access, eliminating `ERROR_ACCESS_DENIED` and `ERROR_SHARING_VIOLATION` from Windows `hidbth.sys` / `mouhid.sys`. Added BLE GATT HOGP path recognition (`{00001812-...}`) and endpoint capability ranking. Implemented multi-tiered Win32 write fallback (`Overlapped WriteFile` -> synchronous `WriteFile` -> `HidD_SetOutputReport` -> `HidD_SetFeature`) and 20ms connection-interval repeat bursts.
+  - **Linux**: Enhanced direct Bluetooth and `/dev/hidraw` device handling.
+  - **Both**: Added friendly device PID name mapping (M720 Triathlon, MX Master 3/3S, MX Keys/Mini, K380, K780, Craft, Lift, etc.).
+
 - **Edge Detector Border Bounceback Loop Prevention**:
-  - Immediately repositioned cursor inward (160px) and armed the return guard upon screen border trigger, ensuring the cursor is never left pinned at the border edge even if hardware switching takes longer.
-  - Increased physical mouse return detection threshold to 50px to eliminate false-trigger loops caused by optical sensor jitter or tiny hand twitches.
-- **Unifying Receiver Keyboard Switching Reliability**:
-  - Replaced concurrent parallel packet transmission to the same receiver with serialized device switching and a 30ms inter-device pause.
-  - Added Short Report (`0x10`) switching fallback on `col01` and duplicate Long Report wake bursts to ensure battery-saving wireless keyboards reliably switch alongside the mouse.
-- **Linux Native GTK4/Libadwaita v2.1.6 Parity**:
-  - Reorganized window layout: renamed "Connected Devices" tab to **"Advanced"**, moved "Edge Trigger Sensitivity" and "Hardware & Backend Options" to "Advanced", and added a dedicated "Save" button to the top header bar.
-  - Implemented visual orange screen border indicator (`#FF5722`, 6px thickness) with 1.5-second auto-hide timer when adjusting active zone percentage or monitor border settings.
-  - Applied immediate inward cursor stepping (160px) and return guard arming prior to async hardware switching, preventing border bounceback loops.
-  - Increased physical mouse movement return threshold from 15px to 50px ($dx^2 + dy^2 > 2500$).
-  - Added serialized device switching (30ms delay) and wake bursts for multi-device Unifying/Bolt receivers.
-  - Added `--minimized` argument support and updated `~/.config/autostart/lunifier.desktop` to launch minimized on login.
-  - Updated Linux packaging metadata in `pyproject.toml`, `lunifier/__init__.py`, and About dialog from 2.1.3 to 2.1.6.
+  - **Both**: Repositioned cursor immediately 160px inward and armed the return guard upon screen border trigger before asynchronous hardware switching completes, preventing cursor pinning at borders while hardware responds.
+  - **Both**: Increased physical mouse movement detection threshold from 15px to 50px ($dx^2 + dy^2 > 2500$) to prevent optical sensor jitter or tiny hand tremors from triggering false switch loops.
+
+- **Unifying & Bolt Receiver Keyboard Switching Reliability**:
+  - **Both**: Replaced parallel transmission to devices on the same USB dongle with serialized switching (30ms spacing) to eliminate 2.4GHz RF packet collisions.
+  - **Both**: Added dual-report wake bursts (both Long Report `0x11` and Short Report `0x10`) to wake sleeping battery-saving keyboards so they reliably switch simultaneously with the mouse.
+
+- **Start Minimized at Boot / Login**:
+  - **Windows**: Added `--minimized` command-line switch support to start Lunifier cleanly in the system tray without showing the main window. Updated autostart registry configuration and Inno Setup installer tasks.
+  - **Linux**: Added `--minimized` and `--daemon` argument handling in launcher, and updated `~/.config/autostart/lunifier.desktop` to launch minimized on desktop login.
+
+- **Modern Native UI & Layout Synchronization**:
+  - **Both**: Renamed "Connected Devices" tab to **"Advanced"**, and relocated "Edge Trigger Sensitivity" and "Hardware & Logging Options" into "Advanced" with smooth scrolling.
+  - **Both**: Relocated "Save Configuration" / "Save" button to the top header row alongside the service status badge and toggle button.
+  - **Both**: Multi-monitor visual screen border indicator displays live orange overlays (`#FF5722`, 6px thickness) with a 1.5-second auto-hide timer whenever adjusting the active zone percentage, changing border edge assignments, selecting a monitor, or saving configuration (WPF canvas overlay on Windows, X11 `override_redirect` windows on Linux).
+
+- **Package Version Parity & Build Artifacts**:
+  - Bumped version across all Windows (`Lunifier.Windows.csproj`, `AppxManifest.xml`, `installer.iss`) and Linux (`pyproject.toml`, `lunifier/__init__.py`, About window) project files to 2.1.6.
+  - Rebuilt and verified all distribution packages: `.exe` installer, `.zip` portable, `.msix` package, `.deb` package, and `.tar.gz` portable tarball.
 
 ---
 
