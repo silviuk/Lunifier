@@ -465,16 +465,16 @@ namespace Lunifier.Windows
             {
                 if (isRunning)
                 {
-                    StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1B5E20"));
+                    StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16A34A"));
                     StatusText.Text = "RUNNING";
-                    StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#81C784"));
+                    StatusText.Foreground = System.Windows.Media.Brushes.White;
                     ToggleServiceBtn.Content = "Stop Service";
                 }
                 else
                 {
-                    StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3E2723"));
+                    StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
                     StatusText.Text = "STOPPED";
-                    StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF5350"));
+                    StatusText.Foreground = System.Windows.Media.Brushes.White;
                     ToggleServiceBtn.Content = "Start Service";
                 }
             });
@@ -484,7 +484,8 @@ namespace Lunifier.Windows
         {
             SaveConfigInternal();
             _service.ReloadConfig(_config);
-            SaveStatusText.Text = "✓ Configuration saved";
+            SaveStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#4ADE80" : "#15803D"));
+            SaveStatusText.Text = "✓ Saved";
             var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
             timer.Tick += (s, ev) =>
             {
@@ -620,7 +621,7 @@ namespace Lunifier.Windows
                 {
                     ToggleAdvBtn.Content = "Stop Advertising";
                     AdvStatusText.Text = $"Advertising ({remainingSeconds}s remaining)...";
-                    AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#81C784"));
+                    AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#4ADE80" : "#15803D"));
                 }
                 else
                 {
@@ -712,7 +713,7 @@ namespace Lunifier.Windows
                         {
                             Content = "Pair & Connect",
                             Width = 120,
-                            Height = 28,
+                            Height = 32,
                             Margin = new Thickness(8, 0, 0, 0),
                             Tag = p
                         };
@@ -758,13 +759,13 @@ namespace Lunifier.Windows
 
                         btn.Content = "✓ Paired";
                         BtScanStatusText.Text = $"✓ Paired with {peer.Name} ({peer.MacAddress}) on port {peer.Port}. Link active!";
-                        BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4ADE80"));
+                        BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#4ADE80" : "#15803D"));
                     }
                     else
                     {
                         btn.Content = "Failed";
                         BtScanStatusText.Text = $"Pairing with {peer.MacAddress} failed: {reason}. Ensure advertising is active.";
-                        BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+                        BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#F87171" : "#DC2626"));
                     }
                 }
                 catch (Exception ex)
@@ -772,7 +773,7 @@ namespace Lunifier.Windows
                     AppLogger.Log("GUI", $"Pairing exception: {ex.Message}");
                     btn.Content = "Error";
                     BtScanStatusText.Text = $"Pairing error: {ex.Message}";
-                    BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+                    BtScanStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#F87171" : "#DC2626"));
                 }
                 finally
                 {

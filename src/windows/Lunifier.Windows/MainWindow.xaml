@@ -28,10 +28,12 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border x:Name="StatusBadge" Background="#3E2723" CornerRadius="4" Padding="12,6" Margin="0,0,10,0">
-                        <TextBlock x:Name="StatusText" Text="STOPPED" FontWeight="Bold" FontSize="11" Foreground="#EF5350" />
+                    <TextBlock x:Name="SaveStatusText" Text="" Foreground="#16A34A" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Border x:Name="StatusBadge" Width="130" Height="32" Background="#DC2626" CornerRadius="4" Margin="0,0,10,0">
+                        <TextBlock x:Name="StatusText" Text="STOPPED" FontWeight="Bold" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
                     </Border>
-                    <Button x:Name="ToggleServiceBtn" Content="Start Service" Width="130" Height="32" Click="ToggleServiceBtn_Click" />
+                    <Button x:Name="ToggleServiceBtn" Content="Start Service" Width="130" Height="32" Margin="0,0,10,0" Click="ToggleServiceBtn_Click" />
+                    <Button x:Name="SaveConfigBtn" Content="Save Configuration" Width="140" Height="32" Click="SaveConfig_Click" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -117,6 +119,35 @@
                                     <TextBlock Text="Bottom Border:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                                     <ComboBox x:Name="BottomBorderCombo" Grid.Column="1" SelectionChanged="BorderCombo_SelectionChanged" />
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Advanced Tab -->
+            <TabItem Header="  Advanced  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <!-- Connected Logitech Devices Card -->
+                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Connected Logitech Devices" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SectionHeader}" Margin="0,0,0,10" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Button x:Name="RefreshDevicesBtn" Content="Refresh Devices" Width="130" Height="32" Margin="0,0,10,0" Click="RefreshDevicesBtn_Click" />
+                                    <TextBlock x:Name="DevicesCountText" Text="Scanning devices..." VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
+                                </StackPanel>
+
+                                <Border Background="{DynamicResource SubtleBackground}" CornerRadius="6" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" Padding="10" MinHeight="110">
+                                    <ListBox x:Name="DevicesList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimary}" />
+                                </Border>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Manual Test Switch:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,10,0" />
+                                    <Button Content="To Channel 1" Width="100" Height="32" Margin="0,0,8,0" Click="TestSwitch1_Click" />
+                                    <Button Content="To Channel 2" Width="100" Height="32" Margin="0,0,8,0" Click="TestSwitch2_Click" />
+                                    <Button Content="To Channel 3" Width="100" Height="32" Click="TestSwitch3_Click" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -209,33 +240,6 @@
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
-            </TabItem>
-
-            <!-- Connected Devices Tab -->
-            <TabItem Header="  Connected Devices  ">
-                <Grid Margin="0,10,0,0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button x:Name="RefreshDevicesBtn" Content="Refresh Devices" Width="130" Height="32" Margin="0,0,10,0" Click="RefreshDevicesBtn_Click" />
-                        <TextBlock x:Name="DevicesCountText" Text="Scanning devices..." VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
-                    </StackPanel>
-
-                    <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" Padding="10">
-                        <ListBox x:Name="DevicesList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimary}" />
-                    </Border>
-
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
-                        <TextBlock Text="Manual Test Switch:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,10,0" />
-                        <Button Content="To Channel 1" Width="100" Height="32" Margin="0,0,8,0" Click="TestSwitch1_Click" />
-                        <Button Content="To Channel 2" Width="100" Height="32" Margin="0,0,8,0" Click="TestSwitch2_Click" />
-                        <Button Content="To Channel 3" Width="100" Height="32" Click="TestSwitch3_Click" />
-                    </StackPanel>
-                </Grid>
             </TabItem>
 
             <!-- Bluetooth Inter-Host Link Tab -->
@@ -359,7 +363,7 @@
                         <StackPanel HorizontalAlignment="Center" MaxWidth="560">
                             <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
                             <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
-                            <TextBlock Text="Version 2.1.4 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
+                            <TextBlock Text="Version 2.1.5 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
 
                             <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
 
@@ -386,11 +390,8 @@
         <!-- Footer -->
         <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
             <Grid>
-                <TextBlock Text="Lunifier 2.1.4 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <TextBlock x:Name="SaveStatusText" Text="" Foreground="#22C55E" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <Button Content="Save Configuration" Width="140" Height="32" Click="SaveConfig_Click" />
-                </StackPanel>
+                <TextBlock Text="Lunifier 2.1.5 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+                <TextBlock Text="Logitech Easy-Switch Screen Flow  •  Zero Network Bluetooth" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
             </Grid>
         </Border>
     </Grid>

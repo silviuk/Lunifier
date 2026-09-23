@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.5] - 2026-09-23
+
+### Fixed & Improved
+- **Light & Dark Mode Contrast & Legibility**:
+  - Eliminated dark text on blue accent buttons in Light mode by enforcing pure white text in button control templates.
+  - Upgraded status badges (RUNNING / STOPPED) to high-contrast solid color-coded pills (`#16A34A` vibrant green / `#DC2626` crimson red) with bold white centered text.
+  - Replaced low-contrast light green/red status labels with dynamic theme-aware high-contrast colors (`#15803D` / `#DC2626` in light mode, `#4ADE80` / `#F87171` in dark mode).
+- **Uniform Button & Status Badge Alignment**:
+  - Centered all button text horizontally and vertically across the application.
+  - Aligned running status badge and start/stop service button with identical dimensions (130x32px), matching corner radius (4px), and centered typography.
+- **Tab Layout Reorganization**:
+  - Renamed "Connected Devices" tab to **"Advanced"** and wrapped contents in a smooth scroll viewer.
+  - Relocated "Edge Trigger Sensitivity" and "Hardware & Logging Options" cards from "Screen & Switching" into the "Advanced" tab, keeping "Screen & Switching" focused exclusively on Host Identity and Display/Border configuration.
+  - Relocated "Save Configuration" button to the top header row alongside the service status badge and toggle button, removing the redundant footer button.
+
+---
+
 ## [2.1.4] - 2026-09-22
 
 ### Fixed
