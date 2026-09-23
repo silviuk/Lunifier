@@ -22,6 +22,12 @@
 - **`--minimized` Flag Support**: Added `--minimized` and `--daemon` command-line switches to start Lunifier silently in the system tray without showing the main window.
 - **Autostart & Installer Updates**: Automatically configures the Windows autostart registry entry and installer startup task with `--minimized`.
 
+### 5. Linux Native Libadwaita UI Parity & Visual Border Overlay
+- **Advanced Tab Reorganization**: Synchronized layout with Windows v2.1.6—renamed "Connected Devices" to **"Advanced"**, moved "Edge Trigger Sensitivity" and "Hardware & Backend Options" into "Advanced", and added a dedicated "Save" button to the top header bar.
+- **Visual Screen Border Indicator**: Implemented live orange border overlays (`#FF5722`, 6px thickness) with a 1.5-second auto-hide timer using non-blocking X11 `override_redirect` windows whenever adjusting the active zone percentage or monitor border edges.
+- **Edge Loop Guard & Serialized Switching**: Stepped cursor 160px inward and armed return guard immediately on border trigger; serialized multi-device receiver switching with 30ms spacing; bumped return threshold to 50px.
+- **Fixed Package Version**: Corrected Linux package metadata across `pyproject.toml`, `lunifier/__init__.py`, and About window to 2.1.6.
+
 ---
 
 ## Artifact Checksums (SHA-256)
@@ -31,5 +37,6 @@
 | `Lunifier-Setup-2.1.6.exe` | Windows Inno Setup Installer | `61A57DD0371912EC2C8000CFAE7AD7494A1C773C7AEB1B9BB667D95BB7BA3F09` |
 | `Lunifier-Windows-2.1.6.zip` | Windows Portable x64 | `44192E35CD7422392569E4AE7D3DBEC6F758C1F99E0B08B3C01036067A5F9C19` |
 | `Lunifier-2.1.6.0.msix` | Windows Store / Enterprise MSIX | `31F96BC67A350DD757D990093EDFBBE863FE9BEEC4B003AC9DEC5EEC2D2DA731` |
-| `lunifier_2.1.6_all.deb` | Debian / Ubuntu Package | `828417DB7F1A6FDD434333110A49790AB8AFD55F576E6131BA0A8A59212B92AB` |
-| `Lunifier-Linux-2.1.6.tar.gz` | Linux Portable Tarball | `319A0E67E1DCCE3D4365FD13524FD245033255040032B83ACE30A9908F72B12B` |
+| `lunifier_2.1.6_all.deb` | Debian / Ubuntu Package | `EAF5BCD04989077C5D621BCC8DEABCEDC58E1A302DD2B61350C785AF03A6465E` |
+| `Lunifier-Linux-2.1.6.tar.gz` | Linux Portable Tarball | `F3B138796711B62215E2EA9CA0139AA03E3CE9192D2E8710FAFAD900BFC7E03C` |
+
