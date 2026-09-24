@@ -71,13 +71,19 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.service_btn.connect("clicked", self._toggle_service)
         header.pack_end(self.service_btn)
 
-        # View Switcher & Stack
+        # View Switcher & Stack (one level lower, cleanly visible and spaced out)
         self.stack = Adw.ViewStack()
-        
-        # View switcher bar at top (or in header bar)
+        self.stack.set_vexpand(True)
+        self.stack.set_hexpand(True)
+
+        switcher_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        switcher_box.set_halign(Gtk.Align.CENTER)
+        switcher_box.set_margin_top(6)
+        switcher_box.set_margin_bottom(6)
         switcher = Adw.ViewSwitcher(stack=self.stack)
         switcher.set_policy(Adw.ViewSwitcherPolicy.WIDE)
-        header.set_title_widget(switcher)
+        switcher_box.append(switcher)
+        main_box.append(switcher_box)
 
         main_box.append(self.stack)
 
@@ -265,6 +271,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.log_level_row.set_model(log_model)
         ll_idx = 0 if self.config.log_level == "normal" else (1 if self.config.log_level == "debug" else 2)
         self.log_level_row.set_selected(ll_idx)
+        self.log_level_row.connect("notify::selected", self._on_advanced_log_level_changed)
         grp_hw.add(self.log_level_row)
 
     def _build_bluetooth_page(self):
@@ -369,34 +376,81 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp_conn.add(self.sync_clipboard_row)
 
     def _build_logs_page(self):
-        page = Adw.PreferencesPage()
-        self.stack.add_titled(page, "logs", "Live Logs")
-        self.stack.get_page(page).set_icon_name("text-x-generic-symbolic")
+        page_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        page_box.set_margin_top(12)
+        page_box.set_margin_bottom(12)
+        page_box.set_margin_start(16)
+        page_box.set_margin_end(16)
+        page_box.set_vexpand(True)
+        page_box.set_hexpand(True)
 
-        grp = Adw.PreferencesGroup(title="System & Switch Events")
-        page.add(grp)
+        self.stack.add_titled(page_box, "logs", "Live Logs")
+        self.stack.get_page(page_box).set_icon_name("text-x-generic-symbolic")
 
-        actions_row = Adw.ActionRow(title="Log Controls")
+        # Top controls bar: Log level dropdown and Clear logs button
+        controls_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        controls_bar.set_valign(Gtk.Align.CENTER)
+
+        lbl_level = Gtk.Label(label="Logging Level:")
+        lbl_level.add_css_class("heading")
+        controls_bar.append(lbl_level)
+
+        log_level_strings = ["Normal (Standard logs)", "Debug (Verbose diagnostics)", "None (Logging disabled)"]
+        self.logs_level_dropdown = Gtk.DropDown.new_from_strings(log_level_strings)
+        ll_idx = 0 if self.config.log_level == "normal" else (1 if self.config.log_level == "debug" else 2)
+        self.logs_level_dropdown.set_selected(ll_idx)
+        self.logs_level_dropdown.connect("notify::selected", self._on_logs_level_changed)
+        controls_bar.append(self.logs_level_dropdown)
+
+        # Spacer to push clear button to the right
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        controls_bar.append(spacer)
+
         btn_clear = Gtk.Button(label="Clear Logs")
         btn_clear.connect("clicked", lambda b: self.log_buffer.set_text(""))
-        actions_row.add_suffix(btn_clear)
-        grp.add(actions_row)
+        controls_bar.append(btn_clear)
 
-        # Scrolled text view for logs
+        page_box.append(controls_bar)
+
+        # Scrolled text view for logs - scales to fill all remaining window space
         scrolled = Gtk.ScrolledWindow()
-        scrolled.set_min_content_height(400)
         scrolled.set_hexpand(True)
         scrolled.set_vexpand(True)
+        scrolled.add_css_class("card")
 
         self.log_view = Gtk.TextView()
         self.log_view.set_editable(False)
         self.log_view.set_monospace(True)
+        self.log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.log_view.set_top_margin(10)
+        self.log_view.set_bottom_margin(10)
+        self.log_view.set_left_margin(12)
+        self.log_view.set_right_margin(12)
         self.log_buffer = self.log_view.get_buffer()
         scrolled.set_child(self.log_view)
 
-        log_row = Adw.ActionRow()
-        log_row.set_child(scrolled)
-        grp.add(log_row)
+        page_box.append(scrolled)
+
+    def _on_logs_level_changed(self, dropdown, pspec):
+        if getattr(self, "_is_loading_config", False):
+            return
+        sel = dropdown.get_selected()
+        lvl = "normal" if sel == 0 else ("debug" if sel == 1 else "none")
+        self.config.log_level = lvl
+        set_log_level(lvl)
+        if hasattr(self, "log_level_row") and self.log_level_row.get_selected() != sel:
+            self.log_level_row.set_selected(sel)
+
+    def _on_advanced_log_level_changed(self, row, pspec):
+        if getattr(self, "_is_loading_config", False):
+            return
+        sel = row.get_selected()
+        lvl = "normal" if sel == 0 else ("debug" if sel == 1 else "none")
+        self.config.log_level = lvl
+        set_log_level(lvl)
+        if hasattr(self, "logs_level_dropdown") and self.logs_level_dropdown.get_selected() != sel:
+            self.logs_level_dropdown.set_selected(sel)
 
     def _build_about_page(self):
         page = Adw.PreferencesPage()

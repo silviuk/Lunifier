@@ -246,11 +246,12 @@ namespace Lunifier.Windows.Core
             0x4086 => "Logitech ERGO K860 Keyboard",
             0x4088 => "Logitech MX Master 3",
             0x408A => "Logitech MX Keys Keyboard",
+            0x408D => "Logitech MX Anywhere 3",
             0x408F => "Logitech POP Keys",
             0x4090 => "Logitech POP Mouse",
-            0x4092 => "Logitech MX Master 3S",
-            0x4094 => "Logitech Lift Vertical Mouse",
-            0x4095 => "Logitech MX Keys Mini",
+            0x4091 or 0x4095 => "Logitech MX Keys Mini",
+            0x4092 or 0x4094 => "Logitech Lift Vertical Mouse",
+            0x4093 => "Logitech MX Master 3S",
             _ => $"Logitech Device (PID 0x{pid:X4})"
         };
 
@@ -545,6 +546,10 @@ namespace Lunifier.Windows.Core
 
                     if (found.Count == 0 && cachedForReceiver.Count == 0)
                     {
+                        var allPaths = new List<string> { longPath };
+                        if (!string.IsNullOrEmpty(shortPath) && !allPaths.Contains(shortPath))
+                            allPaths.Add(shortPath);
+
                         // Synthesize paired slot 1 (Keyboard) and slot 3 (Mouse)
                         var devKeyboard = new LogitechDevice
                         {
@@ -556,7 +561,8 @@ namespace Lunifier.Windows.Core
                             Vid = LogitechVid,
                             Pid = pid,
                             ChangeHostFeatureIndex = 0x09,
-                            AllPaths = new List<string> { longPath }
+                            FeatureResolved = false,
+                            AllPaths = new List<string>(allPaths)
                         };
                         var devMouse = new LogitechDevice
                         {
@@ -568,7 +574,8 @@ namespace Lunifier.Windows.Core
                             Vid = LogitechVid,
                             Pid = pid,
                             ChangeHostFeatureIndex = 0x09,
-                            AllPaths = new List<string> { longPath }
+                            FeatureResolved = false,
+                            AllPaths = new List<string>(allPaths)
                         };
                         if (seenNames.Add(devKeyboard.Name)) found.Add(devKeyboard);
                         if (seenNames.Add(devMouse.Name)) found.Add(devMouse);
@@ -620,19 +627,22 @@ namespace Lunifier.Windows.Core
 
                 // Receiver endpoint classification
                 bool isReceiverPid = AllReceiverPids.Contains(attrs.ProductID);
-                bool isReceiverEndpoint = isReceiverPid || (caps.UsagePage == 0xFF00 && !pLower.Contains("1812") && !pLower.Contains("bth") && !pLower.Contains("bluetooth"));
+                bool isHidppPage = caps.UsagePage == 0xFF00 || caps.UsagePage == 0xFF43;
 
-                if (isReceiverEndpoint)
+                if (isReceiverPid)
                 {
-                    if ((caps.UsagePage == 0xFF00 && caps.Usage == 0x0001) || pLower.Contains("col01"))
+                    if (isHidppPage)
                     {
-                        receiversCol01[attrs.ProductID] = path;
+                        if (caps.Usage == 0x0001 || caps.OutputReportByteLength == 7 || pLower.Contains("col01"))
+                        {
+                            receiversCol01[attrs.ProductID] = path;
+                        }
+                        else if (caps.Usage == 0x0002 || caps.OutputReportByteLength == 20 || (pLower.Contains("col02") && !pLower.Contains("col03")))
+                        {
+                            receiversCol02[attrs.ProductID] = path;
+                        }
                     }
-                    else if ((caps.UsagePage == 0xFF00 && caps.Usage == 0x0002) || pLower.Contains("col02"))
-                    {
-                        receiversCol02[attrs.ProductID] = path;
-                    }
-                    return;
+                    return; // Never let standard keyboard/mouse collections of a receiver become bluetooth candidates
                 }
 
                 // Direct Bluetooth / USB endpoint classification
@@ -670,14 +680,24 @@ namespace Lunifier.Windows.Core
 
                 if (handle.IsInvalid) return results;
 
+                using var shortHandle = !string.IsNullOrEmpty(shortPath)
+                    ? CreateFile(shortPath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, IntPtr.Zero)
+                    : null;
+
                 var hReadEvent = CreateEvent(IntPtr.Zero, true, false, null);
                 if (hReadEvent == IntPtr.Zero) return results;
 
                 var pReadOverlapped = Marshal.AllocHGlobal(Marshal.SizeOf<OVERLAPPED>());
                 try
                 {
+                    var allPaths = new List<string> { longPath };
+                    if (!string.IsNullOrEmpty(shortPath) && !allPaths.Contains(shortPath))
+                        allPaths.Add(shortPath);
+
                     // 1. Query receiver NVRAM pairing table (instant internal memory, no RF timeout)
                     var pairedSlots = new Dictionary<byte, (byte Type, ushort Wpid)>();
+                    var nvramWriteHandle = (shortHandle != null && !shortHandle.IsInvalid) ? shortHandle : handle;
+
                     for (byte slot = 0; slot < 6; slot++)
                     {
                         var req = new byte[7];
@@ -688,13 +708,13 @@ namespace Lunifier.Windows.Core
                         req[4] = (byte)(0x20 | slot);
                         req[5] = 0x00;
                         req[6] = 0x00;
-                        OverlappedWrite(handle, req);
-                        var rresp = OverlappedRead(handle, hReadEvent, pReadOverlapped, 30);
-                        if (rresp != null && rresp.Length >= 8 && rresp[0] == 0x11 && rresp[1] == 0xFF && rresp[2] == 0x83 && rresp[3] == 0xB5)
+                        OverlappedWrite(nvramWriteHandle, req);
+                        var rresp = OverlappedRead(handle, hReadEvent, pReadOverlapped, 40);
+                        if (rresp != null && rresp.Length >= 12 && rresp[0] == 0x11 && rresp[1] == 0xFF && rresp[2] == 0x83 && rresp[3] == 0xB5)
                         {
-                            byte devType = rresp[7];
-                            ushort wpid = (ushort)((rresp[5] << 8) | rresp[6]);
-                            if (devType != 0 || wpid != 0)
+                            ushort wpid = (ushort)((rresp[7] << 8) | rresp[8]);
+                            byte devType = rresp[11];
+                            if (wpid != 0)
                             {
                                 pairedSlots[(byte)(slot + 1)] = (devType, wpid);
                             }
@@ -769,7 +789,7 @@ namespace Lunifier.Windows.Core
                                 Pid = pid,
                                 ChangeHostFeatureIndex = chFeat,
                                 FeatureResolved = resolved,
-                                AllPaths = new List<string> { longPath }
+                                AllPaths = new List<string>(allPaths)
                             };
 
                             results.Add(dev);
@@ -805,7 +825,7 @@ namespace Lunifier.Windows.Core
                                 Pid = pid,
                                 ChangeHostFeatureIndex = chFeat,
                                 FeatureResolved = false,
-                                AllPaths = new List<string> { longPath }
+                                AllPaths = new List<string>(allPaths)
                             };
 
                             results.Add(dev);
@@ -861,6 +881,10 @@ namespace Lunifier.Windows.Core
             {
                 if (!pathsToTry.Contains(p)) pathsToTry.Add(p);
             }
+            if (!string.IsNullOrEmpty(dev.ShortPath) && !pathsToTry.Contains(dev.ShortPath))
+            {
+                pathsToTry.Add(dev.ShortPath);
+            }
 
             var featureIndices = new List<byte> { dev.ChangeHostFeatureIndex };
             if (!dev.FeatureResolved)
@@ -879,62 +903,57 @@ namespace Lunifier.Windows.Core
                     if (handle.IsInvalid) continue;
 
                     bool ok = false;
-                    foreach (var featIdx in featureIndices)
-                    {
-                        var packet = new byte[20];
-                        packet[0] = 0x11;
-                        packet[1] = dev.DeviceIndex;
-                        packet[2] = featIdx;
-                        packet[3] = 0x10;          // Function 1: set_current_host
-                        packet[4] = channelIndex;
+                    bool isShortEndpoint = devPath.ToLowerInvariant().Contains("col01");
 
-                        if (WriteHidReport(handle, packet))
-                        {
-                            ok = true;
-                            // For keyboards and Bluetooth devices, send follow-up bursts to wake sleeping RF transceivers
-                            bool isKeyboard = dev.Name.ToLowerInvariant().Contains("keyboard");
-                            if (isKeyboard || dev.Transport == TransportType.Bluetooth)
-                            {
-                                for (int burst = 0; burst < 2; burst++)
-                                {
-                                    Thread.Sleep(25);
-                                    WriteHidReport(handle, packet);
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    // Also transmit to short report endpoint if Unifying col01 is present
-                    if (dev.IsReceiver && !string.IsNullOrEmpty(dev.ShortPath))
+                    if (!isShortEndpoint)
                     {
-                        try
+                        foreach (var featIdx in featureIndices)
                         {
-                            using var shortHandle = OpenDeviceHandle(dev.ShortPath);
-                            if (!shortHandle.IsInvalid)
+                            var packet = new byte[20];
+                            packet[0] = 0x11;
+                            packet[1] = dev.DeviceIndex;
+                            packet[2] = featIdx;
+                            packet[3] = 0x10;          // Function 1: set_current_host
+                            packet[4] = channelIndex;
+
+                            if (WriteHidReport(handle, packet))
                             {
-                                foreach (var featIdx in featureIndices)
+                                ok = true;
+                                // For keyboards and Bluetooth devices, send follow-up bursts to wake sleeping RF transceivers
+                                bool isKeyboard = dev.Name.ToLowerInvariant().Contains("keyboard");
+                                if (isKeyboard || dev.Transport == TransportType.Bluetooth)
                                 {
-                                    var shortPacket = new byte[7];
-                                    shortPacket[0] = 0x10;
-                                    shortPacket[1] = dev.DeviceIndex;
-                                    shortPacket[2] = featIdx;
-                                    shortPacket[3] = 0x1E;
-                                    shortPacket[4] = channelIndex;
-                                    if (WriteHidReport(shortHandle, shortPacket))
+                                    for (int burst = 0; burst < 2; burst++)
                                     {
-                                        ok = true;
-                                        if (dev.Name.ToLowerInvariant().Contains("keyboard"))
-                                        {
-                                            Thread.Sleep(25);
-                                            WriteHidReport(shortHandle, shortPacket);
-                                        }
-                                        break;
+                                        Thread.Sleep(25);
+                                        WriteHidReport(handle, packet);
                                     }
                                 }
+                                break;
                             }
                         }
-                        catch { }
+                    }
+                    else
+                    {
+                        foreach (var featIdx in featureIndices)
+                        {
+                            var shortPacket = new byte[7];
+                            shortPacket[0] = 0x10;
+                            shortPacket[1] = dev.DeviceIndex;
+                            shortPacket[2] = featIdx;
+                            shortPacket[3] = 0x1E;
+                            shortPacket[4] = channelIndex;
+                            if (WriteHidReport(handle, shortPacket))
+                            {
+                                ok = true;
+                                if (dev.Name.ToLowerInvariant().Contains("keyboard"))
+                                {
+                                    Thread.Sleep(25);
+                                    WriteHidReport(handle, shortPacket);
+                                }
+                                break;
+                            }
+                        }
                     }
 
                     if (ok)

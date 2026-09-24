@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lunifier"
-version = "2.1.9"
+version = "2.2.0"
 description = "Seamless Logitech Easy-Switch Flow for Windows and Linux"
 readme = "README.md"
 requires-python = ">=3.10"

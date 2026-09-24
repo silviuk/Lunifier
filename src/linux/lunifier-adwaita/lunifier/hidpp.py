@@ -239,11 +239,16 @@ class HIDPPMaster:
                     path = dev_info.get('path', b'')
                     path_str = str(path).lower()
 
-                    if pid in ALL_RECEIVER_PIDS or up == USAGE_PAGE_RECEIVER:
-                        if (up == USAGE_PAGE_RECEIVER and u == 0x0001) or "col01" in path_str:
-                            receivers_col01[pid] = path
-                        elif (up == USAGE_PAGE_RECEIVER and u == 0x0002) or "col02" in path_str:
-                            receivers_col02[pid] = path
+                    is_receiver_pid = pid in ALL_RECEIVER_PIDS
+                    is_hidpp_page = up in (USAGE_PAGE_RECEIVER, USAGE_PAGE_BLUETOOTH)
+
+                    if is_receiver_pid:
+                        if is_hidpp_page:
+                            if u == 0x0001 or "col01" in path_str:
+                                receivers_col01[pid] = path
+                            elif u == 0x0002 or ("col02" in path_str and "col03" not in path_str):
+                                receivers_col02[pid] = path
+                        continue
 
                 # Query paired devices on receivers
                 for pid, long_path in receivers_col02.items():

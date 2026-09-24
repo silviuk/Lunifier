@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-09-24
+
+### Fixed & Improved (Windows & Linux)
+
+- **HID++ Receiver Endpoint Classification & Direct NVRAM Query (Top Priority - Fixed Windows Switching)**:
+  - Fixed a critical regression where receiver devices (Unifying, Bolt, Lightspeed) on Windows were incorrectly bound to OS-level mouse or consumer control collections (`mi_01&col01` and `mi_01&col02`) rather than dedicated HID++ endpoints (`mi_02&col02` and `mi_02&col01`), resulting in immediate Win32 Error 87 (`ERROR_INVALID_PARAMETER`) failures on host switch commands.
+  - Endpoint discovery now strictly validates `UsagePage == 0xFF00` or `0xFF43` and prevents generic mouse/keyboard interface collisions.
+  - Implemented instant hardware pairing discovery directly from receiver NVRAM memory via short report query (`0x10 0xFF 0x83 0xB5`), correctly parsing device WPIDs and device types (keyboards vs mice).
+  - Dynamically routes 20-byte HID++ 2.0 Change Host feature packets to long report endpoints (`col02`) and 7-byte reports to short endpoints (`col01`).
+  - Added extended WPID mappings for Logitech MX Keys Mini, Lift Vertical Mouse, MX Master 3S, and MX Anywhere 3.
+
+- **Linux UI Redesign: Centered Tab Bar & Clean Spacing**:
+  - Moved the `Adw.ViewSwitcher` tab navigation out of the congested header bar into a dedicated, centered horizontal container one level lower.
+  - Full tab titles ("Screen & Switching", "Advanced", "Bluetooth P2P Link", "Live Logs", "About") and icons are now cleanly spaced, completely visible, and never crowded by window buttons or header controls.
+
+- **Linux Live Logs Overhaul: In-Tab Log Level Selector & Full Window Scaling**:
+  - Added an integrated "Logging Level" dropdown selector directly within the Live Logs page controls bar, keeping diagnostics accessible without navigating to the Advanced tab.
+  - Changes to logging level in Live Logs and Advanced tabs are synchronized bidirectionally and applied immediately to the logging subsystem.
+  - Replaced the constrained preferences group layout with a dynamic `Gtk.Box` container, allowing the log viewer (`Gtk.ScrolledWindow` + `Gtk.TextView`) to automatically scale and expand to fill all remaining window space.
+
+---
+
 ## [2.1.9] - 2026-09-24
 
 ### Fixed & Improved (Windows & Linux)
