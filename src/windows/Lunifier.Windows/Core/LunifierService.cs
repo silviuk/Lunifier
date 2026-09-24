@@ -17,6 +17,9 @@ namespace Lunifier.Windows.Core
 
         public event Action<bool>? StateChanged;
 
+        private readonly object _switchGate = new();
+        private volatile bool _isSwitchingActive;
+
         public LunifierService(AppConfig? config = null)
         {
             Config = config ?? AppConfig.Load();
@@ -98,6 +101,14 @@ namespace Lunifier.Windows.Core
 
         private void OnEdgeTriggered(string edge, int x, int y, double ratio, string monitorId, int targetChannel)
         {
+            if (_isSwitchingActive)
+            {
+                AppLogger.LogDebug("Lunifier", "Switch already in progress; dropping duplicate edge trigger.");
+                return;
+            }
+
+            _isSwitchingActive = true;
+
             AppLogger.Log("Lunifier", $">>> SCREEN BORDER REACHED: '{edge.ToUpperInvariant()}' on Monitor {monitorId} at ({x}, {y}) (Ratio: {ratio:F2}) <<<");
 
             // Step cursor inward immediately and arm return guard to prevent border loop
@@ -120,21 +131,31 @@ namespace Lunifier.Windows.Core
 
             Task.Run(() =>
             {
-                var t0 = Stopwatch.GetTimestamp();
-                var results = Hidpp.SwitchAllToChannel(targetChannel, Config.Devices);
-                var elapsed = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
-
-                foreach (var (devName, success) in results)
+                try
                 {
-                    AppLogger.Log("Lunifier", $"Device '{devName}' -> Channel {targetChannel}: {(success ? "SUCCESS" : "FAILED")}");
+                    lock (_switchGate)
+                    {
+                        var t0 = Stopwatch.GetTimestamp();
+                        var results = Hidpp.SwitchAllToChannel(targetChannel, Config.Devices);
+                        var elapsed = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
+
+                        foreach (var (devName, success) in results)
+                        {
+                            AppLogger.Log("Lunifier", $"Device '{devName}' -> Channel {targetChannel}: {(success ? "SUCCESS" : "FAILED")}");
+                        }
+                        AppLogger.Log("Lunifier", $"Hardware switch sequence completed in {elapsed:F1}ms");
+
+                        // Async notify peer over Bluetooth
+                        if (BtPeer != null && BtPeer.IsConnected)
+                        {
+                            string? clip = Config.SyncClipboard ? ClipboardHelper.GetText() : null;
+                            BtPeer.NotifySwitchOut(edge, ratio, clip);
+                        }
+                    }
                 }
-                AppLogger.Log("Lunifier", $"Hardware switch sequence completed in {elapsed:F1}ms");
-
-                // Async notify peer over Bluetooth
-                if (BtPeer != null && BtPeer.IsConnected)
+                finally
                 {
-                    string? clip = Config.SyncClipboard ? ClipboardHelper.GetText() : null;
-                    BtPeer.NotifySwitchOut(edge, ratio, clip);
+                    _isSwitchingActive = false;
                 }
             });
         }

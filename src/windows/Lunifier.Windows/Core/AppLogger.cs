@@ -90,6 +90,18 @@ namespace Lunifier.Windows.Core
                     var dir = Path.GetDirectoryName(LogFilePath);
                     if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                         Directory.CreateDirectory(dir);
+
+                    if (File.Exists(LogFilePath))
+                    {
+                        var info = new FileInfo(LogFilePath);
+                        if (info.Length > 5 * 1024 * 1024)
+                        {
+                            var oldLog = LogFilePath + ".old";
+                            if (File.Exists(oldLog)) File.Delete(oldLog);
+                            File.Move(LogFilePath, oldLog);
+                        }
+                    }
+
                     File.AppendAllText(LogFilePath, formatted + Environment.NewLine);
                 }
                 catch { }

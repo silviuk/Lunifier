@@ -50,6 +50,7 @@ namespace Lunifier.Windows.Core
         private string? _switchedOutEdge;
         private (int X, int Y)? _lastKnownCursorPos;
         private double _returnGuardUntil;
+        private double _lastCooldownLogTime;
 
         private struct CursorHistoryItem
         {
@@ -309,8 +310,9 @@ namespace Lunifier.Windows.Core
                     if ((now - _lastTriggerTime) * 1000 < CooldownMs || now < _returnGuardUntil)
                     {
                         var trig = GetTriggeredEdgeInfo(x, y);
-                        if (trig.HasValue)
+                        if (trig.HasValue && (now - _lastCooldownLogTime) >= 0.5)
                         {
+                            _lastCooldownLogTime = now;
                             var remaining = Math.Max(0, (int)((Math.Max(_lastTriggerTime + CooldownMs / 1000.0, _returnGuardUntil) - now) * 1000));
                             AppLogger.LogDebug("EdgeDetector", $"Border '{trig.Value.Edge}' touched during cooldown ({remaining}ms remaining)");
                         }

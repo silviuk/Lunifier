@@ -648,6 +648,12 @@ namespace Lunifier.Windows
         {
             Dispatcher.InvokeAsync(() =>
             {
+                if (LogsBox.Text.Length > 40000)
+                {
+                    var text = LogsBox.Text;
+                    var cutIdx = text.IndexOf('\n', text.Length - 20000);
+                    LogsBox.Text = cutIdx >= 0 ? text.Substring(cutIdx + 1) : text.Substring(text.Length - 20000);
+                }
                 LogsBox.AppendText(logLine + "\n");
                 LogsBox.ScrollToEnd();
             });
