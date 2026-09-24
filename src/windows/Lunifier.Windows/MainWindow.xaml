@@ -39,7 +39,7 @@
         </Border>
 
         <!-- Tabs -->
-        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+        <TabControl x:Name="MainTabControl" Grid.Row="1" Background="Transparent" BorderThickness="0">
             <!-- Screen & Switching Tab -->
             <TabItem Header="  Screen &amp; Switching  ">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
@@ -244,7 +244,7 @@
             </TabItem>
 
             <!-- Bluetooth Inter-Host Link Tab -->
-            <TabItem Header="  Bluetooth Inter-Host Link  ">
+            <TabItem x:Name="BluetoothLinkTab" Header="  Bluetooth Inter-Host Link  ">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                     <StackPanel>
                         <!-- Timed Advertising Card -->

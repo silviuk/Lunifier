@@ -1,9 +1,19 @@
-; Inno Setup Script for Lunifier 2.1 Native
+; Inno Setup Script for Lunifier Native
+#ifndef MyAppName
 #define MyAppName "Lunifier"
+#endif
+#ifndef MyAppVersion
 #define MyAppVersion "2.2.0"
+#endif
 #define MyAppPublisher "silviuk"
 #define MyAppURL "https://github.com/silviuk/Lunifier"
 #define MyAppExeName "Lunifier.exe"
+#ifndef OutputBaseFilename
+#define OutputBaseFilename "Lunifier-Setup-" + MyAppVersion
+#endif
+#ifndef SourceDir
+#define SourceDir "..\dist\windows"
+#endif
 
 [Setup]
 AppId={{6B5A137D-D980-4D5E-A430-8C846FA6A512}
@@ -21,7 +31,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\LICENSE
 OutputDir=..\dist
-OutputBaseFilename=Lunifier-Setup-{#MyAppVersion}
+OutputBaseFilename={#OutputBaseFilename}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern dynamic
@@ -41,7 +51,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startupicon"; Description: "Start Lunifier automatically when Windows starts"; GroupDescription: "Windows Integration:"
 
 [Files]
-Source: "..\dist\windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

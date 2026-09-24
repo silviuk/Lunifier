@@ -20,6 +20,7 @@ from .app import LunifierApp
 from .bt_link import discover_advertising_lunifier_peers, get_local_bluetooth_mac
 from .overlay import BorderOverlayManager
 from .tray import LunifierTray
+from .features import NO_BTSYNC
 from . import __version__
 
 
@@ -27,6 +28,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.no_btsync = NO_BTSYNC
         self.config = AppConfig.load()
         self.app_service = LunifierApp(self.config)
         self.hidpp = self.app_service.hidpp
@@ -93,8 +95,9 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         # --- Tab 2: Advanced ---
         self._build_advanced_page()
 
-        # --- Tab 3: Bluetooth Inter-Host Link ---
-        self._build_bluetooth_page()
+        # --- Tab 3: Bluetooth Inter-Host Link (omitted in -nobtsync edition) ---
+        if not self.no_btsync:
+            self._build_bluetooth_page()
 
         # --- Tab 4: Live Logs ---
         self._build_logs_page()
@@ -130,7 +133,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp_host.add(self.start_minimized_row)
 
         # Group 2: Monitor Border Configuration
-        grp_monitors = Adw.PreferencesGroup(title="Display & Border Configuration", description="Configure borders per physical monitor")
+        grp_monitors = Adw.PreferencesGroup(title="Display &amp; Border Configuration", description="Configure borders per physical monitor")
         page.add(grp_monitors)
 
         self.monitor_combo_row = Adw.ComboRow(title="Selected Monitor")
@@ -249,7 +252,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp_sens.add(self.knock_timeout_row)
 
         # Group 3: Hardware & Backend
-        grp_hw = Adw.PreferencesGroup(title="Hardware & Backend Options")
+        grp_hw = Adw.PreferencesGroup(title="Hardware &amp; Backend Options")
         page.add(grp_hw)
 
         self.switch_backend_row = Adw.ComboRow(title="Switching Backend")
@@ -326,7 +329,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
         # 2. Peer Discovery & Pairing Group
         grp_disc = Adw.PreferencesGroup(
-            title="Host B: Find & Link Advertising Computer (Quick Pair)",
+            title="Host B: Find &amp; Link Advertising Computer (Quick Pair)",
             description="Step 2: On your OTHER computer, scan for Host A and connect. Both computers will automatically authenticate and enable the Peer Link below:"
         )
         page.add(grp_disc)
@@ -349,7 +352,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
         # 3. Connection Settings Group
         grp_conn = Adw.PreferencesGroup(
-            title="Peer Link Status & Settings (Zero Network Bluetooth)",
+            title="Peer Link Status &amp; Settings (Zero Network Bluetooth)",
             description="Underlying Bluetooth RFCOMM link state. Automatically configured and enabled by Quick Pair above, or you can manage it manually:"
         )
         page.add(grp_conn)
@@ -402,10 +405,24 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.logs_level_dropdown.connect("notify::selected", self._on_logs_level_changed)
         controls_bar.append(self.logs_level_dropdown)
 
-        # Spacer to push clear button to the right
+        # Spacer to push action buttons to the right
         spacer = Gtk.Box()
         spacer.set_hexpand(True)
         controls_bar.append(spacer)
+
+        def _on_copy_logs(btn):
+            start_iter = self.log_buffer.get_start_iter()
+            end_iter = self.log_buffer.get_end_iter()
+            txt = self.log_buffer.get_text(start_iter, end_iter, True)
+            if txt:
+                cb = Gdk.Display.get_default().get_clipboard()
+                cb.set(txt)
+                btn.set_label("Copied!")
+                GLib.timeout_add(1500, lambda: btn.set_label("Copy Logs") or False)
+
+        btn_copy = Gtk.Button(label="Copy Logs")
+        btn_copy.connect("clicked", _on_copy_logs)
+        controls_bar.append(btn_copy)
 
         btn_clear = Gtk.Button(label="Clear Logs")
         btn_clear.connect("clicked", lambda b: self.log_buffer.set_text(""))
@@ -427,6 +444,14 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.log_view.set_bottom_margin(10)
         self.log_view.set_left_margin(12)
         self.log_view.set_right_margin(12)
+
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"textview.log-view-small text { font-size: 8.5pt; font-family: monospace; }")
+        display = Gdk.Display.get_default()
+        if display:
+            Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.log_view.add_css_class("log-view-small")
+
         self.log_buffer = self.log_view.get_buffer()
         scrolled.set_child(self.log_view)
 
@@ -460,7 +485,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp = Adw.PreferencesGroup()
         page.add(grp)
 
-        row_about = Adw.ActionRow(title=f"Lunifier {__version__} Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        edition = " (No-BtSync Edition)" if self.no_btsync else ""
+        row_about = Adw.ActionRow(title=f"Lunifier {__version__}{edition} Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
         icon_img = Gtk.Image.new_from_icon_name("lunifier")
         icon_img.set_pixel_size(48)
         row_about.add_prefix(icon_img)
@@ -469,9 +495,14 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp_info = Adw.PreferencesGroup(title="Application Details")
         page.add(grp_info)
 
+        overview_sub = (
+            "Autonomous multi-monitor border switching for Logitech Easy-Switch keyboards and mice."
+            if self.no_btsync else
+            "Autonomous multi-monitor border switching for Logitech Easy-Switch keyboards and mice with zero-network Bluetooth P2P sync."
+        )
         row_desc = Adw.ActionRow(
             title="Overview",
-            subtitle="Autonomous multi-monitor border switching for Logitech Easy-Switch keyboards and mice with zero-network Bluetooth P2P sync."
+            subtitle=overview_sub
         )
         grp_info.add(row_desc)
 
@@ -614,11 +645,12 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         ll_sel = self.log_level_row.get_selected()
         self.config.log_level = "normal" if ll_sel == 0 else ("debug" if ll_sel == 1 else "none")
 
-        self.config.bt_p2p_enabled = self.bt_enabled_row.get_active()
-        self.config.bt_peer_address = self.bt_peer_mac_row.get_text().strip()
-        self.config.bt_rfcomm_port = int(self.bt_port_row.get_value())
-        self.config.sync_cursor_position = self.sync_cursor_row.get_active()
-        self.config.sync_clipboard = self.sync_clipboard_row.get_active()
+        if not self.no_btsync and hasattr(self, "bt_enabled_row"):
+            self.config.bt_p2p_enabled = self.bt_enabled_row.get_active()
+            self.config.bt_peer_address = self.bt_peer_mac_row.get_text().strip()
+            self.config.bt_rfcomm_port = int(self.bt_port_row.get_value())
+            self.config.sync_cursor_position = self.sync_cursor_row.get_active()
+            self.config.sync_clipboard = self.sync_clipboard_row.get_active()
 
         self.config.set_autostart(self.autostart_row.get_active())
         self.config.start_minimized = self.start_minimized_row.get_active()

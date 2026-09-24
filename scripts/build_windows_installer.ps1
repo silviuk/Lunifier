@@ -1,15 +1,19 @@
 param (
-    [string]$version = "2.2.0"
+    [string]$version = "2.2.0",
+    [switch]$NoBtSync
 )
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootDir = (Get-Item $scriptDir).Parent.FullName
 $distDir = Join-Path $rootDir "dist"
-$distWindowsDir = Join-Path $distDir "windows"
+$targetDirName = if ($NoBtSync) { "windows-nobtsync" } else { "windows" }
+$distWindowsDir = Join-Path $distDir $targetDirName
+$editionName = if ($NoBtSync) { "No-BtSync Edition" } else { "Standard Edition" }
+$fileSuffix = if ($NoBtSync) { "-nobtsync" } else { "" }
 
 Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "  Lunifier 2.0 Windows Installer & Package Builder" -ForegroundColor Cyan
+Write-Host "  Lunifier Windows Package Builder ($editionName)" -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 
 # 1. Build and Publish Native .NET 9 Binary
@@ -24,7 +28,11 @@ if (Test-Path $localDotnet) {
 }
 
 $csprojPath = Join-Path $rootDir "src\windows\Lunifier.Windows\Lunifier.Windows.csproj"
-& $dotnetExe publish -c Release $csprojPath -r win-x64 --self-contained false -p:PublishSingleFile=true -o $distWindowsDir
+$buildArgs = @("publish", "-c", "Release", $csprojPath, "-r", "win-x64", "--self-contained", "false", "-p:PublishSingleFile=true", "-o", $distWindowsDir)
+if ($NoBtSync) {
+    $buildArgs += "-p:DefineConstants=NO_BTSYNC"
+}
+& $dotnetExe @buildArgs
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] dotnet publish failed with exit code $LASTEXITCODE" -ForegroundColor Red
     exit 1
@@ -52,7 +60,8 @@ if (-not $isccExe) {
 }
 
 $issPath = Join-Path $scriptDir "installer.iss"
-& $isccExe $issPath
+$outBase = "Lunifier-Setup-$version$fileSuffix"
+& $isccExe "/DMyAppVersion=$version" "/DOutputBaseFilename=$outBase" "/DSourceDir=$distWindowsDir" $issPath
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Inno Setup compilation failed!" -ForegroundColor Red
     exit 1
@@ -60,20 +69,20 @@ if ($LASTEXITCODE -ne 0) {
 
 # 3. Create Portable ZIP
 Write-Host "[3/3] Creating Portable Windows ZIP..." -ForegroundColor Yellow
-$zipOutput = Join-Path $distDir "Lunifier-Windows-$version.zip"
+$zipOutput = Join-Path $distDir "Lunifier-Windows-$version$fileSuffix.zip"
 if (Test-Path $zipOutput) { Remove-Item $zipOutput -Force }
 Get-ChildItem -Path $distWindowsDir -Filter "*.pdb" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 Compress-Archive -Path "$distWindowsDir\*" -DestinationPath $zipOutput -Force
 
-$installerExe = Join-Path $distDir "Lunifier-Setup-$version.exe"
+$installerExe = Join-Path $distDir "Lunifier-Setup-$version$fileSuffix.exe"
 $installerHash = (Get-FileHash $installerExe -Algorithm SHA256).Hash
 $zipHash = (Get-FileHash $zipOutput -Algorithm SHA256).Hash
 
-Write-Host " [OK] Lunifier-Setup-$version.exe SHA256: $installerHash" -ForegroundColor Green
-Write-Host " [OK] Lunifier-Windows-$version.zip SHA256: $zipHash" -ForegroundColor Green
+Write-Host " [OK] Lunifier-Setup-$version$fileSuffix.exe SHA256: $installerHash" -ForegroundColor Green
+Write-Host " [OK] Lunifier-Windows-$version$fileSuffix.zip SHA256: $zipHash" -ForegroundColor Green
 
 Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "  Windows Packaging Complete!" -ForegroundColor Green
+Write-Host "  Windows Packaging Complete ($editionName)!" -ForegroundColor Green
 Write-Host "  Installer: $installerExe"
 Write-Host "  Portable:  $zipOutput"
 Write-Host "===================================================" -ForegroundColor Cyan

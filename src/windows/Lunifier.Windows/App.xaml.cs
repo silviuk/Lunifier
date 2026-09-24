@@ -18,6 +18,45 @@ namespace Lunifier.Windows
         private Thread? _eventListenerThread;
         private bool _isPrimaryInstance;
 
+        private static bool? _isNoBtSync;
+        public static bool IsNoBtSync
+        {
+            get
+            {
+                if (_isNoBtSync.HasValue) return _isNoBtSync.Value;
+#if NO_BTSYNC
+                _isNoBtSync = true;
+                return true;
+#else
+                var processPath = Environment.ProcessPath ?? "";
+                if (processPath.IndexOf("nobtsync", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    _isNoBtSync = true;
+                    return true;
+                }
+                var env = Environment.GetEnvironmentVariable("LUNIFIER_NO_BTSYNC");
+                if (!string.IsNullOrEmpty(env) && env != "0" && !env.Equals("false", StringComparison.OrdinalIgnoreCase))
+                {
+                    _isNoBtSync = true;
+                    return true;
+                }
+                var args = Environment.GetCommandLineArgs();
+                foreach (var arg in args)
+                {
+                    if (arg.Equals("--no-btsync", StringComparison.OrdinalIgnoreCase) ||
+                        arg.Equals("-nobtsync", StringComparison.OrdinalIgnoreCase) ||
+                        arg.Equals("/nobtsync", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _isNoBtSync = true;
+                        return true;
+                    }
+                }
+                _isNoBtSync = false;
+                return false;
+#endif
+            }
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             try

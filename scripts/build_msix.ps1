@@ -4,7 +4,8 @@ param (
     [string]$DistDir = "$PSScriptRoot\..\dist",
     [string]$SourceAppDir = "$PSScriptRoot\..\dist\windows",
     [string]$ManifestPath = "$PSScriptRoot\..\packaging\msix\AppxManifest.xml",
-    [string]$IconPath = "$PSScriptRoot\..\src\windows\Lunifier.Windows\Resources\icon.png"
+    [string]$IconPath = "$PSScriptRoot\..\src\windows\Lunifier.Windows\Resources\icon.png",
+    [string]$OutputName = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,7 +71,7 @@ print('Assets generated successfully.')
 
 # 4. Compile MSIX Package
 Write-Host "[4/4] Creating MSIX Package..." -ForegroundColor Yellow
-$OutputFile = Join-Path $DistDir "Lunifier-$Version.msix"
+$OutputFile = if ($OutputName) { Join-Path $DistDir $OutputName } else { Join-Path $DistDir "Lunifier-$Version.msix" }
 if (Test-Path $OutputFile) {
     Remove-Item $OutputFile -Force
 }

@@ -47,14 +47,17 @@ namespace Lunifier.Windows.Core
                 BtPeer = null;
             }
 
-            BtPeer = new BluetoothPeer(Config.HostName, Config.BtPeerAddress, Config.BtRfcommPort)
+            if (!App.IsNoBtSync)
             {
-                OnSwitchReceived = OnIncomingSwitch,
-                OnPeerStatusChanged = connected =>
+                BtPeer = new BluetoothPeer(Config.HostName, Config.BtPeerAddress, Config.BtRfcommPort)
                 {
-                    AppLogger.Log("Lunifier", $"Partner host Bluetooth link: {(connected ? "CONNECTED" : "DISCONNECTED")}");
-                }
-            };
+                    OnSwitchReceived = OnIncomingSwitch,
+                    OnPeerStatusChanged = connected =>
+                    {
+                        AppLogger.Log("Lunifier", $"Partner host Bluetooth link: {(connected ? "CONNECTED" : "DISCONNECTED")}");
+                    }
+                };
+            }
 
             // Warm up device cache in background
             Task.Run(() => Hidpp.ScanDevices(Config.Devices, forceRescan: true, connectionSupport: Config.ConnectionSupport));
@@ -66,7 +69,7 @@ namespace Lunifier.Windows.Core
             IsRunning = true;
 
             Detector?.Start();
-            if (Config.BtP2pEnabled || !string.IsNullOrEmpty(Config.BtPeerAddress))
+            if (!App.IsNoBtSync && (Config.BtP2pEnabled || !string.IsNullOrEmpty(Config.BtPeerAddress)))
             {
                 BtPeer?.Start();
             }

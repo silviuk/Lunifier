@@ -22,10 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Moved the `Adw.ViewSwitcher` tab navigation out of the congested header bar into a dedicated, centered horizontal container one level lower.
   - Full tab titles ("Screen & Switching", "Advanced", "Bluetooth P2P Link", "Live Logs", "About") and icons are now cleanly spaced, completely visible, and never crowded by window buttons or header controls.
 
-- **Linux Live Logs Overhaul: In-Tab Log Level Selector & Full Window Scaling**:
+- **Linux Live Logs Overhaul: In-Tab Log Level Selector, Copy Logs & Font Sizing**:
   - Added an integrated "Logging Level" dropdown selector directly within the Live Logs page controls bar, keeping diagnostics accessible without navigating to the Advanced tab.
-  - Changes to logging level in Live Logs and Advanced tabs are synchronized bidirectionally and applied immediately to the logging subsystem.
+  - Added a dedicated **"Copy Logs"** button in the Live Logs header bar with clipboard copy and instant temporary visual feedback ("Copied!").
+  - Reduced log display font size by one size (compact 8.5pt monospace) for clean, readable, high-density diagnostic output.
+  - Fixed unescaped XML markup entities (`&amp;`) across GTK4/Libadwaita preference group headers.
   - Replaced the constrained preferences group layout with a dynamic `Gtk.Box` container, allowing the log viewer (`Gtk.ScrolledWindow` + `Gtk.TextView`) to automatically scale and expand to fill all remaining window space.
+
+- **New Standalone `-nobtsync` Packages (Windows & Linux)**:
+  - Released dedicated `-nobtsync` packages for users who only want screen-edge Easy-Switching without computer-to-computer Bluetooth RFCOMM communication.
+  - Omitted the "Bluetooth Inter-Host Link" tab completely from the user interface and disabled all RFCOMM listeners and background threads.
+  - **Full Logitech Bluetooth Peripheral Support Maintained**: Keyboards and mice paired over Bluetooth continue to switch seamlessly via direct HID++ OS pipes; only inter-host peer-to-peer sync is excluded.
+  - Packaged for Windows as `Lunifier-Setup-2.2.0-nobtsync.exe`, `Lunifier-Windows-2.2.0-nobtsync.zip`, and `Lunifier-2.2.0.0-nobtsync.msix`.
+  - Packaged for Linux as `lunifier_2.2.0-nobtsync_all.deb` and `Lunifier-Linux-2.2.0-nobtsync.tar.gz`.
 
 ---
 

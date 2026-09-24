@@ -91,9 +91,18 @@ namespace Lunifier.Windows
                 _isLoadingConfig = false;
 
                 var asmVer = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                string verStr = asmVer != null ? $"{asmVer.Major}.{asmVer.Minor}.{asmVer.Build}" : "2.1.8";
-                AboutVersionText.Text = $"Version {verStr} (Windows 11 Native .NET 9)";
-                FooterVersionText.Text = $"Lunifier {verStr} Native for Windows 11";
+                string verStr = asmVer != null ? $"{asmVer.Major}.{asmVer.Minor}.{asmVer.Build}" : "2.2.0";
+                if (App.IsNoBtSync)
+                {
+                    MainTabControl.Items.Remove(BluetoothLinkTab);
+                    AboutVersionText.Text = $"Version {verStr} (No-BtSync Edition)";
+                    FooterVersionText.Text = $"Lunifier {verStr} (No-BtSync) for Windows 11";
+                }
+                else
+                {
+                    AboutVersionText.Text = $"Version {verStr} (Windows 11 Native .NET 9)";
+                    FooterVersionText.Text = $"Lunifier {verStr} Native for Windows 11";
+                }
 
                 InitializeTrayIcon();
                 RegisterGlobalHotkeys();
@@ -535,13 +544,20 @@ namespace Lunifier.Windows
             if (LogLevelCombo.SelectedItem is ComboBoxItem logItem && logItem.Tag is string lm)
                 _config.LogLevel = lm;
 
-            _config.BtP2pEnabled = BtEnabledCheck.IsChecked == true;
-            _config.BtPeerAddress = PeerMacBox.Text.Trim();
-            if (int.TryParse(RfcommPortBox.Text, out var port))
-                _config.BtRfcommPort = port;
+            if (App.IsNoBtSync)
+            {
+                _config.BtP2pEnabled = false;
+            }
+            else
+            {
+                _config.BtP2pEnabled = BtEnabledCheck.IsChecked == true;
+                _config.BtPeerAddress = PeerMacBox.Text.Trim();
+                if (int.TryParse(RfcommPortBox.Text, out var port))
+                    _config.BtRfcommPort = port;
 
-            _config.SyncCursorPosition = SyncCursorCheck.IsChecked == true;
-            _config.SyncClipboard = SyncClipboardCheck.IsChecked == true;
+                _config.SyncCursorPosition = SyncCursorCheck.IsChecked == true;
+                _config.SyncClipboard = SyncClipboardCheck.IsChecked == true;
+            }
 
             _config.Autostart = AutostartCheck.IsChecked == true;
             _config.StartMinimized = StartMinimizedCheck.IsChecked == true;
