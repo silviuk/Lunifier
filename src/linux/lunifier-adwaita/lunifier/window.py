@@ -20,6 +20,7 @@ from .app import LunifierApp
 from .bt_link import discover_advertising_lunifier_peers, get_local_bluetooth_mac
 from .overlay import BorderOverlayManager
 from .tray import LunifierTray
+from . import __version__
 
 
 class LunifierAdwaitaWindow(Adw.ApplicationWindow):
@@ -401,7 +402,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         grp = Adw.PreferencesGroup()
         page.add(grp)
 
-        row_about = Adw.ActionRow(title="Lunifier 2.1.6 Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
+        row_about = Adw.ActionRow(title=f"Lunifier {__version__} Native", subtitle="Logitech Easy-Switch Screen Flow (GTK4 + Libadwaita)")
         icon_img = Gtk.Image.new_from_icon_name("lunifier")
         icon_img.set_pixel_size(48)
         row_about.add_prefix(icon_img)

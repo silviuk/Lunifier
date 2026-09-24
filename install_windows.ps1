@@ -12,9 +12,10 @@ if (-not (Test-Path $sourceDir)) {
 }
 
 $exeCandidates = @(
+    Join-Path $scriptDir "dist\windows\Lunifier.exe",
     Join-Path $scriptDir "dist\windows\Lunifier.Windows.exe",
-    Join-Path $sourceDir "Lunifier.Windows.exe",
-    Join-Path $sourceDir "Lunifier.exe"
+    Join-Path $sourceDir "Lunifier.exe",
+    Join-Path $sourceDir "Lunifier.Windows.exe"
 )
 $exePath = $null
 foreach ($cand in $exeCandidates) {

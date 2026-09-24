@@ -74,7 +74,7 @@ class LunifierApp:
         log("Lunifier", f">>> SCREEN BORDER REACHED: '{edge.upper()}' on Monitor {monitor_id or '0'} (Ratio: {ratio:.2f}) <<<")
 
         # Step cursor inward immediately and arm return guard to prevent border loop
-        step_back = 160
+        step_back = 60
         new_x, new_y = x, y
         if edge == "right":
             new_x = x - step_back

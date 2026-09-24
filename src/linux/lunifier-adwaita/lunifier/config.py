@@ -55,7 +55,7 @@ class AppConfig:
     
     bt_p2p_enabled: bool = False
     bt_peer_address: str = ""
-    bt_rfcomm_port: int = 4
+    bt_rfcomm_port: int = 5
     sync_cursor_position: bool = True
     sync_clipboard: bool = False
     log_level: str = "normal"
@@ -210,6 +210,9 @@ class AppConfig:
 
         if config_obj is None:
             config_obj = cls()
+
+        if getattr(config_obj, 'bt_rfcomm_port', None) == 4:
+            config_obj.bt_rfcomm_port = 5
 
         set_log_level(config_obj.log_level)
         return config_obj

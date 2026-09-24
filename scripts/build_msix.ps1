@@ -1,6 +1,6 @@
 # PowerShell script to build MSIX package for Windows Store submission
 param (
-    [string]$Version = "2.1.7.0",
+    [string]$Version = "2.1.8.0",
     [string]$DistDir = "$PSScriptRoot\..\dist",
     [string]$SourceAppDir = "$PSScriptRoot\..\dist\windows",
     [string]$ManifestPath = "$PSScriptRoot\..\packaging\msix\AppxManifest.xml",
@@ -30,6 +30,7 @@ New-Item -ItemType Directory -Path $AppDir | Out-Null
 # 1. Copy Application Binaries
 Write-Host "[1/4] Copying application binaries to staging layout..." -ForegroundColor Yellow
 Copy-Item -Path "$SourceAppDir\*" -Destination $AppDir -Recurse -Force
+Get-ChildItem -Path $AppDir -Filter "*.pdb" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 
 # 2. Copy and Update AppxManifest.xml
 Write-Host "[2/4] Preparing AppxManifest.xml..." -ForegroundColor Yellow

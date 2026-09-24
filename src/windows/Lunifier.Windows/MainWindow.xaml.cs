@@ -90,6 +90,11 @@ namespace Lunifier.Windows
                 PopulateUiFromConfig();
                 _isLoadingConfig = false;
 
+                var asmVer = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                string verStr = asmVer != null ? $"{asmVer.Major}.{asmVer.Minor}.{asmVer.Build}" : "2.1.8";
+                AboutVersionText.Text = $"Version {verStr} (Windows 11 Native .NET 9)";
+                FooterVersionText.Text = $"Lunifier {verStr} Native for Windows 11";
+
                 InitializeTrayIcon();
                 RegisterGlobalHotkeys();
 
@@ -562,18 +567,21 @@ namespace Lunifier.Windows
                 foreach (var dev in devices)
                 {
                     var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
-                    panel.Children.Add(new TextBlock
+                    var devNameBlock = new TextBlock
                     {
                         Text = dev.Name,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#38BDF8" : "#0284C7"))
-                    });
-                    panel.Children.Add(new TextBlock
+                        FontWeight = FontWeights.SemiBold
+                    };
+                    devNameBlock.SetResourceReference(TextBlock.ForegroundProperty, "SectionHeader");
+                    panel.Children.Add(devNameBlock);
+
+                    var devSubBlock = new TextBlock
                     {
                         Text = $"Transport: {dev.Transport}  |  Slot Index: 0x{dev.DeviceIndex:X2}  |  ChangeHost Feature: 0x{dev.ChangeHostFeatureIndex:X2}  |  PID: 0x{dev.Pid:X4}",
-                        FontSize = 11,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#94A3B8" : "#334155"))
-                    });
+                        FontSize = 11
+                    };
+                    devSubBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                    panel.Children.Add(devSubBlock);
                     DevicesList.Items.Add(panel);
                 }
 
@@ -708,18 +716,21 @@ namespace Lunifier.Windows
                         panel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                         var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                        info.Children.Add(new TextBlock
+                        var titleBlock = new TextBlock
                         {
                             Text = string.IsNullOrEmpty(p.Name) ? "Lunifier Host" : p.Name,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#38BDF8" : "#0284C7"))
-                        });
-                        info.Children.Add(new TextBlock
+                            FontWeight = FontWeights.Bold
+                        };
+                        titleBlock.SetResourceReference(TextBlock.ForegroundProperty, "SectionHeader");
+                        info.Children.Add(titleBlock);
+
+                        var subBlock = new TextBlock
                         {
                             Text = $"MAC: {p.MacAddress}  |  Port: {p.Port}  |  Token: {p.AdvertisingToken}",
-                            FontSize = 11,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#94A3B8" : "#334155"))
-                        });
+                            FontSize = 11
+                        };
+                        subBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                        info.Children.Add(subBlock);
                         Grid.SetColumn(info, 0);
                         panel.Children.Add(info);
 

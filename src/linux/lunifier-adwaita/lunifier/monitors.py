@@ -101,6 +101,8 @@ class MonitorInfo:
             (self.top - tol) <= y <= (self.bottom + tol)
         )
 
+    contains_point = contains
+
     def calculate_ratio(self, x: int, y: int, edge: str) -> float:
         e = edge.lower()
         if e in ("left", "right"):

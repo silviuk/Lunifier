@@ -51,7 +51,39 @@ namespace Lunifier.Windows.Core
         private (int X, int Y)? _lastKnownCursorPos;
         private double _returnGuardUntil;
 
-        private readonly Queue<(double Time, int X, int Y)> _cursorHistory = new();
+        private struct CursorHistoryItem
+        {
+            public double Time;
+            public int X;
+            public int Y;
+        }
+
+        private readonly CursorHistoryItem[] _historyBuffer = new CursorHistoryItem[64];
+        private int _historyCount;
+        private int _historyHead;
+        private readonly object _historyLock = new();
+        private MonitorEdgeConfig? _cachedDefaultConfig;
+
+        private void AddCursorHistory(double time, int x, int y)
+        {
+            lock (_historyLock)
+            {
+                _historyBuffer[_historyHead] = new CursorHistoryItem { Time = time, X = x, Y = y };
+                _historyHead = (_historyHead + 1) % _historyBuffer.Length;
+                if (_historyCount < _historyBuffer.Length)
+                    _historyCount++;
+            }
+        }
+
+        private void ClearCursorHistory()
+        {
+            lock (_historyLock)
+            {
+                _historyCount = 0;
+                _historyHead = 0;
+            }
+        }
+
         private const int MinApproachDisplacement = 15;
         private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
@@ -74,6 +106,11 @@ namespace Lunifier.Windows.Core
             KnockEnabled = config.KnockEnabled;
             KnockTimeoutMs = config.KnockTimeoutMs;
             MonitorConfigs = config.MonitorConfigs ?? new();
+
+            var edges = new Dictionary<string, int?>();
+            foreach (var e in ActiveEdges)
+                edges[e] = 2;
+            _cachedDefaultConfig = new MonitorEdgeConfig { Enabled = true, Edges = edges };
         }
 
         public void RefreshScreenBounds()
@@ -117,7 +154,7 @@ namespace Lunifier.Windows.Core
             _holdStartTime = null;
             _currentEdge = null;
             _currentMonitorId = null;
-            lock (_cursorHistory) _cursorHistory.Clear();
+            ClearCursorHistory();
             AppLogger.Log("EdgeDetector", $"Switched out via '{edge}'. Cursor parked at ({cursorX}, {cursorY}). Return guard armed.");
         }
 
@@ -133,7 +170,7 @@ namespace Lunifier.Windows.Core
             _holdStartTime = null;
             _currentEdge = null;
             _currentMonitorId = null;
-            lock (_cursorHistory) _cursorHistory.Clear();
+            ClearCursorHistory();
             AppLogger.Log("EdgeDetector", $"Mouse return detected (entry: {entryEdge ?? "unknown"}). Return guard armed for {(int)(guardDur * 1000)}ms.");
         }
 
@@ -143,13 +180,8 @@ namespace Lunifier.Windows.Core
             if (MonitorConfigs.TryGetValue(mid, out var cfg))
                 return cfg;
 
-            if (mid == "0")
-            {
-                var edges = new Dictionary<string, int?>();
-                foreach (var e in ActiveEdges)
-                    edges[e] = 2;
-                return new MonitorEdgeConfig { Enabled = true, Edges = edges };
-            }
+            if (mid == "0" && _cachedDefaultConfig != null)
+                return _cachedDefaultConfig;
 
             return new MonitorEdgeConfig { Enabled = true, Edges = new() };
         }
@@ -200,26 +232,22 @@ namespace Lunifier.Windows.Core
 
         private bool IsApproachingEdge(string edge, int currentX, int currentY, double? holdStart)
         {
-            lock (_cursorHistory)
+            lock (_historyLock)
             {
-                if (_cursorHistory.Count < 2) return true;
+                if (_historyCount < 2) return true;
 
                 var targetTime = (holdStart ?? NowSeconds) - 0.08;
-                (int X, int Y) prev = (_cursorHistory.Peek().X, _cursorHistory.Peek().Y);
-                bool found = false;
+                int oldestIdx = (_historyHead - _historyCount + _historyBuffer.Length) % _historyBuffer.Length;
+                (int X, int Y) prev = (_historyBuffer[oldestIdx].X, _historyBuffer[oldestIdx].Y);
 
-                foreach (var item in _cursorHistory)
+                for (int i = 0; i < _historyCount; i++)
                 {
+                    int idx = (_historyHead - _historyCount + i + _historyBuffer.Length) % _historyBuffer.Length;
+                    var item = _historyBuffer[idx];
                     if (item.Time <= targetTime)
                     {
                         prev = (item.X, item.Y);
-                        found = true;
                     }
-                }
-
-                if (!found)
-                {
-                    prev = (_cursorHistory.Peek().X, _cursorHistory.Peek().Y);
                 }
 
                 const int minDisplacement = 4;
@@ -275,12 +303,40 @@ namespace Lunifier.Windows.Core
                         continue;
                     }
 
-                    lock (_cursorHistory)
+                    // Fast-path early rejection: if cursor is well inside interior away from all borders
+                    const int edgeThreshold = 4;
+                    if (x > _screenBounds.Left + edgeThreshold &&
+                        x < _screenBounds.Right - edgeThreshold &&
+                        y > _screenBounds.Top + edgeThreshold &&
+                        y < _screenBounds.Bottom - edgeThreshold)
                     {
-                        _cursorHistory.Enqueue((now, x, y));
-                        while (_cursorHistory.Count > 60)
-                            _cursorHistory.Dequeue();
+                        bool nearAnyBorder = false;
+                        for (int i = 0; i < _monitors.Count; i++)
+                        {
+                            var mon = _monitors[i];
+                            if ((Math.Abs(x - mon.Left) <= edgeThreshold || Math.Abs(x - mon.Right) <= edgeThreshold) &&
+                                (mon.Top - edgeThreshold <= y && y <= mon.Bottom + edgeThreshold))
+                            {
+                                nearAnyBorder = true; break;
+                            }
+                            if ((Math.Abs(y - mon.Top) <= edgeThreshold || Math.Abs(y - mon.Bottom) <= edgeThreshold) &&
+                                (mon.Left - edgeThreshold <= x && x <= mon.Right + edgeThreshold))
+                            {
+                                nearAnyBorder = true; break;
+                            }
+                        }
+
+                        if (!nearAnyBorder)
+                        {
+                            _holdStartTime = null;
+                            _currentEdge = null;
+                            _currentMonitorId = null;
+                            Thread.Sleep(15);
+                            continue;
+                        }
                     }
+
+                    AddCursorHistory(now, x, y);
 
                     // Cooldown check
                     if ((now - _lastTriggerTime) * 1000 < CooldownMs || now < _returnGuardUntil)
@@ -343,7 +399,7 @@ namespace Lunifier.Windows.Core
                                             _holdStartTime = null;
                                             _currentEdge = null;
                                             _currentMonitorId = null;
-                                            lock (_cursorHistory) _cursorHistory.Clear();
+                                            ClearCursorHistory();
                                             try
                                             {
                                                 OnTriggerCallback?.Invoke(edge, x, y, ratio, mid, ch);
@@ -370,7 +426,7 @@ namespace Lunifier.Windows.Core
                                         _holdStartTime = null;
                                         _currentEdge = null;
                                         _currentMonitorId = null;
-                                        lock (_cursorHistory) _cursorHistory.Clear();
+                                        ClearCursorHistory();
                                         try
                                         {
                                             OnTriggerCallback?.Invoke(edge, x, y, ratio, mid, ch);

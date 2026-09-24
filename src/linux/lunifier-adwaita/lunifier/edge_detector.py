@@ -9,6 +9,7 @@ import sys
 import time
 import threading
 import ctypes
+import shutil
 import subprocess
 from typing import Callable, Optional, Tuple, List, Dict, Any
 
@@ -96,6 +97,7 @@ class ScreenEdgeDetector:
 
         self._cursor_history: deque = deque(maxlen=60)
         self._min_approach_displacement: int = 15
+        self._has_xdotool: bool = bool(shutil.which("xdotool"))
 
     def _get_monitor_config(self, monitor_id: str) -> Dict[str, Any]:
         mid = str(monitor_id)
@@ -111,6 +113,51 @@ class ScreenEdgeDetector:
     def refresh_screen_bounds(self) -> None:
         self.monitors = get_monitors()
         self._screen_bounds = get_virtual_desktop_bounds(self.monitors)
+
+    def _is_at_edge(self, x: int, y: int, edge: Optional[str] = None) -> bool:
+        """Helper matching single-screen bounds."""
+        target = edge.lower() if edge else self.trigger_edge
+        b = self._screen_bounds
+        tol = 2
+        if target == "right":
+            return x >= (b.get("right", 1920) - tol)
+        elif target == "left":
+            return x <= (b.get("left", 0) + tol)
+        elif target == "bottom":
+            return y >= (b.get("bottom", 1080) - tol)
+        elif target == "top":
+            return y <= (b.get("top", 0) + tol)
+        return False
+
+    def _calculate_ratio(self, x: int, y: int, edge: Optional[str] = None) -> float:
+        """Helper matching single-screen bounds."""
+        target = edge.lower() if edge else self.trigger_edge
+        b = self._screen_bounds
+        if target in ("left", "right"):
+            h = max(1, b.get("bottom", 1080) - b.get("top", 0))
+            return max(0.0, min(1.0, (y - b.get("top", 0)) / float(h)))
+        else:
+            w = max(1, b.get("right", 1920) - b.get("left", 0))
+            return max(0.0, min(1.0, (x - b.get("left", 0)) / float(w)))
+
+    def _is_in_active_zone(self, x: int, y: int, edge: str) -> bool:
+        """Helper matching single-screen bounds."""
+        if self.active_zone_pct >= 100:
+            return True
+        ratio = self._calculate_ratio(x, y, edge)
+        margin = (1.0 - (self.active_zone_pct / 100.0)) / 2.0
+        return margin <= ratio <= (1.0 - margin)
+
+    def _get_triggered_edge(self, x: int, y: int) -> Optional[str]:
+        """Helper returning triggered edge name."""
+        info = self._get_triggered_edge_info(x, y)
+        if info:
+            return info[0]
+        if not self.monitor_configs and self.active_edges:
+            for edge in self.active_edges:
+                if self._is_at_edge(x, y, edge) and self._is_in_active_zone(x, y, edge):
+                    return edge
+        return None
 
     def get_cursor_pos(self, dpy: Any = None, root: Any = None) -> Tuple[int, int]:
         if x11:
@@ -155,18 +202,21 @@ class ScreenEdgeDetector:
                         except Exception:
                             pass
 
-        try:
-            res = subprocess.run(["xdotool", "getmouselocation", "--shell"], capture_output=True, text=True, timeout=1)
-            if res.returncode == 0:
-                x, y = 0, 0
-                for line in res.stdout.splitlines():
-                    if line.startswith("X="):
-                        x = int(line[2:])
-                    elif line.startswith("Y="):
-                        y = int(line[2:])
-                return x, y
-        except Exception:
-            pass
+        if self._has_xdotool:
+            try:
+                res = subprocess.run(["xdotool", "getmouselocation", "--shell"], capture_output=True, text=True, timeout=0.1)
+                if res.returncode == 0:
+                    x, y = 0, 0
+                    for line in res.stdout.splitlines():
+                        if line.startswith("X="):
+                            x = int(line[2:])
+                        elif line.startswith("Y="):
+                            y = int(line[2:])
+                    return x, y
+                else:
+                    self._has_xdotool = False
+            except Exception:
+                self._has_xdotool = False
         return 0, 0
 
     def start(self) -> None:
@@ -252,6 +302,12 @@ class ScreenEdgeDetector:
                         continue
 
                 return (edge, ratio, mid, int(ch))
+
+        # Fallback if no monitor_configs matched but active_edges is present
+        if not self.monitor_configs and self.active_edges:
+            for edge in self.active_edges:
+                if self._is_at_edge(x, y, edge) and self._is_in_active_zone(x, y, edge):
+                    return (edge, self._calculate_ratio(x, y, edge), "0", 2)
 
         return None
 

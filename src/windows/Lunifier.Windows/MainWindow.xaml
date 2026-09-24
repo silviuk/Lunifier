@@ -29,11 +29,11 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="SaveStatusText" Text="" Foreground="#16A34A" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
-                    <Border x:Name="StatusBadge" Width="130" Height="32" Background="#DC2626" CornerRadius="4" Margin="0,0,10,0">
+                    <Border x:Name="StatusBadge" MinWidth="110" Height="32" Padding="12,0" Background="#DC2626" CornerRadius="4" Margin="0,0,10,0">
                         <TextBlock x:Name="StatusText" Text="STOPPED" FontWeight="Bold" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
                     </Border>
-                    <Button x:Name="ToggleServiceBtn" Content="Start Service" Width="130" Height="32" Margin="0,0,10,0" Click="ToggleServiceBtn_Click" />
-                    <Button x:Name="SaveConfigBtn" Content="Save Configuration" Width="140" Height="32" Click="SaveConfig_Click" />
+                    <Button x:Name="ToggleServiceBtn" Content="Start Service" MinWidth="110" Height="32" Padding="12,0" Margin="0,0,10,0" Click="ToggleServiceBtn_Click" />
+                    <Button x:Name="SaveConfigBtn" Content="Save Configuration" MinWidth="130" Height="32" Padding="12,0" Click="SaveConfig_Click" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -363,7 +363,7 @@
                         <StackPanel HorizontalAlignment="Center" MaxWidth="560">
                             <Image Source="Resources/icon.png" Width="80" Height="80" Margin="0,0,0,15" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
                             <TextBlock Text="Lunifier" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
-                            <TextBlock Text="Version 2.1.6 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
+                            <TextBlock x:Name="AboutVersionText" Text="Version 2.1.8 (Windows 11 Native .NET 9)" FontSize="13" Foreground="{DynamicResource SectionHeader}" HorizontalAlignment="Center" Margin="0,2,0,15" />
 
                             <TextBlock Text="Seamless Logitech Easy-Switch screen flow across systems without Wi-Fi or LAN." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20" />
 
@@ -390,7 +390,7 @@
         <!-- Footer -->
         <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15,10" Margin="0,15,0,0" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
             <Grid>
-                <TextBlock Text="Lunifier 2.1.6 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+                <TextBlock x:Name="FooterVersionText" Text="Lunifier 2.1.8 Native for Windows 11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
                 <TextBlock Text="Logitech Easy-Switch Screen Flow  •  Zero Network Bluetooth" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
             </Grid>
         </Border>

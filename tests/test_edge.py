@@ -77,8 +77,8 @@ def test_app_edge_triggered_steps_back_cursor(monkeypatch):
     app._handle_edge_triggered("right", 2560, 772, 0.37)
 
     assert len(cursor_moved) == 1
-    # 2560 - 160 = 2400
-    assert cursor_moved[0] == (2400, 772)
+    # 2560 - 60 = 2500 (inward repositioning)
+    assert cursor_moved[0] == (2500, 772)
 
 def test_edge_detector_approach_direction():
     import time

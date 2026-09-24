@@ -595,36 +595,12 @@ def test_solaar_offline_device_early_exit(monkeypatch):
 
 
 def test_border_overlay_manager():
-    import pytest
-    tk = pytest.importorskip("tkinter")
-    from lunifier.border_overlay import BorderOverlayManager
+    from lunifier.overlay import BorderOverlayManager
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        mgr = BorderOverlayManager(root)
-        mgr.show(50, ["left", "right", "top", "bottom"])
-        assert mgr._is_visible is True
-        for e in ["left", "right", "top", "bottom"]:
-            key = f"0_{e}"
-            assert key in mgr._windows
-            assert mgr._windows[key].winfo_exists()
-        mgr.hide()
-        assert mgr._is_visible is False
+    mgr = BorderOverlayManager()
+    assert mgr._x11_windows == []
+    mgr.show(50)
+    mgr.hide()
+    mgr.close()
 
-        # Test show with default None edges
-        mgr.show(75)
-        assert mgr._is_visible is True
-        for e in ["left", "right", "top", "bottom"]:
-            assert f"0_{e}" in mgr._windows
-
-        # Test multi-monitor dictionary
-        mgr.show(60, {"0": ["left", "right"]})
-        assert "0_left" in mgr._windows
-        assert "0_right" in mgr._windows
-
-        mgr.destroy()
-        assert len(mgr._windows) == 0
-    finally:
-        root.destroy()
 

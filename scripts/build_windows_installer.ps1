@@ -1,5 +1,5 @@
 param (
-    [string]$version = "2.1.7"
+    [string]$version = "2.1.8"
 )
 $ErrorActionPreference = "Stop"
 
@@ -62,6 +62,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "[3/3] Creating Portable Windows ZIP..." -ForegroundColor Yellow
 $zipOutput = Join-Path $distDir "Lunifier-Windows-$version.zip"
 if (Test-Path $zipOutput) { Remove-Item $zipOutput -Force }
+Get-ChildItem -Path $distWindowsDir -Filter "*.pdb" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 Compress-Archive -Path "$distWindowsDir\*" -DestinationPath $zipOutput -Force
 
 $installerExe = Join-Path $distDir "Lunifier-Setup-$version.exe"

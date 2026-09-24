@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.8] - 2026-09-24
+
+### Size, Performance & Packaging Overhaul (Windows & Linux)
+
+- **Size Optimizations & Dead Code Removal**:
+  - Removed obsolete legacy v1.x root `lunifier/` Tkinter directory, `run_lunifier.py`, and `Lunifier.spec`.
+  - Removed redundant `System.Text.Json` NuGet dependency from `Lunifier.Windows.csproj` (leveraging built-in runtime assembly).
+  - Excluded debug symbol `.pdb` files from portable zip, MSIX staging, and Inno Setup installer distributions.
+  - Reduced final package sizes across Windows (.exe installer reduced to 6.27MB, MSIX to 6.77MB).
+
+- **Performance & CPU Usage Optimizations**:
+  - Replaced dynamic queue allocations in Windows `EdgeDetector.cs` with a zero-allocation 64-item ring buffer and cached default monitor configuration.
+  - Added interior bounding box fast-path check in `EdgeDetector.cs`, skipping all edge collision math whenever the cursor is safely inside the screen interior.
+  - Eliminated Linux 15ms `xdotool` subprocess execution hazard in `edge_detector.py` by caching command availability.
+  - Unified inward cursor step-back displacement to 60px across Windows and Linux, preventing pointer jumping jank.
+
+- **Visual Polish & Theme Consistency**:
+  - Replaced hardcoded version strings with dynamic assembly/package version resolution across Windows WPF and Linux Adwaita About and Footer displays.
+  - Converted device lists and Bluetooth peer lists in Windows WPF to dynamic theme brush references (`SetResourceReference`), guaranteeing instant contrast updates across Dark and Light mode transitions.
+  - Applied responsive minimum widths and symmetric padding to header control buttons.
+
+- **Packaging & Dependency Checks**:
+  - Inno Setup installer now verifies whether Microsoft .NET 9 Desktop Runtime (x64) is present and prompts with an official download link if missing.
+  - Linux Debian package updated with `python3-evdev` and `bluez` recommendations, and user systemd service configured to launch with `--minimized`.
+  - Full suite of 52 unit tests passing cleanly.
+
+---
+
 ## [2.1.7] - 2026-09-24
 
 ### Fixed & Improved (Windows & Linux)

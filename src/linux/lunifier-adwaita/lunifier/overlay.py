@@ -6,7 +6,10 @@ when adjusting settings or changing monitor edges.
 
 import ctypes
 from typing import Dict, List, Optional
-from gi.repository import GLib
+try:
+    from gi.repository import GLib
+except ImportError:
+    GLib = None
 
 from .logger import log, log_debug
 from .monitors import MonitorInfo, get_monitors
@@ -185,7 +188,8 @@ class BorderOverlayManager:
             except Exception:
                 pass
             # Schedule automatic hide after 1.5 seconds
-            self._hide_timer_id = GLib.timeout_add(1500, self._on_timer_hide)
+            if GLib:
+                self._hide_timer_id = GLib.timeout_add(1500, self._on_timer_hide)
 
     def _on_timer_hide(self) -> bool:
         self._hide_timer_id = None

@@ -20,7 +20,7 @@ dotnet publish -c Release "%~dp0src\windows\Lunifier.Windows\Lunifier.Windows.cs
 
 echo.
 echo === Setup Complete! ===
-echo Output Binary: %~dp0dist\windows\Lunifier.Windows.exe
+echo Output Binary: %~dp0dist\windows\Lunifier.exe
 echo Run GUI:       run_gui.bat
 echo.
 pause

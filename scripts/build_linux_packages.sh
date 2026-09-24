@@ -8,7 +8,7 @@ LINUX_SRC_DIR="$ROOT_DIR/src/linux/lunifier-adwaita"
 
 mkdir -p "$DIST_DIR"
 
-VERSION="${1:-2.1.7}"
+VERSION="${1:-2.1.8}"
 DEB_BUILD_DIR="/tmp/lunifier-deb"
 rm -rf "$DEB_BUILD_DIR"
 mkdir -p "$DEB_BUILD_DIR"
@@ -35,7 +35,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Depends: python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, libadwaita-1-0
-Recommends: solaar, xdotool, wl-clipboard, xclip
+Recommends: solaar, xdotool, wl-clipboard, xclip, python3-evdev, bluez
 Maintainer: Silviu Vlasceanu <silviuk@users.noreply.github.com>
 Description: Seamless Logitech Easy-Switch flow across Windows and Linux
  Lunifier coordinates Logitech Easy-Switch keyboards and mice
@@ -106,12 +106,12 @@ EOF
 # 8. Systemd user service
 cat << 'EOF' > "$DEB_BUILD_DIR/usr/lib/systemd/user/lunifier.service"
 [Unit]
-Description=Lunifier 2.1 Native Daemon - Logitech Easy-Switch Flow
+Description=Lunifier 2.1 Native Service - Logitech Easy-Switch Flow
 After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/lunifier --daemon
+ExecStart=/usr/bin/lunifier --minimized
 Restart=always
 RestartSec=3
 
