@@ -566,13 +566,13 @@ namespace Lunifier.Windows
                     {
                         Text = dev.Name,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"))
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#38BDF8" : "#0284C7"))
                     });
                     panel.Children.Add(new TextBlock
                     {
                         Text = $"Transport: {dev.Transport}  |  Slot Index: 0x{dev.DeviceIndex:X2}  |  ChangeHost Feature: 0x{dev.ChangeHostFeatureIndex:X2}  |  PID: 0x{dev.Pid:X4}",
                         FontSize = 11,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"))
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#94A3B8" : "#334155"))
                     });
                     DevicesList.Items.Add(panel);
                 }
@@ -641,7 +641,7 @@ namespace Lunifier.Windows
                 {
                     ToggleAdvBtn.Content = "Advertise Lunifier";
                     AdvStatusText.Text = "Idle";
-                    AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
+                    AdvStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#94A3B8" : "#334155"));
                 }
             });
         }
@@ -712,13 +712,13 @@ namespace Lunifier.Windows
                         {
                             Text = string.IsNullOrEmpty(p.Name) ? "Lunifier Host" : p.Name,
                             FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"))
+                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#38BDF8" : "#0284C7"))
                         });
                         info.Children.Add(new TextBlock
                         {
                             Text = $"MAC: {p.MacAddress}  |  Port: {p.Port}  |  Token: {p.AdvertisingToken}",
                             FontSize = 11,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"))
+                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ThemeManager.IsDark ? "#94A3B8" : "#334155"))
                         });
                         Grid.SetColumn(info, 0);
                         panel.Children.Add(info);

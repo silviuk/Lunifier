@@ -211,6 +211,7 @@ namespace Lunifier.Windows.Core
 
         public static string GuessNameFromPid(ushort pid) => pid switch
         {
+            // Bluetooth PIDs
             0xB012 => "Logitech MX Master",
             0xB015 => "Logitech M720 Triathlon",
             0xB016 => "Logitech M585 / M590 Mouse",
@@ -235,6 +236,21 @@ namespace Lunifier.Windows.Core
             0xB366 => "Logitech Signature K650",
             0xB367 => "Logitech POP Keys",
             0xB369 => "Logitech MX Keys Mini",
+            // Unifying / Bolt Wireless PIDs (WPID)
+            0x405E => "Logitech M720 Triathlon",
+            0x4069 => "Logitech MX Master 2S",
+            0x406B => "Logitech K375s Keyboard",
+            0x407A => "Logitech K780 Keyboard",
+            0x407B => "Logitech K850 Keyboard",
+            0x4082 => "Logitech Craft Keyboard",
+            0x4086 => "Logitech ERGO K860 Keyboard",
+            0x4088 => "Logitech MX Master 3",
+            0x408A => "Logitech MX Keys Keyboard",
+            0x408F => "Logitech POP Keys",
+            0x4090 => "Logitech POP Mouse",
+            0x4092 => "Logitech MX Master 3S",
+            0x4094 => "Logitech Lift Vertical Mouse",
+            0x4095 => "Logitech MX Keys Mini",
             _ => $"Logitech Device (PID 0x{pid:X4})"
         };
 
@@ -511,52 +527,51 @@ namespace Lunifier.Windows.Core
                     }
                 }
 
-                // Fallback: If a receiver was present but paired devices were sleeping, restore cached slots or generate fallback entries
-                if (found.Count == 0 && receiversCol02.Count > 0)
+                // Restore any previously cached paired devices for discovered receivers so sleeping devices are never lost
+                foreach (var (pid, longPath) in receiversCol02)
                 {
-                    foreach (var (pid, longPath) in receiversCol02)
+                    receiversCol01.TryGetValue(pid, out var shortPath);
+                    var cachedForReceiver = _receiverSlotsCache.Where(kv => kv.Key.Pid == pid).Select(kv => kv.Value).ToList();
+                    foreach (var cDev in cachedForReceiver)
                     {
-                        receiversCol01.TryGetValue(pid, out var shortPath);
-                        var cachedForReceiver = _receiverSlotsCache.Where(kv => kv.Key.Pid == pid).Select(kv => kv.Value).ToList();
-                        if (cachedForReceiver.Count > 0)
+                        cDev.Path = longPath;
+                        cDev.ShortPath = shortPath;
+                        if (seenNames.Add(cDev.Name))
                         {
-                            foreach (var cDev in cachedForReceiver)
-                            {
-                                cDev.Path = longPath;
-                                cDev.ShortPath = shortPath;
-                                if (seenNames.Add(cDev.Name)) found.Add(cDev);
-                            }
+                            found.Add(cDev);
+                            AppLogger.Log("HID++", $"Retained sleeping receiver device on Slot {cDev.DeviceIndex}: '{cDev.Name}'");
                         }
-                        else
+                    }
+
+                    if (found.Count == 0 && cachedForReceiver.Count == 0)
+                    {
+                        // Synthesize paired slot 1 (Keyboard) and slot 3 (Mouse)
+                        var devKeyboard = new LogitechDevice
                         {
-                            // Synthesize paired slot 1 (Keyboard) and slot 3 (Mouse)
-                            var devKeyboard = new LogitechDevice
-                            {
-                                Name = "Logitech Keyboard (Receiver Slot 1)",
-                                Path = longPath,
-                                ShortPath = shortPath,
-                                Transport = IdentifyTransport(pid, longPath),
-                                DeviceIndex = 1,
-                                Vid = LogitechVid,
-                                Pid = pid,
-                                ChangeHostFeatureIndex = 0x09,
-                                AllPaths = new List<string> { longPath }
-                            };
-                            var devMouse = new LogitechDevice
-                            {
-                                Name = "Logitech Mouse (Receiver Slot 3)",
-                                Path = longPath,
-                                ShortPath = shortPath,
-                                Transport = IdentifyTransport(pid, longPath),
-                                DeviceIndex = 3,
-                                Vid = LogitechVid,
-                                Pid = pid,
-                                ChangeHostFeatureIndex = 0x09,
-                                AllPaths = new List<string> { longPath }
-                            };
-                            if (seenNames.Add(devKeyboard.Name)) found.Add(devKeyboard);
-                            if (seenNames.Add(devMouse.Name)) found.Add(devMouse);
-                        }
+                            Name = "Logitech Keyboard (Receiver Slot 1)",
+                            Path = longPath,
+                            ShortPath = shortPath,
+                            Transport = IdentifyTransport(pid, longPath),
+                            DeviceIndex = 1,
+                            Vid = LogitechVid,
+                            Pid = pid,
+                            ChangeHostFeatureIndex = 0x09,
+                            AllPaths = new List<string> { longPath }
+                        };
+                        var devMouse = new LogitechDevice
+                        {
+                            Name = "Logitech Mouse (Receiver Slot 3)",
+                            Path = longPath,
+                            ShortPath = shortPath,
+                            Transport = IdentifyTransport(pid, longPath),
+                            DeviceIndex = 3,
+                            Vid = LogitechVid,
+                            Pid = pid,
+                            ChangeHostFeatureIndex = 0x09,
+                            AllPaths = new List<string> { longPath }
+                        };
+                        if (seenNames.Add(devKeyboard.Name)) found.Add(devKeyboard);
+                        if (seenNames.Add(devMouse.Name)) found.Add(devMouse);
                     }
                 }
 
@@ -661,9 +676,36 @@ namespace Lunifier.Windows.Core
                 var pReadOverlapped = Marshal.AllocHGlobal(Marshal.SizeOf<OVERLAPPED>());
                 try
                 {
-                    // Query each slot 1..6 with safe 75ms non-blocking overlapped timeout
+                    // 1. Query receiver NVRAM pairing table (instant internal memory, no RF timeout)
+                    var pairedSlots = new Dictionary<byte, (byte Type, ushort Wpid)>();
+                    for (byte slot = 0; slot < 6; slot++)
+                    {
+                        var req = new byte[7];
+                        req[0] = 0x10;
+                        req[1] = 0xFF; // Receiver
+                        req[2] = 0x83;
+                        req[3] = 0xB5;
+                        req[4] = (byte)(0x20 | slot);
+                        req[5] = 0x00;
+                        req[6] = 0x00;
+                        OverlappedWrite(handle, req);
+                        var rresp = OverlappedRead(handle, hReadEvent, pReadOverlapped, 30);
+                        if (rresp != null && rresp.Length >= 8 && rresp[0] == 0x11 && rresp[1] == 0xFF && rresp[2] == 0x83 && rresp[3] == 0xB5)
+                        {
+                            byte devType = rresp[7];
+                            ushort wpid = (ushort)((rresp[5] << 8) | rresp[6]);
+                            if (devType != 0 || wpid != 0)
+                            {
+                                pairedSlots[(byte)(slot + 1)] = (devType, wpid);
+                            }
+                        }
+                    }
+
+                    // 2. Query each slot 1..6 over RF
                     for (byte idx = 1; idx <= 6; idx++)
                     {
+                        bool foundLive = false;
+
                         // Query feature 0x0005 (device name)
                         var q = new byte[20];
                         q[0] = 0x11;
@@ -732,7 +774,43 @@ namespace Lunifier.Windows.Core
 
                             results.Add(dev);
                             _receiverSlotsCache[(pid, idx)] = dev;
+                            foundLive = true;
                             AppLogger.Log("HID++", $"Receiver paired device discovered on Slot {idx}: '{dev.Name}' (Feat=0x{chFeat:X2})");
+                        }
+
+                        // Fallback: If device is sleeping and didn't respond to RF query, but NVRAM confirms it's paired
+                        if (!foundLive && pairedSlots.TryGetValue(idx, out var pInfo))
+                        {
+                            string synthName = GuessNameFromPid(pInfo.Wpid);
+                            if (synthName.StartsWith("Logitech Device", StringComparison.OrdinalIgnoreCase))
+                            {
+                                synthName = (pInfo.Type == 1 || pInfo.Type == 3)
+                                    ? $"Logitech Keyboard (Receiver Slot {idx})"
+                                    : $"Logitech Mouse (Receiver Slot {idx})";
+                            }
+                            else
+                            {
+                                synthName += $" (Receiver Slot {idx})";
+                            }
+
+                            byte chFeat = (byte)(synthName.ToLowerInvariant().Contains("master") ? 0x08 : 0x09);
+                            var dev = new LogitechDevice
+                            {
+                                Name = synthName,
+                                Path = longPath,
+                                ShortPath = shortPath,
+                                Transport = transport,
+                                DeviceIndex = idx,
+                                Vid = LogitechVid,
+                                Pid = pid,
+                                ChangeHostFeatureIndex = chFeat,
+                                FeatureResolved = false,
+                                AllPaths = new List<string> { longPath }
+                            };
+
+                            results.Add(dev);
+                            _receiverSlotsCache[(pid, idx)] = dev;
+                            AppLogger.Log("HID++", $"Receiver paired device (NVRAM, sleeping) on Slot {idx}: '{dev.Name}' (WPID=0x{pInfo.Wpid:X4})");
                         }
                     }
                 }
@@ -813,11 +891,15 @@ namespace Lunifier.Windows.Core
                         if (WriteHidReport(handle, packet))
                         {
                             ok = true;
-                            // For Bluetooth devices, send an immediate follow-up to wake low-power connection interval
-                            if (dev.Transport == TransportType.Bluetooth)
+                            // For keyboards and Bluetooth devices, send follow-up bursts to wake sleeping RF transceivers
+                            bool isKeyboard = dev.Name.ToLowerInvariant().Contains("keyboard");
+                            if (isKeyboard || dev.Transport == TransportType.Bluetooth)
                             {
-                                Thread.Sleep(20);
-                                WriteHidReport(handle, packet);
+                                for (int burst = 0; burst < 2; burst++)
+                                {
+                                    Thread.Sleep(25);
+                                    WriteHidReport(handle, packet);
+                                }
                             }
                             break;
                         }
@@ -842,6 +924,11 @@ namespace Lunifier.Windows.Core
                                     if (WriteHidReport(shortHandle, shortPacket))
                                     {
                                         ok = true;
+                                        if (dev.Name.ToLowerInvariant().Contains("keyboard"))
+                                        {
+                                            Thread.Sleep(25);
+                                            WriteHidReport(shortHandle, shortPacket);
+                                        }
                                         break;
                                     }
                                 }
@@ -881,7 +968,8 @@ namespace Lunifier.Windows.Core
             var results = new ConcurrentDictionary<string, bool>();
 
             // Group receiver devices by receiver endpoint so devices sharing the same physical dongle
-            // are switched sequentially with 30ms spacing to prevent RF packet collision
+            // are switched sequentially with 40ms spacing to prevent RF packet collision.
+            // Prioritize keyboards first so sleeping keyboards receive wake/switch bursts before the active mouse.
             var receiverGroups = devices.Where(d => d.IsReceiver).GroupBy(d => d.Path ?? d.Name);
             var directDevices = devices.Where(d => !d.IsReceiver).ToList();
 
@@ -889,7 +977,7 @@ namespace Lunifier.Windows.Core
 
             foreach (var group in receiverGroups)
             {
-                var groupList = group.ToList();
+                var groupList = group.OrderBy(d => d.Name.ToLowerInvariant().Contains("keyboard") ? 0 : 1).ToList();
                 tasks.Add(Task.Run(() =>
                 {
                     for (int i = 0; i < groupList.Count; i++)
@@ -900,7 +988,7 @@ namespace Lunifier.Windows.Core
 
                         if (i < groupList.Count - 1)
                         {
-                            Thread.Sleep(30);
+                            Thread.Sleep(40);
                         }
                     }
                 }));

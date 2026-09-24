@@ -22,7 +22,7 @@ class AppConfig:
     trigger_edge: str = "right" # Legacy single trigger edge: "right", "left", "top", "bottom"
     entry_edge: str = "left"    # edge where mouse enters on switch back
     hold_delay_ms: int = 250    # ms cursor must dwell on border
-    cooldown_ms: int = 2500     # ms after switch before new trigger allowed
+    cooldown_ms: int = 500      # ms after switch before new trigger allowed
 
     border_active_zone_pct: int = 50   # 10 to 100 percent of border length
     knock_enabled: bool = False        # Require two touches within time window to trigger

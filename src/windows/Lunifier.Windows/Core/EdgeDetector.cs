@@ -25,7 +25,7 @@ namespace Lunifier.Windows.Core
         public string TriggerEdge { get; set; } = "right";
         public List<string> ActiveEdges { get; set; } = new() { "right" };
         public int HoldDelayMs { get; set; } = 250;
-        public int CooldownMs { get; set; } = 2500;
+        public int CooldownMs { get; set; } = 500;
         public int ActiveZonePct { get; set; } = 50;
         public bool KnockEnabled { get; set; } = false;
         public int KnockTimeoutMs { get; set; } = 1000;
@@ -91,7 +91,7 @@ namespace Lunifier.Windows.Core
             {
                 Name = "EdgeDetectorThread",
                 IsBackground = true,
-                Priority = ThreadPriority.AboveNormal
+                Priority = ThreadPriority.Normal
             };
             _thread.Start();
             AppLogger.Log("EdgeDetector", $"Started monitoring across {_monitors.Count} monitor(s). Bounds: ({_screenBounds.Left}, {_screenBounds.Top}, {_screenBounds.Right}, {_screenBounds.Bottom})");
@@ -156,14 +156,14 @@ namespace Lunifier.Windows.Core
 
         private (string Edge, double Ratio, string MonitorId, int TargetChannel)? GetTriggeredEdgeInfo(int x, int y)
         {
-            var m = MonitorManager.GetMonitorForPoint(_monitors, x, y, tol: 5);
+            var m = MonitorManager.GetMonitorForPoint(_monitors, x, y, tol: 2);
             if (m == null) return null;
 
             var mid = m.Id;
             var mCfg = GetMonitorConfig(mid);
             if (!mCfg.Enabled || mCfg.Edges == null) return null;
 
-            const int tol = 5;
+            const int tol = 2;
 
             foreach (var (edgeName, ch) in mCfg.Edges)
             {
@@ -222,7 +222,7 @@ namespace Lunifier.Windows.Core
                     prev = (_cursorHistory.Peek().X, _cursorHistory.Peek().Y);
                 }
 
-                const int minDisplacement = 8;
+                const int minDisplacement = 4;
                 return edge switch
                 {
                     "right" => (currentX - prev.X) >= minDisplacement,
@@ -330,7 +330,7 @@ namespace Lunifier.Windows.Core
                             if (elapsedMs >= requiredHold)
                             {
                                 bool isApproaching = IsApproachingEdge(edge, x, y, _holdStartTime);
-                                if (isApproaching || elapsedMs >= Math.Max(requiredHold, 300))
+                                if (isApproaching)
                                 {
                                     if (KnockEnabled)
                                     {

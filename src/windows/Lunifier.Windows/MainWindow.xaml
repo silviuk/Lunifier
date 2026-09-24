@@ -190,9 +190,9 @@
                                     </Grid.RowDefinitions>
                                     <Grid Grid.Row="0" Margin="0,0,0,4">
                                         <TextBlock Text="Switch Cooldown (ms):" Foreground="{DynamicResource TextSecondary}" />
-                                        <TextBlock x:Name="CooldownText" Text="2500ms" HorizontalAlignment="Right" Foreground="{DynamicResource SectionHeader}" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="CooldownText" Text="500ms" HorizontalAlignment="Right" Foreground="{DynamicResource SectionHeader}" FontWeight="SemiBold" />
                                     </Grid>
-                                    <Slider x:Name="CooldownSlider" Grid.Row="1" Minimum="500" Maximum="5000" Value="2500" TickFrequency="100" IsSnapToTickEnabled="True" ValueChanged="CooldownSlider_ValueChanged" />
+                                    <Slider x:Name="CooldownSlider" Grid.Row="1" Minimum="200" Maximum="5000" Value="500" TickFrequency="100" IsSnapToTickEnabled="True" ValueChanged="CooldownSlider_ValueChanged" />
                                 </Grid>
 
                                 <!-- Border Knock -->

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.7] - 2026-09-24
+
+### Fixed & Improved (Windows & Linux)
+
+- **Keyboard Switching Reliability**:
+  - Implemented multi-burst wake transmissions (spaced 25ms apart) in `SwitchDeviceHost` for keyboards and Bluetooth devices on both Windows and Linux to wake sleeping RF receivers from low-power state.
+  - Prioritized keyboards before mice when switching devices on the same receiver, ensuring sleeping keyboards receive wake/switch bursts before the active mouse.
+  - Added receiver NVRAM pre-scan table query (`0x10, 0xFF, 0x83, 0xB5`) to detect all paired receiver slots and WPIDs without RF timeouts, retaining cached receiver devices so sleeping devices are never lost during rescan.
+
+- **Default Switch Cooldown Reduced to 500ms**:
+  - Lowered default cooldown from 2500ms to 500ms across Windows and Linux, allowing smooth and prompt switching without long delays between border touches.
+  - Expanded slider range to 200ms–5000ms.
+
+- **Eliminated Mouse Pointer Jank & Hiccups**:
+  - Lowered background edge detector thread priority from `AboveNormal` to `Normal`, preventing thread contention with Windows DWM and mouse input subsystems.
+  - Tightened border trigger tolerance from 5px to 2px, preventing cursor interaction with window scrollbars from triggering border events.
+  - Removed arbitrary 300ms hold-delay bypass that falsely triggered switching when scrolling or dragging near screen edges.
+  - Reduced inward stepback displacement from 160px to 60px, eliminating jarring cursor jumps while retaining loop prevention.
+
+- **Light Theme Contrast & Legibility Overhaul**:
+  - Fixed button text rendering in Light mode by injecting an explicit white TextBlock style in `Button.ContentPresenter.Resources`, permanently eliminating black text on blue buttons.
+  - Replaced low-contrast light sky blue (`#38BDF8`) and light gray (`#94A3B8`) in device and peer lists with theme-aware high-contrast colors (`#0284C7` and `#334155` in light mode).
+  - Darkened secondary text (`#334155`), section headers (`#0369A1`), and log box text (`#0F172A`) in light mode for full WCAG AAA legibility against white and light gray cards.
+
+- **Linux Background Service Persistence & System Tray**:
+  - Implemented D-Bus StatusNotifierItem (SNI) + DBusMenu system tray integration in Linux (`tray.py`).
+  - Closing the main window now keeps the Lunifier service running smoothly in the background and hides the window to the system tray instead of terminating.
+  - Added system tray menu items to restore/present the main window or cleanly quit the application.
+
+---
+
 ## [2.1.6] - 2026-09-23
 
 ### Fixed & Improved (Windows & Linux)

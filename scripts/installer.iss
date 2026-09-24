@@ -1,6 +1,6 @@
 ; Inno Setup Script for Lunifier 2.1 Native
 #define MyAppName "Lunifier"
-#define MyAppVersion "2.1.6"
+#define MyAppVersion "2.1.7"
 #define MyAppPublisher "silviuk"
 #define MyAppURL "https://github.com/silviuk/Lunifier"
 #define MyAppExeName "Lunifier.exe"

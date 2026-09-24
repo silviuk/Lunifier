@@ -358,9 +358,11 @@ class HIDPPMaster:
                             try:
                                 if os.write(fd, pkt) > 0:
                                     written_any = True
-                                    if dev.transport == TransportType.BLUETOOTH:
-                                        time.sleep(0.015)
-                                        os.write(fd, pkt)
+                                    is_kb = "keyboard" in dev.name.lower()
+                                    if dev.transport == TransportType.BLUETOOTH or is_kb:
+                                        for _ in range(2):
+                                            time.sleep(0.020)
+                                            os.write(fd, pkt)
                             except Exception:
                                 pass
                 finally:
@@ -462,12 +464,13 @@ class HIDPPMaster:
         threads: List[threading.Thread] = []
 
         for grp_path, dev_list in receiver_groups.items():
-            def run_group(items=dev_list):
+            sorted_devs = sorted(dev_list, key=lambda d: 0 if "keyboard" in d.name.lower() else 1)
+            def run_group(items=sorted_devs):
                 for idx, dev in enumerate(items):
                     ok = self.switch_device_host(dev, target_channel, backend=backend, connection_support=connection_support)
                     results[f"{dev.name} ({dev.transport.value})"] = ok
                     if idx < len(items) - 1:
-                        time.sleep(0.030)  # 30ms spacing on same physical receiver
+                        time.sleep(0.040)  # 40ms spacing on same physical receiver
             t = threading.Thread(target=run_group, daemon=True)
             threads.append(t)
             t.start()

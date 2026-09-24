@@ -19,6 +19,7 @@ from .monitors import get_monitors, MonitorInfo
 from .app import LunifierApp
 from .bt_link import discover_advertising_lunifier_peers, get_local_bluetooth_mac
 from .overlay import BorderOverlayManager
+from .tray import LunifierTray
 
 
 class LunifierAdwaitaWindow(Adw.ApplicationWindow):
@@ -29,6 +30,8 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.app_service = LunifierApp(self.config)
         self.hidpp = self.app_service.hidpp
         self.overlay = BorderOverlayManager(parent=self)
+        self.tray = LunifierTray(on_show=self.show_and_present, on_quit=self.quit_application)
+        self._is_quitting = False
 
         self.monitors: List[MonitorInfo] = get_monitors()
         self.selected_monitor_id = "0"
@@ -216,7 +219,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
 
         # Cooldown row
         self.cooldown_row = Adw.ActionRow(title="Switch Cooldown", subtitle=f"{self.config.cooldown_ms} ms")
-        self.cooldown_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 500, 5000, 100)
+        self.cooldown_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 200, 5000, 100)
         self.cooldown_scale.set_value(self.config.cooldown_ms)
         self.cooldown_scale.set_hexpand(True)
         self.cooldown_scale.set_size_request(200, -1)
@@ -728,12 +731,38 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
             return False
         GLib.idle_add(append_text)
 
-    def _on_close(self, *args):
+    def show_and_present(self):
+        self.set_visible(True)
+        self.present()
+
+    def quit_application(self):
+        self._is_quitting = True
         self._save_all_settings()
         if hasattr(self, "overlay"):
             self.overlay.close()
         if getattr(self.app_service, "_running", False):
             self.app_service.stop()
+        remove_log_listener(self._on_log_message)
+        app = self.get_application()
+        if app:
+            app.quit()
+        else:
+            self.destroy()
+
+    def _on_close(self, *args):
+        if getattr(self, "_is_quitting", False):
+            return False
+
+        self._save_all_settings()
+        if hasattr(self, "overlay"):
+            self.overlay.close()
+
+        # If background service is running, keep it active and hide window into system tray
+        if getattr(self.app_service, "_running", False):
+            self.set_visible(False)
+            log("GUI", "Main window closed: Lunifier service remains active in background with system tray icon.")
+            return True  # Prevent window destruction
+
         remove_log_listener(self._on_log_message)
         return False
 
@@ -746,7 +775,12 @@ class LunifierAdwaitaApp(Adw.Application):
         )
 
     def do_activate(self):
-        win = self.props.active_window
+        win = self.get_active_window()
         if not win:
-            win = LunifierAdwaitaWindow(application=self)
+            windows = self.get_windows()
+            if windows:
+                win = windows[0]
+            else:
+                win = LunifierAdwaitaWindow(application=self)
+        win.set_visible(True)
         win.present()

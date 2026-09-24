@@ -98,7 +98,7 @@ namespace Lunifier.Windows.Core
             AppLogger.Log("Lunifier", $">>> SCREEN BORDER REACHED: '{edge.ToUpperInvariant()}' on Monitor {monitorId} at ({x}, {y}) (Ratio: {ratio:F2}) <<<");
 
             // Step cursor inward immediately and arm return guard to prevent border loop
-            const int stepBack = 160;
+            const int stepBack = 60;
             int newX = x;
             int newY = y;
             switch (edge.ToLowerInvariant())

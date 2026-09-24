@@ -95,15 +95,15 @@ namespace Lunifier.Windows.Core
                 res["InputBackground"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));  // #FFFFFF
                 res["InputBorder"] = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8));      // #94A3B8
                 res["TextPrimary"] = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A));      // #0F172A
-                res["TextSecondary"] = new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69));    // #475569
-                res["SectionHeader"] = new SolidColorBrush(Color.FromRgb(0x02, 0x84, 0xC7));    // #0284C7
+                res["TextSecondary"] = new SolidColorBrush(Color.FromRgb(0x33, 0x41, 0x55));    // #334155
+                res["SectionHeader"] = new SolidColorBrush(Color.FromRgb(0x03, 0x69, 0xA1));    // #0369A1
                 res["AccentColor"] = new SolidColorBrush(Color.FromRgb(0x02, 0x84, 0xC7));      // #0284C7
                 res["AccentHover"] = new SolidColorBrush(Color.FromRgb(0x03, 0x69, 0xA1));      // #0369A1
                 res["DropdownBackground"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
                 res["DropdownBorder"] = new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1));
                 res["ItemHoverBackground"] = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
                 res["ItemSelectedBackground"] = new SolidColorBrush(Color.FromRgb(0x02, 0x84, 0xC7));
-                res["LogsBoxForeground"] = new SolidColorBrush(Color.FromRgb(0x03, 0x69, 0xA1));
+                res["LogsBoxForeground"] = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A));
             }
 
             ThemeChanged?.Invoke(isDark);

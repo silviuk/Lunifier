@@ -56,7 +56,7 @@ namespace Lunifier.Windows.Config
         public int HoldDelayMs { get; set; } = 250;
 
         [JsonPropertyName("cooldown_ms")]
-        public int CooldownMs { get; set; } = 2500;
+        public int CooldownMs { get; set; } = 500;
 
         [JsonPropertyName("border_active_zone_pct")]
         public int BorderActiveZonePct { get; set; } = 50;
