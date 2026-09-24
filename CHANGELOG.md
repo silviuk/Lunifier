@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.9] - 2026-09-24
+
+### Fixed & Improved (Windows & Linux)
+
+- **Edge Dwell Switching & Continuous History Fix (Top Priority)**:
+  - Fixed edge detector dwell triggering where cursor dwell holds on screen borders were blocked by stale approach vectors or skipped history entries.
+  - Continuous cursor history recording is now strictly maintained on every tick without being bypassed.
+  - Satisfying the configured dwell hold duration (`HoldDelayMs`) now directly and reliably triggers channel switching across both Windows and Linux.
+
+- **Multi-Monitor Border Overlay & Resolution Fix**:
+  - Fixed bug where adjusting active border zones caused 4 orange bars to erroneously appear on disabled or unconfigured secondary monitors.
+  - Replaced virtual desktop spanning with per-monitor overlay window positioning, completely eliminating cross-monitor DPI distortion and misplaced bars in the middle of screens.
+  - Overlays are now strictly constrained to monitors with actively configured border channels.
+
+- **Accent Color & Vector-Smooth Convex Border Indicators**:
+  - Windows border indicator bars now dynamically inherit the Windows Accent Color (`HKCU\Software\Microsoft\Windows\DWM\AccentColor` / `SystemParameters.WindowGlassBrush`), falling back to vibrant Logitech orange (`#FF5722`).
+  - Linux border indicators query GNOME accent colors via `gsettings`, falling back to `#FF5722`.
+  - Indicators are rendered with rounded ends (`R=3px`) and a subtle convex bulge (`B=3.5px`) towards the screen center using DirectX vector `PathGeometry` with sub-pixel anti-aliasing (zero jagged edges).
+
+- **Start Minimized Configuration & UI**:
+  - Added "Start minimized to system tray" option in GUI and persistent configuration (`start_minimized`) across Windows WPF and Linux Adwaita.
+  - Applications launch directly into system tray without flashing the main window when enabled.
+
+---
+
 ## [2.1.8] - 2026-09-24
 
 ### Size, Performance & Packaging Overhaul (Windows & Linux)

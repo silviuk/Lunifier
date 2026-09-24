@@ -391,7 +391,8 @@ class ScreenEdgeDetector:
                         elapsed_ms = (now - self._hold_start_time) * 1000
                         required_hold = (min(100, self.hold_delay_ms) if self.knock_enabled else self.hold_delay_ms)
                         if elapsed_ms >= required_hold:
-                            if self._is_approaching_edge(edge, x, y, self._hold_start_time):
+                            can_trigger = (self.hold_delay_ms > 0) or self._is_approaching_edge(edge, x, y, self._hold_start_time)
+                            if can_trigger:
                                 if self.knock_enabled:
                                     if self._last_knock_edge == key and ((now - self._last_knock_time) * 1000 <= self.knock_timeout_ms):
                                         log("EdgeDetector", f"Border knock (2/2) on Monitor {mid} '{edge}' -> Switch to Channel {ch}")
@@ -426,8 +427,6 @@ class ScreenEdgeDetector:
                                             self.on_trigger_callback(edge, x, y, ratio, mid, ch)
                                         except Exception as cb_err:
                                             log("EdgeDetector", f"Error in trigger callback: {cb_err}")
-                            else:
-                                self._hold_start_time = now
                 else:
                     self._current_edge = None
                     self._current_monitor_id = None

@@ -303,39 +303,6 @@ namespace Lunifier.Windows.Core
                         continue;
                     }
 
-                    // Fast-path early rejection: if cursor is well inside interior away from all borders
-                    const int edgeThreshold = 4;
-                    if (x > _screenBounds.Left + edgeThreshold &&
-                        x < _screenBounds.Right - edgeThreshold &&
-                        y > _screenBounds.Top + edgeThreshold &&
-                        y < _screenBounds.Bottom - edgeThreshold)
-                    {
-                        bool nearAnyBorder = false;
-                        for (int i = 0; i < _monitors.Count; i++)
-                        {
-                            var mon = _monitors[i];
-                            if ((Math.Abs(x - mon.Left) <= edgeThreshold || Math.Abs(x - mon.Right) <= edgeThreshold) &&
-                                (mon.Top - edgeThreshold <= y && y <= mon.Bottom + edgeThreshold))
-                            {
-                                nearAnyBorder = true; break;
-                            }
-                            if ((Math.Abs(y - mon.Top) <= edgeThreshold || Math.Abs(y - mon.Bottom) <= edgeThreshold) &&
-                                (mon.Left - edgeThreshold <= x && x <= mon.Right + edgeThreshold))
-                            {
-                                nearAnyBorder = true; break;
-                            }
-                        }
-
-                        if (!nearAnyBorder)
-                        {
-                            _holdStartTime = null;
-                            _currentEdge = null;
-                            _currentMonitorId = null;
-                            Thread.Sleep(15);
-                            continue;
-                        }
-                    }
-
                     AddCursorHistory(now, x, y);
 
                     // Cooldown check
@@ -385,8 +352,8 @@ namespace Lunifier.Windows.Core
 
                             if (elapsedMs >= requiredHold)
                             {
-                                bool isApproaching = IsApproachingEdge(edge, x, y, _holdStartTime);
-                                if (isApproaching)
+                                bool canTrigger = (HoldDelayMs > 0) || IsApproachingEdge(edge, x, y, _holdStartTime);
+                                if (canTrigger)
                                 {
                                     if (KnockEnabled)
                                     {

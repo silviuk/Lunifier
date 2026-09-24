@@ -4,5 +4,5 @@ Seamless Logitech Easy-Switch Flow across Systems.
 Author: Silviu Vlasceanu
 """
 
-__version__ = "2.1.8"
+__version__ = "2.1.9"
 __author__ = "Silviu Vlasceanu"

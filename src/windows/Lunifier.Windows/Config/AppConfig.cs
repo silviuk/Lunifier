@@ -126,6 +126,9 @@ namespace Lunifier.Windows.Config
         [JsonPropertyName("autostart")]
         public bool Autostart { get; set; } = false;
 
+        [JsonPropertyName("start_minimized")]
+        public bool StartMinimized { get; set; } = false;
+
         public static bool IsAutostartEnabled()
         {
             try

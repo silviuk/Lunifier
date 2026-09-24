@@ -4,6 +4,7 @@ using System.Windows;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 using Lunifier.Windows.Core;
+using Lunifier.Windows.Config;
 
 namespace Lunifier.Windows
 {
@@ -95,7 +96,8 @@ namespace Lunifier.Windows
 
             base.OnStartup(e);
 
-            bool startMinimized = false;
+            var cfg = AppConfig.Load();
+            bool startMinimized = cfg.StartMinimized;
             if (e.Args != null)
             {
                 foreach (var arg in e.Args)
@@ -104,6 +106,11 @@ namespace Lunifier.Windows
                     if (a is "--minimized" or "-minimized" or "/minimized" or "--daemon" or "-d" or "/daemon")
                     {
                         startMinimized = true;
+                        break;
+                    }
+                    if (a is "--gui" or "-gui" or "/gui" or "--show" or "-show")
+                    {
+                        startMinimized = false;
                         break;
                     }
                 }

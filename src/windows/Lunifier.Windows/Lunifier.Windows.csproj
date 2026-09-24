@@ -15,9 +15,9 @@
     <AssemblyTitle>Lunifier</AssemblyTitle>
     <Description>Seamless Logitech Easy-Switch Flow for Windows and Linux</Description>
     <Copyright>Copyright © 2026 Silviu Vlasceanu</Copyright>
-    <Version>2.1.8</Version>
-    <AssemblyVersion>2.1.8.0</AssemblyVersion>
-    <FileVersion>2.1.8.0</FileVersion>
+    <Version>2.1.9</Version>
+    <AssemblyVersion>2.1.9.0</AssemblyVersion>
+    <FileVersion>2.1.9.0</FileVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

@@ -74,9 +74,10 @@ def main():
     if args.log_level:
         set_log_level(args.log_level)
 
+    cfg = AppConfig.load()
     if args.gui:
         sys.exit(run_gui())
-    elif args.daemon or args.minimized:
+    elif args.daemon or args.minimized or cfg.start_minimized:
         run_daemon()
     else:
         # If DISPLAY or WAYLAND_DISPLAY is set, launch GUI by default; otherwise daemon

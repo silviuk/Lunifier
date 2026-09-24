@@ -337,6 +337,7 @@ namespace Lunifier.Windows
             SyncClipboardCheck.IsChecked = _config.SyncClipboard;
 
             AutostartCheck.IsChecked = AppConfig.IsAutostartEnabled();
+            StartMinimizedCheck.IsChecked = _config.StartMinimized;
 
             UpdateMonitorUi(_selectedMonitorId);
         }
@@ -543,6 +544,7 @@ namespace Lunifier.Windows
             _config.SyncClipboard = SyncClipboardCheck.IsChecked == true;
 
             _config.Autostart = AutostartCheck.IsChecked == true;
+            _config.StartMinimized = StartMinimizedCheck.IsChecked == true;
             AppConfig.SetAutostart(_config.Autostart);
 
             _config.Save();

@@ -119,6 +119,10 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.autostart_row.set_active(self.config.is_autostart_enabled())
         grp_host.add(self.autostart_row)
 
+        self.start_minimized_row = Adw.SwitchRow(title="Start minimized to system tray")
+        self.start_minimized_row.set_active(getattr(self.config, "start_minimized", False))
+        grp_host.add(self.start_minimized_row)
+
         # Group 2: Monitor Border Configuration
         grp_monitors = Adw.PreferencesGroup(title="Display & Border Configuration", description="Configure borders per physical monitor")
         page.add(grp_monitors)
@@ -563,6 +567,7 @@ class LunifierAdwaitaWindow(Adw.ApplicationWindow):
         self.config.sync_clipboard = self.sync_clipboard_row.get_active()
 
         self.config.set_autostart(self.autostart_row.get_active())
+        self.config.start_minimized = self.start_minimized_row.get_active()
 
         self.config.save()
 

@@ -69,6 +69,7 @@
                                     </ComboBox>
                                 </Grid>
                                 <CheckBox x:Name="AutostartCheck" Content="Start Lunifier automatically on Windows login" Foreground="{DynamicResource TextPrimary}" Margin="0,12,0,4" />
+                                <CheckBox x:Name="StartMinimizedCheck" Content="Start minimized to system tray" Foreground="{DynamicResource TextPrimary}" Margin="0,4,0,4" />
                                 <TextBlock Text="Global Hotkeys: Ctrl+Alt+1, Ctrl+Alt+2, Ctrl+Alt+3 to switch channels instantly." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                             </StackPanel>
                         </Border>

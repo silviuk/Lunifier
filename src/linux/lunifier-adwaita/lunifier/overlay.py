@@ -5,6 +5,7 @@ when adjusting settings or changing monitor edges.
 """
 
 import ctypes
+import subprocess
 from typing import Dict, List, Optional
 try:
     from gi.repository import GLib
@@ -101,9 +102,31 @@ class BorderOverlayManager:
                 self._root = None
         return bool(self._dpy and self._root)
 
+    def _get_accent_color(self) -> int:
+        gnome_accents = {
+            "orange": 0x00FF5722,
+            "blue": 0x003584E4,
+            "teal": 0x0021A4DF,
+            "green": 0x002EC27E,
+            "yellow": 0x00E5A50A,
+            "red": 0x00E01B24,
+            "pink": 0x00E661AC,
+            "purple": 0x009141AC,
+            "slate": 0x0077767B,
+        }
+        try:
+            res = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "accent-color"], capture_output=True, text=True, timeout=0.2)
+            if res.returncode == 0:
+                name = res.stdout.strip().strip("'\"").lower()
+                if name in gnome_accents:
+                    return gnome_accents[name]
+        except Exception:
+            pass
+        return self.ORANGE_PIXEL
+
     def show(self, active_zone_pct: int, edges: Optional[Dict[str, List[str]]] = None, monitor_id: Optional[str] = None):
         """
-        Displays orange bars along the active zones of configured screen edges.
+        Displays accent/orange bars along the active zones of configured screen edges.
         Automatically hides after 1.5 seconds.
         """
         # Cancel any pending auto-hide timer
@@ -124,17 +147,21 @@ class BorderOverlayManager:
         monitors = get_monitors()
         pct = max(10, min(100, active_zone_pct))
         margin_ratio = (1.0 - (pct / 100.0)) / 2.0
+        bar_color = self._get_accent_color()
 
         for m in monitors:
             mid = str(m.id)
-            if monitor_id is not None and mid != str(monitor_id):
-                continue
-
-            active_edges: Optional[List[str]] = None
-            if edges and mid in edges:
-                active_edges = edges[mid]
-            elif edges and "0" in edges and mid == "0":
-                active_edges = edges["0"]
+            if edges is not None:
+                if mid in edges:
+                    active_edges = edges[mid]
+                elif mid == "0" and "0" in edges:
+                    active_edges = edges["0"]
+                else:
+                    continue  # Do not draw on unconfigured or disabled monitors
+            elif monitor_id is not None:
+                if mid != str(monitor_id):
+                    continue
+                active_edges = ["left", "right", "top", "bottom"]
             else:
                 active_edges = ["left", "right", "top", "bottom"]
 
@@ -172,7 +199,7 @@ class BorderOverlayManager:
                     win = x11.XCreateSimpleWindow(
                         self._dpy, self._root,
                         seg_x, seg_y, seg_w, seg_h,
-                        0, 0, self.ORANGE_PIXEL
+                        0, 0, bar_color
                     )
                     attr = XSetWindowAttributes()
                     attr.override_redirect = 1

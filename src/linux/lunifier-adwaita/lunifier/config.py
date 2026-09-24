@@ -60,6 +60,7 @@ class AppConfig:
     sync_clipboard: bool = False
     log_level: str = "normal"
     autostart: bool = False
+    start_minimized: bool = False
 
     @staticmethod
     def is_autostart_enabled() -> bool:
