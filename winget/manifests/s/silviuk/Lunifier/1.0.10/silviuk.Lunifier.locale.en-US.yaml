@@ -1,0 +1,36 @@
+# Created using wingetcreate
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: silviuk.Lunifier
+PackageVersion: 1.0.10
+PackageLocale: en-US
+Publisher: silviuk
+PublisherUrl: https://github.com/silviuk/Lunifier
+PublisherSupportUrl: https://github.com/silviuk/Lunifier/issues
+Author: Silviu Vlasceanu
+PackageName: Lunifier
+PackageUrl: https://github.com/silviuk/Lunifier
+License: MIT
+LicenseUrl: https://github.com/silviuk/Lunifier/blob/master/LICENSE
+Copyright: Copyright (c) 2026 Silviu Vlasceanu
+ShortDescription: Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows and Linux.
+Description: |
+  Lunifier coordinates Logitech Easy-Switch keyboards and mice across multiple screens
+  without requiring a local Wi-Fi/LAN connection.
+Moniker: lunifier
+Tags:
+  - logitech
+  - easy-switch
+  - mx-keys
+  - mx-master
+  - flow
+  - multi-monitor
+  - bluetooth
+  - unifying
+  - bolt
+ReleaseNotes: |
+  - Windows Store and WinGet package compatibility updates.
+  - Return Guard and edge switching reliability enhancements.
+ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v1.0.10
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
