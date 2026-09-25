@@ -8,7 +8,7 @@ LINUX_SRC_DIR="$ROOT_DIR/src/linux/lunifier-adwaita"
 
 mkdir -p "$DIST_DIR"
 
-VERSION="${1:-2.2.0}"
+VERSION="${1:-2.2.1}"
 TARGET_EDITION="${2:-all}" # "standard", "nobtsync", or "all"
 
 build_edition() {

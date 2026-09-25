@@ -1,5 +1,5 @@
 param (
-    [string]$version = "2.2.0",
+    [string]$version = "2.2.1",
     [switch]$NoBtSync
 )
 $ErrorActionPreference = "Stop"
