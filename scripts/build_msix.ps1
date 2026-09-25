@@ -1,10 +1,11 @@
-# PowerShell script to build MSIX package for Windows Store submission
+# PowerShell script to build compliant MSIX package for Windows Store submission
 param (
-    [string]$Version = "1.0.9.0",
+    [string]$Version = "1.0.10.0",
     [string]$DistDir = "$PSScriptRoot\..\dist",
     [string]$SourceAppDir = "$PSScriptRoot\..\dist\Lunifier",
     [string]$ManifestPath = "$PSScriptRoot\..\packaging\msix\AppxManifest.xml",
-    [string]$IconPath = "$PSScriptRoot\..\lunifier\resources\icon.png"
+    [string]$IconPath = "$PSScriptRoot\..\lunifier\resources\icon.png",
+    [string]$OutputName = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,13 +31,21 @@ New-Item -ItemType Directory -Path $AppDir | Out-Null
 # 1. Copy Application Binaries
 Write-Host "[1/4] Copying application binaries to staging layout..." -ForegroundColor Yellow
 Copy-Item -Path "$SourceAppDir\*" -Destination $AppDir -Recurse -Force
+Get-ChildItem -Path $AppDir -Filter "*.pdb" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+Get-ChildItem -Path $AppDir -Filter ".DS_Store" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+Get-ChildItem -Path $AppDir -Filter "Thumbs.db" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 
 # 2. Copy and Update AppxManifest.xml
 Write-Host "[2/4] Preparing AppxManifest.xml..." -ForegroundColor Yellow
-Copy-Item -Path $ManifestPath -Destination (Join-Path $StagingDir "AppxManifest.xml") -Force
+$manifestContent = Get-Content $ManifestPath -Raw
 
-# 3. Generate Visual Assets with Python PIL
-Write-Host "[3/4] Generating Store and Visual Tile Assets..." -ForegroundColor Yellow
+# Strictly replace Version only within the Identity element to preserve <?xml version="1.0"?> and MinVersion
+$manifestContent = [System.Text.RegularExpressions.Regex]::Replace($manifestContent, '(<Identity\b[^>]*?\bVersion=")[^"]+(")', "`${1}$Version`${2}")
+
+Set-Content -Path (Join-Path $StagingDir "AppxManifest.xml") -Value $manifestContent -Encoding UTF8
+
+# 3. Generate Visual Assets with Python PIL (including High-DPI scale variants)
+Write-Host "[3/4] Generating Store and Visual Tile Assets (including High-DPI scale variants)..." -ForegroundColor Yellow
 python -c "
 from PIL import Image
 import os
@@ -46,50 +55,76 @@ out_dir = r'$AssetsDir'
 
 img = Image.open(src).convert('RGBA')
 
+# Base and scale variants required for Windows Store certification
 sizes = {
     'Square44x44Logo.png': (44, 44),
+    'Square44x44Logo.scale-100.png': (44, 44),
+    'Square44x44Logo.scale-200.png': (88, 88),
+    'Square44x44Logo.targetsize-44.png': (44, 44),
+    'Square44x44Logo.targetsize-24.png': (24, 24),
     'Square150x150Logo.png': (150, 150),
+    'Square150x150Logo.scale-100.png': (150, 150),
+    'Square150x150Logo.scale-200.png': (300, 300),
     'StoreLogo.png': (50, 50),
-    'Wide310x150Logo.png': (310, 150)
+    'StoreLogo.scale-100.png': (50, 50),
+    'StoreLogo.scale-200.png': (100, 100),
 }
 
 for name, sz in sizes.items():
-    if sz == (310, 150):
-        wide = Image.new('RGBA', (310, 150), (0, 0, 0, 0))
-        scaled = img.resize((120, 120), Image.Resampling.LANCZOS)
-        wide.paste(scaled, ((310 - 120) // 2, (150 - 120) // 2), scaled)
-        wide.save(os.path.join(out_dir, name))
-    else:
-        resized = img.resize(sz, Image.Resampling.LANCZOS)
-        resized.save(os.path.join(out_dir, name))
-print('Assets generated successfully.')
+    resized = img.resize(sz, Image.Resampling.LANCZOS)
+    resized.save(os.path.join(out_dir, name))
+
+# Wide tile variants
+wide_sizes = {
+    'Wide310x150Logo.png': (310, 150, 120),
+    'Wide310x150Logo.scale-100.png': (310, 150, 120),
+    'Wide310x150Logo.scale-200.png': (620, 300, 240)
+}
+
+for name, (w, h, icon_sz) in wide_sizes.items():
+    wide = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    scaled = img.resize((icon_sz, icon_sz), Image.Resampling.LANCZOS)
+    wide.paste(scaled, ((w - icon_sz) // 2, (h - icon_sz) // 2), scaled)
+    wide.save(os.path.join(out_dir, name))
+
+print('Store assets generated successfully.')
 "
 
-# 4. Compile MSIX Package
-Write-Host "[4/4] Creating MSIX Package..." -ForegroundColor Yellow
-$OutputFile = Join-Path $DistDir "Lunifier-$Version.msix"
+# 4. Locate official Microsoft MakeAppx.exe Tool
+Write-Host "[4/4] Locating MakeAppx.exe and creating OPC-compliant MSIX Package..." -ForegroundColor Yellow
+
+$cmd = Get-Command makeappx -ErrorAction SilentlyContinue
+$cmdSource = if ($cmd) { $cmd.Source } else { $null }
+
+$makeAppxCandidates = @(
+    (Get-ChildItem -Path "$env:LocalAppData\Microsoft\WinGet\Packages" -Filter "MakeAppx.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
+    (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits", "C:\Program Files\Windows Kits" -Filter "makeappx.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1 -ExpandProperty FullName),
+    $cmdSource
+)
+
+$MakeAppx = $null
+foreach ($cand in $makeAppxCandidates) {
+    if ($cand -and (Test-Path $cand)) {
+        $MakeAppx = $cand
+        break
+    }
+}
+
+if (-not $MakeAppx) {
+    Write-Error "MakeAppx.exe not found! Genuine MSIX packages for Windows Store submission require MakeAppx.exe to generate AppxBlockMap.xml and [Content_Types].xml. Please install Microsoft.MSIX-Toolkit or Windows SDK."
+    exit 1
+}
+
+$OutputFile = if ($OutputName) { Join-Path $DistDir $OutputName } else { Join-Path $DistDir "Lunifier-$Version.msix" }
 if (Test-Path $OutputFile) {
     Remove-Item $OutputFile -Force
 }
 
-# Search for MakeAppx.exe in Windows Kits
-$MakeAppx = $null
-$WindowsKits = "C:\Program Files (x86)\Windows Kits\10\bin"
-if (Test-Path $WindowsKits) {
-    $found = Get-ChildItem -Path $WindowsKits -Filter "makeappx.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
-    if ($found) {
-        $MakeAppx = $found.FullName
-    }
-}
-
-if ($MakeAppx) {
-    Write-Host "Using MakeAppx: $MakeAppx" -ForegroundColor Green
-    & "$MakeAppx" pack /d "$StagingDir" /p "$OutputFile" /o
-} else {
-    $tempZip = [System.IO.Path]::ChangeExtension($OutputFile, ".zip")
-    if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
-    Compress-Archive -Path "$StagingDir\*" -DestinationPath $tempZip -Force
-    Move-Item -Path $tempZip -Destination $OutputFile -Force
+Write-Host "Using MakeAppx: $MakeAppx" -ForegroundColor Green
+& "$MakeAppx" pack /d "$StagingDir" /p "$OutputFile" /o
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "MakeAppx failed to package MSIX!"
+    exit 1
 }
 
 $Sha = (Get-FileHash $OutputFile -Algorithm SHA256).Hash
