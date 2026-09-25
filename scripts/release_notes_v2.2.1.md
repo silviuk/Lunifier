@@ -35,3 +35,9 @@
 | `Lunifier-2.2.1-nobtsync.msix` | 6.74 MB | `B4F63F17905E3CAD3B8EBDEB6F616C53BCFE7BD775FDC8BC982742F7216C2B02` |
 | `lunifier_2.2.1-nobtsync_all.deb` | 170.7 KB | `A7879069A1B694E3149576D8671713DEEA0392C5171E5BE0C8A745F30A057BC2` |
 | `Lunifier-Linux-2.2.1-nobtsync.tar.gz` | 239.1 KB | `4FF06A54D79D1E378F1C712F30340E79597EADD691276AB6CDB8FC6C1450565E` |
+
+---
+
+> [!NOTE]
+> **MSIX Package Naming (`2.2.1` vs `2.2.1.0`)**:
+> `Lunifier-2.2.1.0.msix` and `Lunifier-2.2.1.msix` (as well as their respective `-nobtsync` counterparts) are bit-for-bit identical binary packages with matching SHA-256 checksums. The 4-part quad version `2.2.1.0` is strictly mandated by the Windows AppX/MSIX packaging specification (`AppxManifest.xml`) and Microsoft Partner Center / Windows Store upload validation (`Major.Minor.Build.Revision`). The 3-part `2.2.1` filename is provided as an alias matching standard semantic versioning and GitHub release tag conventions. Either package can be installed interchangeably.
