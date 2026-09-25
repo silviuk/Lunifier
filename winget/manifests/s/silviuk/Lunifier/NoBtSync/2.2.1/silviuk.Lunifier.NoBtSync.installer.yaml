@@ -1,0 +1,18 @@
+# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier.NoBtSync
+PackageVersion: 2.2.1
+Platform:
+  - Windows.Desktop
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+Installers:
+  - Architecture: x64
+    InstallerType: inno
+    InstallerUrl: https://github.com/silviuk/Lunifier/releases/download/v2.2.1/Lunifier-Setup-2.2.1-nobtsync.exe
+    InstallerSha256: 5C9663E10382A860E7FAF81DA721A0A0ED0F057626AD3F0573E7F71FEA47D0A7
+    Scope: machine
+    UpgradeBehavior: install
+ManifestType: installer
+ManifestVersion: 1.6.0

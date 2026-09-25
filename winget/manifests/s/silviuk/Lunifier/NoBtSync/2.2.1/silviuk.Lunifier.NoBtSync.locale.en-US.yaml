@@ -1,0 +1,35 @@
+# Created with YamlCreate.ps1
+PackageIdentifier: silviuk.Lunifier.NoBtSync
+PackageVersion: 2.2.1
+PackageLocale: en-US
+Publisher: silviuk
+PublisherUrl: https://github.com/silviuk/Lunifier
+PublisherSupportUrl: https://github.com/silviuk/Lunifier/issues
+Author: Silviu Vlasceanu
+PackageName: Lunifier (No-BtSync Edition)
+PackageUrl: https://github.com/silviuk/Lunifier
+License: MIT
+LicenseUrl: https://github.com/silviuk/Lunifier/blob/master/LICENSE
+Copyright: Copyright (c) 2026 Silviu Vlasceanu
+ShortDescription: Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice without Bluetooth RFCOMM sync.
+Description: |
+  Lunifier (No-BtSync Edition) coordinates Logitech Easy-Switch keyboards and mice (MX Keys, MX Master series,
+  M720 Triathlon, POP Mouse, etc.) across screens without computer-to-computer Bluetooth RFCOMM communication.
+Moniker: lunifier-nobtsync
+Tags:
+  - logitech
+  - easy-switch
+  - mx-keys
+  - mx-master
+  - flow
+  - multi-monitor
+  - unifying
+  - bolt
+ReleaseNotes: |
+  - Standalone No-BtSync Edition without inter-host Bluetooth RFCOMM sync.
+  - Official Windows Store / Partner Center-compliant MSIX packaging with Microsoft MakeAppx.
+  - Full High-DPI visual tile/logo scale variants (scale-100, scale-200, targetsize-44, targetsize-24).
+  - Fixed receiver endpoint grouping and NVRAM decoding for reliable mouse switching on Windows.
+ReleaseNotesUrl: https://github.com/silviuk/Lunifier/releases/tag/v2.2.1
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
