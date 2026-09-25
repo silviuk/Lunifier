@@ -40,18 +40,29 @@ python3 -c "import gi; gi.require_version('Gtk', '4.0'); gi.require_version('Adw
     fi
 }
 
-# 4. Install Desktop Entry and Scalable Vector Icon for current user
-echo "[4/5] Installing Scalable Vector Icon & Desktop Entry..."
-ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-ICON_PNG_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+# 4. Install Desktop Entry, Panel and System Icons for current user
+echo "[4/5] Installing Scalable Vector Icons & Desktop Entry..."
 APPS_DIR="$HOME/.local/share/applications"
-mkdir -p "$ICON_DIR" "$ICON_PNG_DIR" "$APPS_DIR"
+mkdir -p "$APPS_DIR"
 
+for sz in 16 24 32 48 64 128 256 512; do
+    mkdir -p "$HOME/.local/share/icons/hicolor/${sz}x${sz}/apps"
+    mkdir -p "$HOME/.local/share/icons/hicolor/${sz}x${sz}/status"
+    if [ -f "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icons/${sz}x${sz}.png" ]; then
+        cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icons/${sz}x${sz}.png" "$HOME/.local/share/icons/hicolor/${sz}x${sz}/apps/lunifier.png"
+        cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icons/${sz}x${sz}.png" "$HOME/.local/share/icons/hicolor/${sz}x${sz}/apps/lunifier-panel.png"
+        cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icons/${sz}x${sz}.png" "$HOME/.local/share/icons/hicolor/${sz}x${sz}/status/lunifier.png"
+        cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icons/${sz}x${sz}.png" "$HOME/.local/share/icons/hicolor/${sz}x${sz}/status/lunifier-panel.png"
+    fi
+done
+
+mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
+mkdir -p "$HOME/.local/share/icons/hicolor/scalable/status"
 if [ -f "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" ]; then
-    cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" "$ICON_DIR/lunifier.svg"
-fi
-if [ -f "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.png" ]; then
-    cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.png" "$ICON_PNG_DIR/lunifier.png"
+    cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/lunifier.svg"
+    cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/lunifier-panel.svg"
+    cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/status/lunifier.svg"
+    cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/status/lunifier-panel.svg"
 fi
 
 cat << EOF > "$APPS_DIR/lunifier.desktop"

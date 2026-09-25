@@ -83,6 +83,8 @@ if [ "$1" = "configure" ]; then
     fi
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    elif command -v gtk4-update-icon-cache >/dev/null 2>&1; then
+        gtk4-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
     fi
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
@@ -92,6 +94,24 @@ exit 0
 EOF
     chmod 755 "$DEB_BUILD_DIR/DEBIAN/postinst"
 
+    # Post-remove script
+    cat << 'EOF' > "$DEB_BUILD_DIR/DEBIAN/postrm"
+#!/bin/sh
+set -e
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    elif command -v gtk4-update-icon-cache >/dev/null 2>&1; then
+        gtk4-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    fi
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+    fi
+fi
+exit 0
+EOF
+    chmod 755 "$DEB_BUILD_DIR/DEBIAN/postrm"
+
     # 4. Binary launcher (/usr/bin/lunifier)
     cat << 'EOF' > "$DEB_BUILD_DIR/usr/bin/lunifier"
 #!/bin/sh
@@ -99,8 +119,9 @@ exec /usr/bin/python3 -c "import sys; from lunifier.run_lunifier import main; sy
 EOF
     chmod 755 "$DEB_BUILD_DIR/usr/bin/lunifier"
 
-    # 5. Copy python package files and launcher
+    # 5. Copy python package files, resources, and launcher
     cp -r "$LINUX_SRC_DIR/lunifier/"* "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/"
+    cp -r "$LINUX_SRC_DIR/resources" "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/"
     cp "$LINUX_SRC_DIR/run_lunifier.py" "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/run_lunifier.py"
     rm -rf "$DEB_BUILD_DIR/usr/lib/python3/dist-packages/lunifier/__pycache__"
 
@@ -117,12 +138,21 @@ FEAT_EOF
 
     for sz in 16 24 32 48 64 128 256 512; do
         mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps"
+        mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/status"
         if [ -f "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" ]; then
             cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps/lunifier.png"
+            cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps/lunifier-panel.png"
+            cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/status/lunifier.png"
+            cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/status/lunifier-panel.png"
         fi
     done
+    mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
+    mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/status"
     cp "$LINUX_SRC_DIR/resources/icon.png" "$DEB_BUILD_DIR/usr/share/pixmaps/lunifier.png"
     cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/lunifier.svg"
+    cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/lunifier-panel.svg"
+    cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/status/lunifier.svg"
+    cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/status/lunifier-panel.svg"
 
     # 6. Udev rule
     cat << 'EOF' > "$DEB_BUILD_DIR/etc/udev/rules.d/99-logitech-hidpp.rules"

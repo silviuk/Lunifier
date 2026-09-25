@@ -1,18 +1,24 @@
 """
 System tray integration for Lunifier on Linux.
 Supports:
-1. Native D-Bus StatusNotifierItem (SNI) + DBusMenu (standard on GNOME Shell AppIndicator, KDE Plasma, XFCE)
-2. AyatanaAppIndicator3 / AppIndicator3 fallback if available
-3. Graceful fallback for minimal desktop environments
+1. Native D-Bus StatusNotifierItem (SNI) + DBusMenu (standard on GNOME Shell AppIndicator, KDE Plasma, XFCE, Waybar)
+2. Direct IconPixmap export (ARGB32 network byte order) for pixel-perfect fallback on any desktop
+3. Dynamic icon theme resolution and panel-compatible status icon names
 """
 
 import os
 import sys
 import threading
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Tuple
 
 import gi
 from gi.repository import Gio, GLib
+
+try:
+    gi.require_version("GdkPixbuf", "2.0")
+    from gi.repository import GdkPixbuf
+except Exception:
+    GdkPixbuf = None
 
 from .logger import log
 
@@ -25,7 +31,14 @@ SNI_XML = """
     <property name="Status" type="s" access="read"/>
     <property name="WindowId" type="u" access="read"/>
     <property name="IconName" type="s" access="read"/>
+    <property name="IconPixmap" type="a(iiay)" access="read"/>
+    <property name="OverlayIconName" type="s" access="read"/>
+    <property name="OverlayIconPixmap" type="a(iiay)" access="read"/>
+    <property name="AttentionIconName" type="s" access="read"/>
+    <property name="AttentionIconPixmap" type="a(iiay)" access="read"/>
+    <property name="AttentionMovieName" type="s" access="read"/>
     <property name="IconThemePath" type="s" access="read"/>
+    <property name="ToolTip" type="(sa(iiay)ss)" access="read"/>
     <property name="Menu" type="o" access="read"/>
     <property name="ItemIsMenu" type="b" access="read"/>
     <method name="ContextMenu">
@@ -46,6 +59,10 @@ SNI_XML = """
     </method>
     <signal name="NewTitle"/>
     <signal name="NewIcon"/>
+    <signal name="NewIconThemePath"/>
+    <signal name="NewAttentionIcon"/>
+    <signal name="NewOverlayIcon"/>
+    <signal name="NewToolTip"/>
     <signal name="NewStatus">
       <arg type="s" name="status"/>
     </signal>
@@ -90,6 +107,106 @@ DBUSMENU_XML = """
 """
 
 
+def _find_best_icon_file() -> Optional[str]:
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        # System installed icons
+        "/usr/share/icons/hicolor/32x32/apps/lunifier.png",
+        "/usr/share/icons/hicolor/24x24/apps/lunifier.png",
+        "/usr/share/icons/hicolor/48x48/apps/lunifier.png",
+        "/usr/share/icons/hicolor/32x32/status/lunifier.png",
+        "/usr/share/icons/hicolor/24x24/status/lunifier.png",
+        "/usr/share/pixmaps/lunifier.png",
+        # Local resources (bundled in package or source tree)
+        os.path.join(pkg_dir, "resources", "icons", "32x32.png"),
+        os.path.join(pkg_dir, "..", "resources", "icons", "32x32.png"),
+        os.path.join(pkg_dir, "resources", "icons", "24x24.png"),
+        os.path.join(pkg_dir, "..", "resources", "icons", "24x24.png"),
+        os.path.join(pkg_dir, "resources", "icons", "48x48.png"),
+        os.path.join(pkg_dir, "..", "resources", "icons", "48x48.png"),
+        os.path.join(pkg_dir, "resources", "icon.png"),
+        os.path.join(pkg_dir, "..", "resources", "icon.png"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return os.path.normpath(os.path.abspath(c))
+    return None
+
+
+def _pixbuf_to_argb(pb) -> Tuple[int, int, bytes]:
+    w = pb.get_width()
+    h = pb.get_height()
+    n_ch = pb.get_n_channels()
+    stride = pb.get_rowstride()
+    pixels = pb.get_pixels()
+
+    # Convert to ARGB network byte order: byte 0=A, 1=R, 2=G, 3=B
+    argb = bytearray(w * h * 4)
+    for y in range(h):
+        row_in = y * stride
+        row_out = y * w * 4
+        for x in range(w):
+            pin = row_in + x * n_ch
+            pout = row_out + x * 4
+            r = pixels[pin]
+            g = pixels[pin + 1]
+            b = pixels[pin + 2]
+            a = pixels[pin + 3] if n_ch == 4 else 255
+            argb[pout] = a
+            argb[pout + 1] = r
+            argb[pout + 2] = g
+            argb[pout + 3] = b
+    return (w, h, bytes(argb))
+
+
+def _generate_icon_pixmaps() -> GLib.Variant:
+    if GdkPixbuf is None:
+        return GLib.Variant("a(iiay)", [])
+
+    icon_path = _find_best_icon_file()
+    if not icon_path:
+        return GLib.Variant("a(iiay)", [])
+
+    pixmaps = []
+    try:
+        base_pb = GdkPixbuf.Pixbuf.new_from_file(icon_path)
+        for sz in (16, 22, 24, 32, 48):
+            scaled = base_pb.scale_simple(sz, sz, GdkPixbuf.InterpType.BILINEAR)
+            if scaled:
+                pixmaps.append(_pixbuf_to_argb(scaled))
+    except Exception as ex:
+        log("Tray", f"Error generating icon pixmaps from '{icon_path}': {ex}")
+
+    return GLib.Variant("a(iiay)", pixmaps)
+
+
+def _determine_icon_name() -> str:
+    # 1. Check if 'lunifier' is found in GTK icon theme
+    try:
+        gi.require_version("Gtk", "4.0")
+        from gi.repository import Gtk, Gdk
+        display = Gdk.Display.get_default()
+        if display:
+            theme = Gtk.IconTheme.get_for_display(display)
+            if theme and theme.has_icon("lunifier"):
+                return "lunifier"
+    except Exception:
+        pass
+
+    # 2. Check if installed in standard system icon directories
+    if os.path.isfile("/usr/share/icons/hicolor/32x32/apps/lunifier.png") or \
+       os.path.isfile("/usr/share/icons/hicolor/scalable/apps/lunifier.svg") or \
+       os.path.isfile("/usr/share/pixmaps/lunifier.png"):
+        return "lunifier"
+
+    # 3. If running standalone/uninstalled, GNOME AppIndicator supports absolute file paths directly
+    local_file = _find_best_icon_file()
+    if local_file:
+        return local_file
+
+    return "lunifier"
+
+
 class LunifierTray:
     def __init__(self, on_show: Callable[[], None], on_quit: Callable[[], None]):
         self.on_show = on_show
@@ -98,6 +215,10 @@ class LunifierTray:
         self.sni_reg_id = 0
         self.menu_reg_id = 0
         self.service_status = "Active"
+
+        self.icon_name = _determine_icon_name()
+        self.pixmaps_variant = _generate_icon_pixmaps()
+        log("Tray", f"Initialized tray icon: name='{self.icon_name}', pixmaps={self.pixmaps_variant.n_children()}")
 
         self._init_sni()
 
@@ -184,9 +305,23 @@ class LunifierTray:
         elif prop_name == "WindowId":
             return GLib.Variant("u", 0)
         elif prop_name == "IconName":
-            return GLib.Variant("s", "lunifier")
+            return GLib.Variant("s", self.icon_name)
+        elif prop_name == "IconPixmap":
+            return self.pixmaps_variant
+        elif prop_name == "OverlayIconName":
+            return GLib.Variant("s", "")
+        elif prop_name == "OverlayIconPixmap":
+            return GLib.Variant("a(iiay)", [])
+        elif prop_name == "AttentionIconName":
+            return GLib.Variant("s", "")
+        elif prop_name == "AttentionIconPixmap":
+            return GLib.Variant("a(iiay)", [])
+        elif prop_name == "AttentionMovieName":
+            return GLib.Variant("s", "")
         elif prop_name == "IconThemePath":
-            return GLib.Variant("s", "/usr/share/icons/hicolor")
+            return GLib.Variant("s", "")
+        elif prop_name == "ToolTip":
+            return GLib.Variant("(sa(iiay)ss)", ("lunifier", [], "Lunifier", "Seamless Logitech Easy-Switch Flow"))
         elif prop_name == "Menu":
             return GLib.Variant("o", "/MenuBar")
         elif prop_name == "ItemIsMenu":
