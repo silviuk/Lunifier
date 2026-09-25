@@ -12,6 +12,9 @@
 - **Distinct Identity for No-BtSync Edition**: Configured `SilviuVlasceanu.LunifierNoBtSync` and `DisplayName="Lunifier (No-BtSync Edition)"` to allow seamless separate Windows Store submission without identity or package conflicts.
 - **High-DPI Visual Assets**: Added comprehensive scale and target-size variants (`Square44x44Logo`, `Square150x150Logo`, `Wide310x150Logo`, `StoreLogo` at 100% and 200% scale plus unplated 44px/24px taskbar icons) ensuring crisp visuals and passing Windows App Certification Kit (WACK) asset tests.
 
+#### 2. Linux System Tray Icon & Desktop Integration Fix
+- **GNOME AppIndicator & Ubuntu System Tray**: Fixed missing indicator icon fallback ("three dots") on Ubuntu 24.04/26.04 by exporting direct ARGB32 pixmaps over D-Bus (`IconPixmap`), setting Freedesktop-compliant `IconThemePath`, and installing multi-resolution status/panel icons across all standard theme contexts.
+
 ---
 
 ### Package Checksums (SHA-256)
@@ -23,8 +26,8 @@
 | `Lunifier-Windows-2.2.1.zip` | 6.43 MB | `C6B99179AC2428F7F12EC33D66E8D2809A87266FA7F13A9B382B7B3A33AE96F6` |
 | `Lunifier-2.2.1.0.msix` | 6.74 MB | `7BEDE1CAF82D967673657E75A01DC1A7A10C25157C456CFDFFC791C5D3575F39` |
 | `Lunifier-2.2.1.msix` | 6.74 MB | `7BEDE1CAF82D967673657E75A01DC1A7A10C25157C456CFDFFC791C5D3575F39` |
-| `lunifier_2.2.1_all.deb` | 170.7 KB | `F21D64A01341E0DB0F6A5ACC8C5D488F351A1C99EE83CC0AD56BF3F73B2C307E` |
-| `Lunifier-Linux-2.2.1.tar.gz` | 239.0 KB | `3E6634A71DA139E44A26354F488FFE72C8EF4A18234D1B86E2533E905E2370B1` |
+| `lunifier_2.2.1_all.deb` | 172.9 KB | `EAD19567A57958B06C30850BA906CBFADA0497053A0029D1A6E15E4630C074C4` |
+| `Lunifier-Linux-2.2.1.tar.gz` | 240.4 KB | `218605ABD7CEF174ED0AE99AD88ECE05B5727F6A899848911C2937D834590134` |
 
 #### Standalone No-BtSync Edition (No RFCOMM Inter-Host Sync)
 | Asset | Size | SHA-256 Checksum |
@@ -33,8 +36,8 @@
 | `Lunifier-Windows-2.2.1-nobtsync.zip` | 6.42 MB | `39ED1BA13F1D960CB86BF9DF6385258DA03B1F6A7DCA3F27828391E2197478FE` |
 | `Lunifier-2.2.1.0-nobtsync.msix` | 6.74 MB | `B4F63F17905E3CAD3B8EBDEB6F616C53BCFE7BD775FDC8BC982742F7216C2B02` |
 | `Lunifier-2.2.1-nobtsync.msix` | 6.74 MB | `B4F63F17905E3CAD3B8EBDEB6F616C53BCFE7BD775FDC8BC982742F7216C2B02` |
-| `lunifier_2.2.1-nobtsync_all.deb` | 170.7 KB | `A7879069A1B694E3149576D8671713DEEA0392C5171E5BE0C8A745F30A057BC2` |
-| `Lunifier-Linux-2.2.1-nobtsync.tar.gz` | 239.1 KB | `4FF06A54D79D1E378F1C712F30340E79597EADD691276AB6CDB8FC6C1450565E` |
+| `lunifier_2.2.1-nobtsync_all.deb` | 172.8 KB | `EA777BAA450BC723EA3F0B0CB2C8400D8CA3C78B7321747BDB195149F1DFF228` |
+| `Lunifier-Linux-2.2.1-nobtsync.tar.gz` | 240.3 KB | `3834F4DBAB28858BAF48E57EA2DA63C3C78A621D9A9F18308D8CC7C427E1A945` |
 
 ---
 
