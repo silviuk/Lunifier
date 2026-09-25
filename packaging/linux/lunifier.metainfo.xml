@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.silviuk.lunifier</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Lunifier</name>
+  <summary>Seamless Logitech Easy-Switch flow across Windows and Linux</summary>
+  <description>
+    <p>
+      Lunifier coordinates Logitech Easy-Switch keyboards and mice (MX Keys, MX Master series,
+      M720 Triathlon, POP, etc.) across multiple screens without requiring a local Wi-Fi or LAN connection.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Hardware-level switching under 20ms using Logitech HID++ 2.0 protocol</li>
+      <li>Autonomous switching across Direct Bluetooth, Unifying, and Logi Bolt receivers</li>
+      <li>Per-monitor configurable border triggers and customizable active dwell zones</li>
+      <li>Double-touch border knock trigger to prevent accidental switching</li>
+      <li>Native GNOME GTK4 + Libadwaita user interface with system tray integration</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">lunifier.desktop</launchable>
+  <icon type="stock">lunifier</icon>
+  <url type="homepage">https://github.com/silviuk/Lunifier</url>
+  <url type="bugtracker">https://github.com/silviuk/Lunifier/issues</url>
+  <url type="vcs-browser">https://github.com/silviuk/Lunifier</url>
+  <developer id="io.github.silviuk">
+    <name>Silviu Vlasceanu</name>
+  </developer>
+  <categories>
+    <category>Utility</category>
+    <category>HardwareSettings</category>
+  </categories>
+  <provides>
+    <binary>lunifier</binary>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Lunifier Settings and Monitor Border Configuration</caption>
+      <image>https://raw.githubusercontent.com/silviuk/Lunifier/2.0/assets/screenshot_linux.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="2.2.1" date="2026-09-25">
+      <description>
+        <p>Windows Store compliance updates, Linux system tray icon rendering fixes for GNOME AppIndicator, and multi-monitor border dwell reliability improvements.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>

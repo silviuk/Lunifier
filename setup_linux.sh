@@ -76,8 +76,17 @@ Type=Application
 Categories=Utility;HardwareSettings;
 Keywords=Logitech;Easy-Switch;Flow;Unifying;Bolt;Bluetooth;Mouse;Keyboard;
 StartupNotify=true
+StartupWMClass=lunifier
 Path=$PROJECT_DIR/src/linux/lunifier-adwaita
 EOF
+
+# Install AppStream metainfo
+METAINFO_DIR="$HOME/.local/share/metainfo"
+mkdir -p "$METAINFO_DIR"
+if [ -f "$PROJECT_DIR/packaging/linux/lunifier.metainfo.xml" ]; then
+    cp "$PROJECT_DIR/packaging/linux/lunifier.metainfo.xml" "$METAINFO_DIR/io.github.silviuk.lunifier.metainfo.xml"
+    cp "$PROJECT_DIR/packaging/linux/lunifier.metainfo.xml" "$METAINFO_DIR/lunifier.metainfo.xml"
+fi
 
 # Update desktop and icon databases if available
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS_DIR" || true

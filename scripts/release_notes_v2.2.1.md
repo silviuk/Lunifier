@@ -15,6 +15,11 @@
 #### 2. Linux System Tray Icon & Desktop Integration Fix
 - **GNOME AppIndicator & Ubuntu System Tray**: Fixed missing indicator icon fallback ("three dots") on Ubuntu 24.04/26.04 by exporting direct ARGB32 pixmaps over D-Bus (`IconPixmap`), setting Freedesktop-compliant `IconThemePath`, and installing multi-resolution status/panel icons across all standard theme contexts.
 
+#### 3. Ubuntu App Center & GNOME Software AppStream Integration
+- **AppStream Metainfo Specification**: Included Freedesktop AppStream metainfo manifests (`io.github.silviuk.lunifier.metainfo.xml` and `io.github.silviuk.lunifier-nobtsync.metainfo.xml`), furnishing Ubuntu App Center and GNOME Software with rich app titles, summaries, developer info, homepage/issue tracker URLs, and OARS 1.1 content ratings.
+- **Store Screenshots & Visuals**: Embedded native Libadwaita interface screenshots and high-resolution icons into package metadata for graphical software center presentation.
+- **Package Metadata & Control Enhancements**: Added `Homepage` upstream links, structured feature lists in `DEBIAN/control`, desktop window associations (`StartupWMClass=lunifier`, `lunifier-nobtsync.desktop`), and comprehensive icon aliases across `/usr/share/pixmaps/` and `/usr/share/icons/hicolor/`.
+
 ---
 
 ### Package Checksums (SHA-256)
@@ -26,8 +31,8 @@
 | `Lunifier-Windows-2.2.1.zip` | 6.43 MB | `C6B99179AC2428F7F12EC33D66E8D2809A87266FA7F13A9B382B7B3A33AE96F6` |
 | `Lunifier-2.2.1.0.msix` | 6.74 MB | `7BEDE1CAF82D967673657E75A01DC1A7A10C25157C456CFDFFC791C5D3575F39` |
 | `Lunifier-2.2.1.msix` | 6.74 MB | `7BEDE1CAF82D967673657E75A01DC1A7A10C25157C456CFDFFC791C5D3575F39` |
-| `lunifier_2.2.1_all.deb` | 172.9 KB | `EAD19567A57958B06C30850BA906CBFADA0497053A0029D1A6E15E4630C074C4` |
-| `Lunifier-Linux-2.2.1.tar.gz` | 240.4 KB | `218605ABD7CEF174ED0AE99AD88ECE05B5727F6A899848911C2937D834590134` |
+| `lunifier_2.2.1_all.deb` | 178.0 KB | `BC0401CE652399DE633F123365DC97315ACBA79C117F4334823F3FA50D7F07F7` |
+| `Lunifier-Linux-2.2.1.tar.gz` | 246.2 KB | `4D42E6AF304415287BC270F80E35E90D1423E5E71A7261CDADC47CCC55D8EF78` |
 
 #### Standalone No-BtSync Edition (No RFCOMM Inter-Host Sync)
 | Asset | Size | SHA-256 Checksum |
@@ -36,8 +41,8 @@
 | `Lunifier-Windows-2.2.1-nobtsync.zip` | 6.42 MB | `39ED1BA13F1D960CB86BF9DF6385258DA03B1F6A7DCA3F27828391E2197478FE` |
 | `Lunifier-2.2.1.0-nobtsync.msix` | 6.74 MB | `B4F63F17905E3CAD3B8EBDEB6F616C53BCFE7BD775FDC8BC982742F7216C2B02` |
 | `Lunifier-2.2.1-nobtsync.msix` | 6.74 MB | `B4F63F17905E3CAD3B8EBDEB6F616C53BCFE7BD775FDC8BC982742F7216C2B02` |
-| `lunifier_2.2.1-nobtsync_all.deb` | 172.8 KB | `EA777BAA450BC723EA3F0B0CB2C8400D8CA3C78B7321747BDB195149F1DFF228` |
-| `Lunifier-Linux-2.2.1-nobtsync.tar.gz` | 240.3 KB | `3834F4DBAB28858BAF48E57EA2DA63C3C78A621D9A9F18308D8CC7C427E1A945` |
+| `lunifier_2.2.1-nobtsync_all.deb` | 178.4 KB | `9E7C621BE63A7B1F322B2CF154BDCBC8368CDAB258FE60FF0914DF72A74FABA6` |
+| `Lunifier-Linux-2.2.1-nobtsync.tar.gz` | 246.2 KB | `DB25BD2E13F4B76CA84503F2D4E7A011B93E87438861F244FC3515CA53F182AB` |
 
 ---
 

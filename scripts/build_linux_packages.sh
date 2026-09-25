@@ -66,10 +66,17 @@ EOF
     fi
     cat << EOF >> "$DEB_BUILD_DIR/DEBIAN/control"
 Maintainer: Silviu Vlasceanu <silviuk@users.noreply.github.com>
+Homepage: https://github.com/silviuk/Lunifier
 Description: Seamless Logitech Easy-Switch flow across Windows and Linux${DESC_EXTRA}
  Lunifier coordinates Logitech Easy-Switch keyboards and mice
  (MX Keys, MX Master series, M720 Triathlon, POP, etc.) across
  screens natively with GTK4 + Libadwaita without requiring Wi-Fi/LAN.
+ .
+ Features:
+  - Hardware-level switching under 20ms using Logitech HID++ 2.0
+  - Autonomous switching across Bluetooth, Unifying, and Logi Bolt
+  - Multi-monitor border triggers and configurable dwell zones
+  - Modern GTK4 + Libadwaita interface with GNOME tray integration
 EOF
 
     # 3. Post-install script
@@ -144,6 +151,10 @@ FEAT_EOF
             cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps/lunifier-panel.png"
             cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/status/lunifier.png"
             cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/status/lunifier-panel.png"
+            if [ "$PKG_NAME" != "lunifier" ]; then
+                cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/apps/${PKG_NAME}.png"
+                cp "$LINUX_SRC_DIR/resources/icons/${sz}x${sz}.png" "$DEB_BUILD_DIR/usr/share/icons/hicolor/${sz}x${sz}/status/${PKG_NAME}.png"
+            fi
         fi
     done
     mkdir -p "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
@@ -153,6 +164,11 @@ FEAT_EOF
     cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/lunifier-panel.svg"
     cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/status/lunifier.svg"
     cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/status/lunifier-panel.svg"
+    if [ "$PKG_NAME" != "lunifier" ]; then
+        cp "$LINUX_SRC_DIR/resources/icon.png" "$DEB_BUILD_DIR/usr/share/pixmaps/${PKG_NAME}.png"
+        cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/apps/${PKG_NAME}.svg"
+        cp "$LINUX_SRC_DIR/resources/icon.svg" "$DEB_BUILD_DIR/usr/share/icons/hicolor/scalable/status/${PKG_NAME}.svg"
+    fi
 
     # 6. Udev rule
     cat << 'EOF' > "$DEB_BUILD_DIR/etc/udev/rules.d/99-logitech-hidpp.rules"
@@ -171,7 +187,34 @@ Type=Application
 Categories=Utility;HardwareSettings;
 Keywords=Logitech;Easy-Switch;Flow;Unifying;Bolt;Bluetooth;Mouse;Keyboard;
 StartupNotify=true
+StartupWMClass=lunifier
 EOF
+
+    if [ "$IS_NOBTSYNC" -eq 1 ]; then
+        cat << 'EOF' > "$DEB_BUILD_DIR/usr/share/applications/lunifier-nobtsync.desktop"
+[Desktop Entry]
+Name=Lunifier (No-BtSync)
+Comment=Seamless Logitech Easy-Switch Flow across Systems (Standalone)
+Exec=lunifier --gui
+Icon=lunifier
+Terminal=false
+Type=Application
+Categories=Utility;HardwareSettings;
+Keywords=Logitech;Easy-Switch;Flow;Unifying;Bolt;Bluetooth;Mouse;Keyboard;
+StartupNotify=true
+StartupWMClass=lunifier
+EOF
+    fi
+
+    # 8. AppStream Metainfo
+    mkdir -p "$DEB_BUILD_DIR/usr/share/metainfo"
+    if [ "$IS_NOBTSYNC" -eq 1 ]; then
+        cp "$ROOT_DIR/packaging/linux/lunifier-nobtsync.metainfo.xml" "$DEB_BUILD_DIR/usr/share/metainfo/io.github.silviuk.lunifier-nobtsync.metainfo.xml"
+        cp "$ROOT_DIR/packaging/linux/lunifier-nobtsync.metainfo.xml" "$DEB_BUILD_DIR/usr/share/metainfo/lunifier-nobtsync.metainfo.xml"
+    else
+        cp "$ROOT_DIR/packaging/linux/lunifier.metainfo.xml" "$DEB_BUILD_DIR/usr/share/metainfo/io.github.silviuk.lunifier.metainfo.xml"
+        cp "$ROOT_DIR/packaging/linux/lunifier.metainfo.xml" "$DEB_BUILD_DIR/usr/share/metainfo/lunifier.metainfo.xml"
+    fi
 
     # 8. Systemd user service
     cat << 'EOF' > "$DEB_BUILD_DIR/usr/lib/systemd/user/lunifier.service"
