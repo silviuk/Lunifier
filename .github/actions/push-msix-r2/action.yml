@@ -1,0 +1,75 @@
+name: 'Push MSIX to Cloudflare R2'
+description: 'Uploads Windows Store MSIX packages to a Cloudflare R2 bucket'
+author: 'Silviu Vlasceanu'
+
+inputs:
+  account_id:
+    description: 'Cloudflare Account ID'
+    required: true
+  access_key_id:
+    description: 'Cloudflare R2 Access Key ID'
+    required: true
+  secret_access_key:
+    description: 'Cloudflare R2 Secret Access Key'
+    required: true
+  bucket_name:
+    description: 'Cloudflare R2 Bucket Name'
+    required: true
+  prefix:
+    description: 'Target prefix/folder in R2 bucket (default: msix/)'
+    required: false
+    default: 'msix/'
+  version:
+    description: 'MSIX version filter (latest, all, or specific version like 2.2.2)'
+    required: false
+    default: 'latest'
+  edition:
+    description: 'Filter edition (all, standard, nobtsync)'
+    required: false
+    default: 'all'
+  packages_dir:
+    description: 'Directory containing .msix packages'
+    required: false
+    default: 'dist'
+  public_url:
+    description: 'Public base URL if R2 bucket has public domain enabled'
+    required: false
+    default: ''
+  dry_run:
+    description: 'Preview files and paths without actually uploading'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install boto3 dependency
+      shell: bash
+      run: |
+        python -m pip install --quiet --upgrade boto3
+
+    - name: Upload MSIX packages to Cloudflare R2
+      shell: bash
+      env:
+        R2_ACCOUNT_ID: ${{ inputs.account_id }}
+        R2_ACCESS_KEY_ID: ${{ inputs.access_key_id }}
+        R2_SECRET_ACCESS_KEY: ${{ inputs.secret_access_key }}
+        R2_BUCKET_NAME: ${{ inputs.bucket_name }}
+        R2_PREFIX: ${{ inputs.prefix }}
+        R2_PUBLIC_URL: ${{ inputs.public_url }}
+      run: |
+        DRY_RUN_ARG=""
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          DRY_RUN_ARG="--dry-run"
+        fi
+
+        python scripts/push_msix_to_r2.py \
+          --dist-dir "${{ inputs.packages_dir }}" \
+          --version "${{ inputs.version }}" \
+          --edition "${{ inputs.edition }}" \
+          $DRY_RUN_ARG

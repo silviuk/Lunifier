@@ -11,4 +11,10 @@ dist/
 *.egg-info/
 *.zip
 src/
-
+bin/
+obj/
+*.user
+*.suo
+.env
+.env.local
+.env.*.local
