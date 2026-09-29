@@ -1,0 +1,114 @@
+name: Push MSIX to Cloudflare R2
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'MSIX Version to push (latest, all, or specific like 2.2.2)'
+        required: true
+        default: 'latest'
+        type: string
+      edition:
+        description: 'Edition filter'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - standard
+          - nobtsync
+      prefix:
+        description: 'Target folder in Cloudflare R2 bucket'
+        required: false
+        default: 'msix/'
+        type: string
+      build_from_source:
+        description: 'Rebuild MSIX from source instead of fetching release assets'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Simulate without uploading'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  upload-r2:
+    name: Push Windows Store MSIX to R2
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 9 (if building from source)
+        if: ${{ inputs.build_from_source == true }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build MSIX Packages from source
+        if: ${{ inputs.build_from_source == true }}
+        shell: pwsh
+        run: |
+          $ver = "${{ inputs.version }}"
+          if ($ver -eq "latest" -or $ver -eq "all") {
+            $ver = "2.2.2.0"
+          }
+          if ($ver -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+            $ver = "$ver.0"
+          }
+          
+          # Build Native Windows binaries
+          dotnet publish -c Release src/windows/Lunifier.Windows/Lunifier.Windows.csproj -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist/windows
+          
+          # Build Standard MSIX
+          .\scripts\build_msix.ps1 -Version $ver
+          
+          # Build No-BtSync MSIX
+          .\scripts\build_msix.ps1 -Version $ver -NoBtSync
+
+      - name: Fetch MSIX from GitHub Release (if not building from source)
+        if: ${{ inputs.build_from_source != true }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          
+          $targetTag = "${{ github.event.release.tag_name }}"
+          if (-not $targetTag) {
+            $inputVer = "${{ inputs.version }}"
+            if ($inputVer -and $inputVer -ne "latest" -and $inputVer -ne "all") {
+              $targetTag = if ($inputVer.StartsWith("v")) { $inputVer } else { "v$inputVer" }
+            }
+          }
+          
+          if ($targetTag) {
+            Write-Host "Downloading MSIX packages from release $targetTag..."
+            gh release download $targetTag --pattern "*.msix" --dir dist --clobber
+          } else {
+            Write-Host "Downloading MSIX packages from latest release..."
+            gh release download --pattern "*.msix" --dir dist --clobber
+          }
+
+      - name: Push MSIX to Cloudflare R2
+        uses: ./.github/actions/push-msix-r2
+        with:
+          account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          access_key_id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          bucket_name: ${{ secrets.R2_BUCKET_NAME }}
+          prefix: ${{ inputs.prefix || 'msix/' }}
+          version: ${{ inputs.version || 'latest' }}
+          edition: ${{ inputs.edition || 'all' }}
+          public_url: ${{ secrets.R2_PUBLIC_URL }}
+          dry_run: ${{ inputs.dry_run || false }}
+          packages_dir: 'dist'
