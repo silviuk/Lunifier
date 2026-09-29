@@ -65,6 +65,8 @@ if [ -f "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" ]; then
     cp "$PROJECT_DIR/src/linux/lunifier-adwaita/resources/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/status/lunifier-panel.svg"
 fi
 
+rm -f "$APPS_DIR/lunifier-nobtsync.desktop"
+
 cat << EOF > "$APPS_DIR/lunifier.desktop"
 [Desktop Entry]
 Name=Lunifier

@@ -96,6 +96,13 @@ if [ "$1" = "configure" ]; then
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
     fi
+    # Clean up legacy duplicate desktop entry if present from older package versions
+    if [ -f /usr/share/applications/lunifier-nobtsync.desktop ]; then
+        rm -f /usr/share/applications/lunifier-nobtsync.desktop
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+        fi
+    fi
 fi
 exit 0
 EOF
@@ -106,6 +113,9 @@ EOF
 #!/bin/sh
 set -e
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    if [ -f /usr/share/applications/lunifier-nobtsync.desktop ]; then
+        rm -f /usr/share/applications/lunifier-nobtsync.desktop
+    fi
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
     elif command -v gtk4-update-icon-cache >/dev/null 2>&1; then
@@ -189,22 +199,6 @@ Keywords=Logitech;Easy-Switch;Flow;Unifying;Bolt;Bluetooth;Mouse;Keyboard;
 StartupNotify=true
 StartupWMClass=lunifier
 EOF
-
-    if [ "$IS_NOBTSYNC" -eq 1 ]; then
-        cat << 'EOF' > "$DEB_BUILD_DIR/usr/share/applications/lunifier-nobtsync.desktop"
-[Desktop Entry]
-Name=Lunifier (No-BtSync)
-Comment=Seamless Logitech Easy-Switch Flow across Systems (Standalone)
-Exec=lunifier --gui
-Icon=lunifier
-Terminal=false
-Type=Application
-Categories=Utility;HardwareSettings;
-Keywords=Logitech;Easy-Switch;Flow;Unifying;Bolt;Bluetooth;Mouse;Keyboard;
-StartupNotify=true
-StartupWMClass=lunifier
-EOF
-    fi
 
     # 8. AppStream Metainfo
     mkdir -p "$DEB_BUILD_DIR/usr/share/metainfo"

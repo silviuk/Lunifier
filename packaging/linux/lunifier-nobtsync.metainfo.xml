@@ -3,7 +3,7 @@
   <id>io.github.silviuk.lunifier-nobtsync</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
-  <name>Lunifier (No-BtSync Edition)</name>
+  <name>Lunifier</name>
   <summary>Seamless Logitech Easy-Switch flow across Windows and Linux (Standalone)</summary>
   <description>
     <p>
@@ -23,7 +23,7 @@
       <li>Native GNOME GTK4 + Libadwaita user interface with system tray integration</li>
     </ul>
   </description>
-  <launchable type="desktop-id">lunifier-nobtsync.desktop</launchable>
+  <launchable type="desktop-id">lunifier.desktop</launchable>
   <icon type="stock">lunifier</icon>
   <url type="homepage">https://github.com/silviuk/Lunifier</url>
   <url type="bugtracker">https://github.com/silviuk/Lunifier/issues</url>
