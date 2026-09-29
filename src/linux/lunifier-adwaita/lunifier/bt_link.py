@@ -463,7 +463,8 @@ class BluetoothLink:
                  on_alignment_received: Optional[Callable[[Dict[str, int]], None]] = None,
                  on_peer_status_changed: Optional[Callable[[bool], None]] = None,
                  on_pair_request: Optional[Callable[[str, str], bool]] = None,
-                 on_pair_response: Optional[Callable[[bool, str, str], None]] = None):
+                 on_pair_response: Optional[Callable[[bool, str, str], None]] = None,
+                 is_mouse_active: Optional[Callable[[], bool]] = None):
         """
         :param host_name: Name of this host
         :param peer_mac: Bluetooth MAC of the partner host (e.g. "00:1A:7D:DA:71:13")
@@ -484,6 +485,7 @@ class BluetoothLink:
         self.on_peer_status_changed = on_peer_status_changed
         self.on_pair_request = on_pair_request
         self.on_pair_response = on_pair_response
+        self.is_mouse_active = is_mouse_active
 
         self._running = False
         self._is_connected = False
@@ -492,6 +494,7 @@ class BluetoothLink:
         self._lock = threading.Lock()
         self._server_thread: Optional[threading.Thread] = None
         self._client_thread: Optional[threading.Thread] = None
+        self._current_backoff: float = 5.0
 
         # Timed advertising state
         self._is_advertising = False
@@ -507,6 +510,10 @@ class BluetoothLink:
         self.session_key = ""
         self.partner_screen_bounds: Dict[str, int] = {"width": 1920, "height": 1080}
         self.my_screen_bounds: Dict[str, int] = {"width": 1920, "height": 1080}
+
+    def reset_backoff(self) -> None:
+        """Resets exponential backoff to initial 5.0s."""
+        self._current_backoff = 5.0
 
     @property
     def is_connected(self) -> bool:
@@ -599,6 +606,7 @@ class BluetoothLink:
             return
 
         self._running = True
+        self.reset_backoff()
         self._server_thread = threading.Thread(target=self._server_loop, name="BTServerThread", daemon=True)
         self._server_thread.start()
 
@@ -669,6 +677,7 @@ class BluetoothLink:
         Informs partner host over Bluetooth that the mouse has crossed into its screen.
         Exchanges cursor alignment and encrypted clipboard payload.
         """
+        self.reset_backoff()
         payload = {
             "type": "SWITCH_OUT",
             "from_host": self.host_name,
@@ -823,20 +832,35 @@ class BluetoothLink:
     def _client_loop(self) -> None:
         """
         Periodically attempts to connect to configured peer Bluetooth address if not connected.
+        Employs exponential backoff and cursor activity gating to prevent radio contention and mouse jitter.
         """
         while self._running:
             if not self._is_connected and self.peer_mac:
+                # Defer connection if mouse is currently being actively moved
+                if self.is_mouse_active and self.is_mouse_active():
+                    time.sleep(1.0)
+                    continue
+
                 try:
                     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
                     s.settimeout(5.0)
                     s.connect((self.peer_mac, self.rfcomm_port))
                     s.settimeout(None)
                     log("BluetoothLink", f"Successfully connected to partner at {self.peer_mac}")
+                    self._current_backoff = 5.0
                     self._set_active_conn(s)
                     self._handle_connection(s)
                 except Exception:
                     pass
-            time.sleep(5)
+
+                wait_time = self._current_backoff
+                self._current_backoff = min(self._current_backoff * 2.0, 60.0)
+                elapsed = 0.0
+                while self._running and not self._is_connected and elapsed < wait_time:
+                    time.sleep(0.25)
+                    elapsed += 0.25
+            else:
+                time.sleep(2.0)
 
     def _handle_connection(self, conn: socket.socket) -> None:
         """Reads messages from the active connection."""

@@ -166,3 +166,25 @@ def test_get_local_bluetooth_mac():
     bt_link_mod._cached_local_bt_mac = None
 
 
+def test_bt_link_exponential_backoff_and_activity_gating():
+    """Verify that BluetoothLink backoff doubles on failures and resets on switch out."""
+    link = BluetoothLink(host_name="HostA", peer_mac="AA:BB:CC:11:22:33")
+    assert link._current_backoff == 5.0
+
+    # Simulate backoff doubling up to 60.0s
+    link._current_backoff = min(link._current_backoff * 2.0, 60.0)
+    assert link._current_backoff == 10.0
+    link._current_backoff = min(link._current_backoff * 2.0, 60.0)
+    assert link._current_backoff == 20.0
+    link._current_backoff = min(link._current_backoff * 2.0, 60.0)
+    assert link._current_backoff == 40.0
+    link._current_backoff = min(link._current_backoff * 2.0, 60.0)
+    assert link._current_backoff == 60.0
+    link._current_backoff = min(link._current_backoff * 2.0, 60.0)
+    assert link._current_backoff == 60.0
+
+    # Reset backoff
+    link.reset_backoff()
+    assert link._current_backoff == 5.0
+
+

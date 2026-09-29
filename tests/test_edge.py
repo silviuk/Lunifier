@@ -187,3 +187,17 @@ def test_return_guard_state_and_anti_bounceback():
     assert detector._return_guard_until >= now + 2.4
     assert (detector._return_guard_until - now) <= 2.6
 
+
+def test_cursor_activity_tracking():
+    import time
+    detector = ScreenEdgeDetector(trigger_edge="right")
+    assert detector.is_cursor_moving() is False
+
+    # Simulate recent movement
+    detector._last_mouse_move_time = time.time()
+    assert detector.is_cursor_moving(window_seconds=0.6) is True
+
+    # Simulate old movement
+    detector._last_mouse_move_time = time.time() - 2.0
+    assert detector.is_cursor_moving(window_seconds=0.6) is False
+

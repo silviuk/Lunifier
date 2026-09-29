@@ -98,6 +98,16 @@ class ScreenEdgeDetector:
         self._cursor_history: deque = deque(maxlen=60)
         self._min_approach_displacement: int = 15
         self._has_xdotool: bool = bool(shutil.which("xdotool"))
+        self._last_mouse_move_time: float = 0.0
+        self._last_cursor_pos: Optional[Tuple[int, int]] = None
+        self._cached_x11_display: Any = None
+        self._cached_x11_root: Any = None
+        self._last_xdotool_time: float = 0.0
+        self._last_xdotool_pos: Tuple[int, int] = (0, 0)
+
+    def is_cursor_moving(self, window_seconds: float = 0.6) -> bool:
+        """Returns True if the cursor moved significantly within the last window_seconds."""
+        return (time.time() - self._last_mouse_move_time) < window_seconds
 
     def _get_monitor_config(self, monitor_id: str) -> Dict[str, Any]:
         mid = str(monitor_id)
@@ -161,16 +171,16 @@ class ScreenEdgeDetector:
 
     def get_cursor_pos(self, dpy: Any = None, root: Any = None) -> Tuple[int, int]:
         if x11:
-            display = dpy
-            root_win = root
-            close_after = False
+            display = dpy or self._cached_x11_display
+            root_win = root or self._cached_x11_root
 
             if not display:
                 try:
                     display = x11.XOpenDisplay(None)
                     if display:
                         root_win = x11.XDefaultRootWindow(display)
-                        close_after = True
+                        self._cached_x11_display = display
+                        self._cached_x11_root = root_win
                 except Exception:
                     display = None
 
@@ -194,15 +204,16 @@ class ScreenEdgeDetector:
                     if ret:
                         return root_x.value, root_y.value
                 except Exception:
-                    pass
-                finally:
-                    if close_after and display:
-                        try:
-                            x11.XCloseDisplay(display)
-                        except Exception:
-                            pass
+                    # Invalidate cached display handle on error so next poll can recover
+                    self._cached_x11_display = None
+                    self._cached_x11_root = None
 
         if self._has_xdotool:
+            now = time.time()
+            # Throttle xdotool fallback to 20Hz (every 50ms) to avoid process-fork storms and CPU jitter
+            if now - self._last_xdotool_time < 0.05:
+                return self._last_xdotool_pos
+            self._last_xdotool_time = now
             try:
                 res = subprocess.run(["xdotool", "getmouselocation", "--shell"], capture_output=True, text=True, timeout=0.1)
                 if res.returncode == 0:
@@ -212,6 +223,7 @@ class ScreenEdgeDetector:
                             x = int(line[2:])
                         elif line.startswith("Y="):
                             y = int(line[2:])
+                    self._last_xdotool_pos = (x, y)
                     return x, y
                 else:
                     self._has_xdotool = False
@@ -348,6 +360,16 @@ class ScreenEdgeDetector:
                 now = time.time()
                 x, y = self.get_cursor_pos(local_dpy, local_root)
 
+                # Track cursor movement for activity-gated Bluetooth reconnection
+                if self._last_cursor_pos is not None:
+                    dx = x - self._last_cursor_pos[0]
+                    dy = y - self._last_cursor_pos[1]
+                    if (dx * dx + dy * dy) >= 16:  # Moved >= 4 pixels
+                        self._last_mouse_move_time = now
+                        self._last_cursor_pos = (x, y)
+                else:
+                    self._last_cursor_pos = (x, y)
+
                 if self._is_switched_out:
                     if self._last_known_cursor_pos is not None:
                         lx, ly = self._last_known_cursor_pos
@@ -439,3 +461,5 @@ class ScreenEdgeDetector:
                     x11.XCloseDisplay(local_dpy)
                 except Exception:
                     pass
+            self._cached_x11_display = None
+            self._cached_x11_root = None

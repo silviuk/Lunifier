@@ -55,7 +55,8 @@ class LunifierApp:
                 peer_mac=self.config.bt_peer_address,
                 rfcomm_port=self.config.bt_rfcomm_port,
                 on_switch_received=self._handle_incoming_switch,
-                on_peer_status_changed=self._handle_peer_status_changed
+                on_peer_status_changed=self._handle_peer_status_changed,
+                is_mouse_active=lambda: self.edge_detector.is_cursor_moving() if self.edge_detector else False
             )
         else:
             self.bt_link = None
@@ -140,7 +141,7 @@ class LunifierApp:
         self._running = True
         if self.edge_detector:
             self.edge_detector.start()
-        if self.bt_link and (self.config.bt_p2p_enabled or self.config.bt_peer_address):
+        if self.bt_link and self.config.bt_p2p_enabled and self.config.bt_peer_address:
             self.bt_link.start()
 
         log("Lunifier", "==================================================")

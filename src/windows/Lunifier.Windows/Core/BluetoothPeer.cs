@@ -183,6 +183,16 @@ namespace Lunifier.Windows.Core
             }
         }
 
+        public Func<bool>? IsMouseActiveFunc { get; set; }
+        private volatile int _currentBackoffMs = 5000;
+        private const int MinBackoffMs = 5000;
+        private const int MaxBackoffMs = 60000;
+
+        public void ResetBackoff()
+        {
+            _currentBackoffMs = MinBackoffMs;
+        }
+
         public BluetoothPeer(string hostName, string peerAddress = "", int rfcommPort = 5)
         {
             HostName = hostName;
@@ -194,6 +204,7 @@ namespace Lunifier.Windows.Core
         {
             if (_running) return;
             _running = true;
+            ResetBackoff();
 
             _serverThread = new Thread(ServerLoop)
             {
@@ -411,6 +422,7 @@ namespace Lunifier.Windows.Core
 
         public bool NotifySwitchOut(string exitEdge, double ratio, string? clipboardText = null)
         {
+            ResetBackoff();
             var payload = new Dictionary<string, object?>
             {
                 { "type", "SWITCH_OUT" },
@@ -629,6 +641,13 @@ namespace Lunifier.Windows.Core
             {
                 if (!IsConnected && !string.IsNullOrEmpty(PeerAddress))
                 {
+                    // If mouse is actively moving, defer connection attempt to avoid Bluetooth radio contention and cursor jitter
+                    if (IsMouseActiveFunc != null && IsMouseActiveFunc())
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
                     try
                     {
                         ulong mac = BluetoothEndPoint.ParseMac(PeerAddress);
@@ -639,6 +658,7 @@ namespace Lunifier.Windows.Core
                             sock.Connect(ep);
 
                             AppLogger.Log("BluetoothPeer", $"Connected to partner at {PeerAddress}");
+                            _currentBackoffMs = MinBackoffMs;
                             SetActiveConnection(sock);
 
                             using var stream = new NetworkStream(sock, false);
@@ -658,8 +678,16 @@ namespace Lunifier.Windows.Core
                     }
                     catch (Exception ex)
                     {
-                        AppLogger.LogDebug("BluetoothPeer", $"Client connection attempt info: {ex.Message}");
-                        Thread.Sleep(5000);
+                        int waitMs = _currentBackoffMs;
+                        _currentBackoffMs = Math.Min(_currentBackoffMs * 2, MaxBackoffMs);
+                        AppLogger.LogDebug("BluetoothPeer", $"Client connection attempt info: {ex.Message}. Next retry in {waitMs / 1000}s");
+
+                        int elapsed = 0;
+                        while (_running && !IsConnected && elapsed < waitMs)
+                        {
+                            Thread.Sleep(250);
+                            elapsed += 250;
+                        }
                     }
                     finally
                     {

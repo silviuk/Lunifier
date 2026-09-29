@@ -58,7 +58,8 @@ namespace Lunifier.Windows.Core
                     OnPeerStatusChanged = connected =>
                     {
                         AppLogger.Log("Lunifier", $"Partner host Bluetooth link: {(connected ? "CONNECTED" : "DISCONNECTED")}");
-                    }
+                    },
+                    IsMouseActiveFunc = () => Detector?.IsCursorMoving() ?? false
                 };
             }
 
@@ -72,7 +73,7 @@ namespace Lunifier.Windows.Core
             IsRunning = true;
 
             Detector?.Start();
-            if (!App.IsNoBtSync && (Config.BtP2pEnabled || !string.IsNullOrEmpty(Config.BtPeerAddress)))
+            if (!App.IsNoBtSync && Config.BtP2pEnabled && !string.IsNullOrEmpty(Config.BtPeerAddress))
             {
                 BtPeer?.Start();
             }

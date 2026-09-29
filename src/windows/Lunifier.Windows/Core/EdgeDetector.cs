@@ -51,6 +51,13 @@ namespace Lunifier.Windows.Core
         private (int X, int Y)? _lastKnownCursorPos;
         private double _returnGuardUntil;
         private double _lastCooldownLogTime;
+        private double _lastMouseMoveTime;
+        private (int X, int Y)? _lastPosForActivity;
+
+        public bool IsCursorMoving(double windowSeconds = 0.6)
+        {
+            return (NowSeconds - _lastMouseMoveTime) < windowSeconds;
+        }
 
         private struct CursorHistoryItem
         {
@@ -278,6 +285,21 @@ namespace Lunifier.Windows.Core
 
                     int x = pt.x;
                     int y = pt.y;
+
+                    if (_lastPosForActivity.HasValue)
+                    {
+                        var dx = x - _lastPosForActivity.Value.X;
+                        var dy = y - _lastPosForActivity.Value.Y;
+                        if ((dx * dx + dy * dy) >= 16)
+                        {
+                            _lastMouseMoveTime = now;
+                            _lastPosForActivity = (x, y);
+                        }
+                    }
+                    else
+                    {
+                        _lastPosForActivity = (x, y);
+                    }
 
                     // Anti-bounceback Return Guard
                     if (_isSwitchedOut)
