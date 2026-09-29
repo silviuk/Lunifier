@@ -78,22 +78,11 @@ class LunifierApp:
 
         log("Lunifier", f">>> SCREEN BORDER REACHED: '{edge.upper()}' on Monitor {monitor_id or '0'} (Ratio: {ratio:.2f}) <<<")
 
-        # Step cursor inward immediately and arm return guard to prevent border loop
-        step_back = 60
-        new_x, new_y = x, y
-        if edge == "right":
-            new_x = x - step_back
-        elif edge == "left":
-            new_x = x + step_back
-        elif edge == "top":
-            new_y = y + step_back
-        elif edge == "bottom":
-            new_y = y - step_back
-
-        self.cursor_mgr.set_cursor_pos(new_x, new_y)
+        # In Linux, arm return guard directly without warping the pointer inward via XWarpPointer,
+        # which prevents ghost cursor sprite artifacts on NVIDIA hardware overlays and compositors.
         if self.edge_detector:
-            self.edge_detector.notify_switched_out(edge, new_x, new_y)
-        log("Lunifier", f"Repositioned cursor {step_back}px inward to ({new_x}, {new_y}) and armed return guard.")
+            self.edge_detector.notify_switched_out(edge, x, y)
+        log("Lunifier", f"Screen border '{edge.upper()}' exited at ({x}, {y}). Return guard armed.")
 
         log("Lunifier", f"Instantly switching devices to Channel {target_channel} (Backend: {self.config.switch_backend})...")
 

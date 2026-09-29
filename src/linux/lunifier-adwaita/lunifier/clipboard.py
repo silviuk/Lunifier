@@ -66,6 +66,10 @@ class CursorManager:
             try:
                 x11.XWarpPointer(self._x11_display, None, self._x11_root, 0, 0, 0, 0, int(x), int(y))
                 x11.XFlush(self._x11_display)
+                try:
+                    x11.XSync(self._x11_display, False)
+                except Exception:
+                    pass
                 return True
             except Exception:
                 pass
