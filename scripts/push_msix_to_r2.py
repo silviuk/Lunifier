@@ -120,14 +120,16 @@ def create_r2_client(account_id: str, access_key_id: str, secret_access_key: str
     if boto3 is None:
         raise RuntimeError("boto3 is not installed. Please run: pip install boto3")
 
-    endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
+    acc = account_id.strip()
+    endpoint_url = f"https://{acc}.r2.cloudflarestorage.com"
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
+        aws_access_key_id=access_key_id.strip(),
+        aws_secret_access_key=secret_access_key.strip(),
         region_name="auto",
         config=Config(
+            s3={"addressing_style": "path"},
             signature_version="s3v4",
             retries={"max_attempts": 3, "mode": "standard"}
         )
@@ -147,13 +149,18 @@ def upload_packages(
     """
     Upload MSIX packages to the Cloudflare R2 bucket.
     """
+    bucket_clean = bucket_name.strip()
+    account_clean = account_id.strip()
+    key_clean = access_key_id.strip()
+    secret_clean = secret_access_key.strip()
+
     if not packages:
         print("[INFO] No MSIX packages found matching the criteria.")
         return 0
 
     print("===================================================")
     print(f" Cloudflare R2 MSIX Package Uploader")
-    print(f" Target Bucket: {bucket_name}")
+    print(f" Target Bucket: {bucket_clean}")
     print(f" Prefix:        {prefix}")
     print(f" Packages ({len(packages)}):")
     for p in packages:
@@ -165,7 +172,7 @@ def upload_packages(
         print("[DRY-RUN] No files were uploaded. Credentials check and preview complete.")
         return 0
 
-    client = create_r2_client(account_id, access_key_id, secret_access_key)
+    client = create_r2_client(account_clean, key_clean, secret_clean)
 
     prefix_norm = prefix.strip("/")
     if prefix_norm:
@@ -184,32 +191,58 @@ def upload_packages(
         print(f"  Destination Key: {dest_key}")
         print(f"  SHA-256:         {sha256}")
 
+        uploaded = False
+        last_error = None
+
+        # Attempt 1: Direct single PUT request via put_object (preferred for R2 single object writes)
         try:
-            extra_args = {
-                "ContentType": "application/msix",
-                "ContentDisposition": f'attachment; filename="{pkg.name}"',
-                "Metadata": {
+            with open(pkg, "rb") as f_data:
+                body = f_data.read()
+            client.put_object(
+                Bucket=bucket_clean,
+                Key=dest_key,
+                Body=body,
+                ContentType="application/msix",
+                ContentDisposition=f'attachment; filename="{pkg.name}"',
+                Metadata={
                     "sha256": sha256,
                     "target": "windows-store"
                 }
-            }
-
-            client.upload_file(
-                Filename=str(pkg),
-                Bucket=bucket_name,
-                Key=dest_key,
-                ExtraArgs=extra_args
             )
+            uploaded = True
+        except Exception as put_ex:
+            last_error = put_ex
 
-            print(f"  [OK] Successfully uploaded to s3://{bucket_name}/{dest_key}")
+        # Attempt 2: Transfer manager upload_file fallback
+        if not uploaded:
+            try:
+                extra_args = {
+                    "ContentType": "application/msix",
+                    "ContentDisposition": f'attachment; filename="{pkg.name}"',
+                    "Metadata": {
+                        "sha256": sha256,
+                        "target": "windows-store"
+                    }
+                }
+                client.upload_file(
+                    Filename=str(pkg),
+                    Bucket=bucket_clean,
+                    Key=dest_key,
+                    ExtraArgs=extra_args
+                )
+                uploaded = True
+            except Exception as up_ex:
+                last_error = up_ex
+
+        if uploaded:
+            print(f"  [OK] Successfully uploaded to s3://{bucket_clean}/{dest_key}")
             if public_url:
                 base = public_url.rstrip("/")
                 print(f"  Public URL: {base}/{dest_key}")
-
             success_count += 1
-        except Exception as ex:
-            print(f"  [ERROR] Failed to upload {pkg.name}: {ex}", file=sys.stderr)
-            failures.append((pkg.name, str(ex)))
+        else:
+            print(f"  [ERROR] Failed to upload {pkg.name}: {last_error}", file=sys.stderr)
+            failures.append((pkg.name, str(last_error)))
 
     print("\n===================================================")
     print(f" Upload Summary: {success_count}/{len(packages)} succeeded.")
@@ -217,6 +250,12 @@ def upload_packages(
         print(f" Failures ({len(failures)}):")
         for name, err in failures:
             print(f"   - {name}: {err}")
+        if any("AccessDenied" in str(err) for _, err in failures):
+            print("\n[TROUBLESHOOTING AccessDenied]:")
+            print("1. In Cloudflare Dashboard -> R2 -> 'Manage R2 API Tokens', verify the token has 'Object Read & Write' permission (NOT Read-Only).")
+            print("2. Verify the API token scope includes the bucket, or is set to 'All buckets'.")
+            print("3. Check that R2_BUCKET_NAME matches your Cloudflare R2 bucket name exactly (case-sensitive).")
+            print("4. Verify R2_ACCOUNT_ID matches your Cloudflare Account ID (found on R2 overview right sidebar).")
         return 1
     print("===================================================")
     return 0
