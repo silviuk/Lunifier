@@ -144,7 +144,8 @@ def upload_packages(
     bucket_name: str,
     prefix: str = "msix/",
     public_url: Optional[str] = None,
-    dry_run: bool = False
+    dry_run: bool = False,
+    upload_permalinks: bool = True
 ) -> int:
     """
     Upload MSIX packages to the Cloudflare R2 bucket.
@@ -257,6 +258,107 @@ def upload_packages(
             print("3. Check that R2_BUCKET_NAME matches your Cloudflare R2 bucket name exactly (case-sensitive).")
             print("4. Verify R2_ACCOUNT_ID matches your Cloudflare Account ID (found on R2 overview right sidebar).")
         return 1
+
+    # Upload static permalinks for Windows Store and auto-updates
+    if upload_permalinks and success_count > 0:
+        print("\n===================================================")
+        print(" Updating Static Permalinks (Windows Store / Latest)")
+        print("===================================================")
+
+        std_pkgs = [p for p in packages if "nobtsync" not in p.name.lower()]
+        nobt_pkgs = [p for p in packages if "nobtsync" in p.name.lower()]
+
+        targets = []
+        if std_pkgs:
+            p = sorted(std_pkgs, key=lambda x: len(x.name), reverse=True)[0]
+            targets.append((p, ["Lunifier-latest.msix", "Lunifier.msix"], "standard"))
+        if nobt_pkgs:
+            p = sorted(nobt_pkgs, key=lambda x: len(x.name), reverse=True)[0]
+            targets.append((p, ["Lunifier-latest-nobtsync.msix", "Lunifier-nobtsync.msix"], "nobtsync"))
+
+        for src_pkg, aliases, edition in targets:
+            with open(src_pkg, "rb") as f_data:
+                body = f_data.read()
+            sha256 = compute_sha256(src_pkg)
+
+            for alias in aliases:
+                alias_key = f"{prefix_norm}{alias}"
+                print(f"[PERMALINK] {alias} -> s3://{bucket_clean}/{alias_key}")
+                try:
+                    client.put_object(
+                        Bucket=bucket_clean,
+                        Key=alias_key,
+                        Body=body,
+                        ContentType="application/msix",
+                        ContentDisposition=f'attachment; filename="{alias}"',
+                        CacheControl="public, max-age=300, must-revalidate",
+                        Metadata={
+                            "sha256": sha256,
+                            "source-package": src_pkg.name,
+                            "target": "windows-store-permalink"
+                        }
+                    )
+                    print(f"  [OK] Permalink updated: s3://{bucket_clean}/{alias_key}")
+                    if public_url:
+                        base = public_url.rstrip("/")
+                        print(f"  Permalink URL: {base}/{alias_key}")
+                except Exception as ex:
+                    print(f"  [WARN] Failed to update permalink {alias}: {ex}", file=sys.stderr)
+
+        # Generate and upload .appinstaller manifest for Windows Store / AppInstaller auto-updates
+        for src_pkg, _, edition in targets:
+            m = re.search(r"(\d+\.\d+\.\d+(?:\.\d+)?)", src_pkg.name)
+            ver = m.group(1) if m else "2.2.2.0"
+            if ver.count(".") == 2:
+                ver += ".0"
+
+            is_nobt = edition == "nobtsync"
+            app_id = "SilviuVlasceanu.LunifierNoBtSync" if is_nobt else "SilviuVlasceanu.Lunifier"
+            installer_name = "Lunifier-nobtsync.appinstaller" if is_nobt else "Lunifier.appinstaller"
+            msix_target = "Lunifier-latest-nobtsync.msix" if is_nobt else "Lunifier-latest.msix"
+            installer_key = f"{prefix_norm}{installer_name}"
+
+            base = (public_url or "https://r2.cloudflarestorage.com").rstrip("/")
+            installer_uri = f"{base}/{installer_key}"
+            package_uri = f"{base}/{prefix_norm}{msix_target}"
+
+            appinstaller_xml = f"""<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller
+    xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
+    Version="{ver}"
+    Uri="{installer_uri}">
+    <MainPackage
+        Name="{app_id}"
+        Publisher="CN=FCAD1026-DA23-45D7-835A-3FF4ADD435D4"
+        Version="{ver}"
+        ProcessorArchitecture="x64"
+        Uri="{package_uri}" />
+    <UpdateSettings>
+        <OnLaunch HoursBetweenUpdateChecks="0" />
+        <AutomaticBackgroundTask />
+        <ForceUpdateFromAnyVersion>true</ForceUpdateFromAnyVersion>
+    </UpdateSettings>
+</AppInstaller>
+"""
+            print(f"[APPINSTALLER] Generating {installer_name} (Version: {ver})")
+            try:
+                client.put_object(
+                    Bucket=bucket_clean,
+                    Key=installer_key,
+                    Body=appinstaller_xml.encode("utf-8"),
+                    ContentType="application/appinstaller+xml",
+                    CacheControl="no-cache, no-store, must-revalidate",
+                    Metadata={
+                        "version": ver,
+                        "target": "windows-appinstaller"
+                    }
+                )
+                print(f"  [OK] AppInstaller updated: s3://{bucket_clean}/{installer_key}")
+                if public_url:
+                    print(f"  AppInstaller URL: {installer_uri}")
+            except Exception as ex:
+                print(f"  [WARN] Failed to update {installer_name}: {ex}", file=sys.stderr)
+
     print("===================================================")
     return 0
 
@@ -312,6 +414,13 @@ def main():
         help="Path to dist directory containing .msix packages"
     )
     parser.add_argument(
+        "--no-permalinks",
+        dest="permalinks",
+        action="store_false",
+        default=True,
+        help="Disable uploading static permalinks (Lunifier-latest.msix) and .appinstaller files"
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Simulate and print actions without uploading to R2"
@@ -347,7 +456,8 @@ def main():
             bucket_name=bucket_name or "dummy_bucket",
             prefix=prefix,
             public_url=public_url,
-            dry_run=True
+            dry_run=True,
+            upload_permalinks=args.permalinks
         )
 
     # Validate required credentials
@@ -377,7 +487,8 @@ def main():
         bucket_name=bucket_name,
         prefix=prefix,
         public_url=public_url,
-        dry_run=False
+        dry_run=False,
+        upload_permalinks=args.permalinks
     )
     sys.exit(exit_code)
 
