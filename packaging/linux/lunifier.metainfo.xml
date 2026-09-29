@@ -41,6 +41,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="2.2.2" date="2026-09-29">
+      <description>
+        <p>Fixed mouse jitter during background Bluetooth reconnection by implementing exponential backoff, cursor activity gating, and persistent X11 display caching.</p>
+      </description>
+    </release>
     <release version="2.2.1" date="2026-09-25">
       <description>
         <p>Windows Store compliance updates, Linux system tray icon rendering fixes for GNOME AppIndicator, and multi-monitor border dwell reliability improvements.</p>
