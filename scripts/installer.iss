@@ -37,6 +37,7 @@ SolidCompression=yes
 WizardStyle=modern dynamic
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog commandline
 DisableDirPage=auto
 DisableProgramGroupPage=auto
@@ -57,7 +58,7 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--minimized"; Tasks: startupicon
+Name: "{autostartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--minimized"; Tasks: startupicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
@@ -91,12 +92,15 @@ var
   ErrorCode: Integer;
 begin
   Result := True;
-  if not IsDotNet9DesktopInstalled() then
+  if not WizardSilent() then
   begin
-    if MsgBox('Lunifier requires Microsoft .NET 9 Desktop Runtime (x64) to run properly.' + #13#10 + #13#10 +
-              'Would you like to open the official Microsoft download page now?', mbConfirmation, MB_YESNO) = IDYES then
+    if not IsDotNet9DesktopInstalled() then
     begin
-      ShellExec('open', 'https://aka.ms/dotnet/9.0/windowsdesktop-runtime-win-x64.exe', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+      if SuppressibleMsgBox('Lunifier requires Microsoft .NET 9 Desktop Runtime (x64) to run properly.' + #13#10 + #13#10 +
+                'Would you like to open the official Microsoft download page now?', mbConfirmation, MB_YESNO, IDNO) = IDYES then
+      begin
+        ShellExec('open', 'https://aka.ms/dotnet/9.0/windowsdesktop-runtime-win-x64.exe', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+      end;
     end;
   end;
 end;
