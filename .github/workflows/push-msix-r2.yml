@@ -92,11 +92,13 @@ jobs:
           }
           
           if ($targetTag) {
-            Write-Host "Downloading MSIX packages from release $targetTag..."
+            Write-Host "Downloading MSIX and EXE packages from release $targetTag..."
             gh release download $targetTag --pattern "*.msix" --dir dist --clobber
+            gh release download $targetTag --pattern "*Setup*.exe" --dir dist --clobber
           } else {
-            Write-Host "Downloading MSIX packages from latest release..."
+            Write-Host "Downloading MSIX and EXE packages from latest release..."
             gh release download --pattern "*.msix" --dir dist --clobber
+            gh release download --pattern "*Setup*.exe" --dir dist --clobber
           }
 
       - name: Push MSIX to Cloudflare R2

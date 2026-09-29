@@ -67,21 +67,26 @@ def compute_sha256(filepath: Path) -> str:
 def find_msix_packages(
     dist_dir: Path,
     version_filter: Optional[str] = None,
-    edition_filter: str = "all"
+    edition_filter: str = "all",
+    include_exe: bool = True
 ) -> List[Path]:
     """
-    Find MSIX packages in the dist directory matching the given version and edition.
+    Find MSIX and Setup EXE packages in the dist directory matching the given version and edition.
     """
     if not dist_dir.is_dir():
         return []
 
-    all_msix = sorted(dist_dir.glob("*.msix"))
-    if not all_msix:
+    all_files = sorted(dist_dir.glob("*.msix"))
+    if include_exe:
+        all_files.extend(sorted(dist_dir.glob("*Setup*.exe")))
+        all_files = sorted(set(all_files))
+
+    if not all_files:
         return []
 
     # Filter by edition
     filtered = []
-    for pkg in all_msix:
+    for pkg in all_files:
         name = pkg.name.lower()
         is_nobtsync = "nobtsync" in name
         if edition_filter == "standard" and is_nobtsync:
@@ -188,6 +193,9 @@ def upload_packages(
         size_bytes = pkg.stat().st_size
         size_mb = size_bytes / (1024 * 1024)
 
+        is_exe = pkg.suffix.lower() == ".exe"
+        content_type = "application/vnd.microsoft.portable-executable" if is_exe else "application/msix"
+
         print(f"\n[UPLOADING] {pkg.name} ({size_mb:.2f} MB)")
         print(f"  Destination Key: {dest_key}")
         print(f"  SHA-256:         {sha256}")
@@ -203,13 +211,23 @@ def upload_packages(
                 Bucket=bucket_clean,
                 Key=dest_key,
                 Body=body,
-                ContentType="application/msix",
+                ContentType=content_type,
                 ContentDisposition=f'attachment; filename="{pkg.name}"',
                 Metadata={
                     "sha256": sha256,
                     "target": "windows-store"
                 }
             )
+            # If it's an EXE and prefix is msix/, also upload to installers/ for clean URLs
+            if is_exe and prefix_norm == "msix/":
+                client.put_object(
+                    Bucket=bucket_clean,
+                    Key=f"installers/{pkg.name}",
+                    Body=body,
+                    ContentType=content_type,
+                    ContentDisposition=f'attachment; filename="{pkg.name}"',
+                    Metadata={"sha256": sha256, "target": "windows-store"}
+                )
             uploaded = True
         except Exception as put_ex:
             last_error = put_ex
@@ -218,7 +236,7 @@ def upload_packages(
         if not uploaded:
             try:
                 extra_args = {
-                    "ContentType": "application/msix",
+                    "ContentType": content_type,
                     "ContentDisposition": f'attachment; filename="{pkg.name}"',
                     "Metadata": {
                         "sha256": sha256,
@@ -240,6 +258,8 @@ def upload_packages(
             if public_url:
                 base = public_url.rstrip("/")
                 print(f"  Public URL: {base}/{dest_key}")
+                if is_exe and prefix_norm == "msix/":
+                    print(f"  Public URL: {base}/installers/{pkg.name}")
             success_count += 1
         else:
             print(f"  [ERROR] Failed to upload {pkg.name}: {last_error}", file=sys.stderr)
@@ -265,8 +285,9 @@ def upload_packages(
         print(" Updating Static Permalinks (Windows Store / Latest)")
         print("===================================================")
 
-        std_pkgs = [p for p in packages if "nobtsync" not in p.name.lower()]
-        nobt_pkgs = [p for p in packages if "nobtsync" in p.name.lower()]
+        msix_pkgs = [p for p in packages if p.suffix.lower() == ".msix"]
+        std_pkgs = [p for p in msix_pkgs if "nobtsync" not in p.name.lower()]
+        nobt_pkgs = [p for p in msix_pkgs if "nobtsync" in p.name.lower()]
 
         targets = []
         if std_pkgs:
@@ -304,6 +325,48 @@ def upload_packages(
                         print(f"  Permalink URL: {base}/{alias_key}")
                 except Exception as ex:
                     print(f"  [WARN] Failed to update permalink {alias}: {ex}", file=sys.stderr)
+
+        # Upload EXE permalinks
+        exe_pkgs = [p for p in packages if p.suffix.lower() == ".exe"]
+        std_exes = [p for p in exe_pkgs if "nobtsync" not in p.name.lower()]
+        nobt_exes = [p for p in exe_pkgs if "nobtsync" in p.name.lower()]
+        exe_targets = []
+        if std_exes:
+            p = sorted(std_exes, key=lambda x: len(x.name), reverse=True)[0]
+            exe_targets.append((p, ["Lunifier-Setup-latest.exe", "Lunifier-Setup.exe"], "standard"))
+        if nobt_exes:
+            p = sorted(nobt_exes, key=lambda x: len(x.name), reverse=True)[0]
+            exe_targets.append((p, ["Lunifier-Setup-latest-nobtsync.exe", "Lunifier-Setup-nobtsync.exe"], "nobtsync"))
+
+        for src_pkg, aliases, edition in exe_targets:
+            with open(src_pkg, "rb") as f_data:
+                body = f_data.read()
+            sha256 = compute_sha256(src_pkg)
+
+            for alias in aliases:
+                for base_pfx in ([prefix_norm, "installers/"] if prefix_norm == "msix/" else [prefix_norm]):
+                    alias_key = f"{base_pfx}{alias}"
+                    print(f"[PERMALINK] {alias} -> s3://{bucket_clean}/{alias_key}")
+                    try:
+                        client.put_object(
+                            Bucket=bucket_clean,
+                            Key=alias_key,
+                            Body=body,
+                            ContentType="application/vnd.microsoft.portable-executable",
+                            ContentDisposition=f'attachment; filename="{alias}"',
+                            CacheControl="public, max-age=300, must-revalidate",
+                            Metadata={
+                                "sha256": sha256,
+                                "source-package": src_pkg.name,
+                                "target": "windows-store-permalink"
+                            }
+                        )
+                        print(f"  [OK] Permalink updated: s3://{bucket_clean}/{alias_key}")
+                        if public_url:
+                            base = public_url.rstrip("/")
+                            print(f"  Permalink URL: {base}/{alias_key}")
+                    except Exception as ex:
+                        print(f"  [WARN] Failed to update permalink {alias}: {ex}", file=sys.stderr)
 
         # Generate and upload .appinstaller manifest for Windows Store / AppInstaller auto-updates
         for src_pkg, _, edition in targets:
