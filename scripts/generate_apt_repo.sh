@@ -52,7 +52,14 @@ if command -v gpg >/dev/null 2>&1; then
     fi
 fi
 
-# 3. Generate Packages and Packages.gz index
+# 3. Copy architecture SVG diagram to public
+if [ -f "$SCRIPT_DIR/../docs/architecture.svg" ]; then
+    cp "$SCRIPT_DIR/../docs/architecture.svg" "$PUBLIC_DIR/architecture.svg"
+elif [ -f "$SCRIPT_DIR/../lunifier/resources/architecture.svg" ]; then
+    cp "$SCRIPT_DIR/../lunifier/resources/architecture.svg" "$PUBLIC_DIR/architecture.svg"
+fi
+
+# 4. Generate Packages and Packages.gz index
 echo "Generating Packages index..."
 cd "$PUBLIC_DIR"
 dpkg-scanpackages --arch all pool/main > dists/stable/main/binary-all/Packages
@@ -64,7 +71,7 @@ cp dists/stable/main/binary-all/Packages.gz dists/stable/main/binary-amd64/Packa
 cp dists/stable/main/binary-all/Packages dists/stable/main/binary-arm64/Packages
 cp dists/stable/main/binary-all/Packages.gz dists/stable/main/binary-arm64/Packages.gz
 
-# 4. Generate Release manifest
+# 5. Generate Release manifest
 echo "Generating Release manifest..."
 cd "$PUBLIC_DIR/dists/stable"
 
@@ -83,7 +90,7 @@ EOF
 apt-ftparchive -c apt-ftparchive.conf release . > Release
 rm apt-ftparchive.conf
 
-# 5. Sign Release with GPG
+# 6. Sign Release with GPG
 if command -v gpg >/dev/null 2>&1 && gpg --list-secret-keys "$GPG_KEY_NAME" >/dev/null 2>&1; then
     echo "Signing Release with GPG ($GPG_KEY_NAME)..."
     PASSPHRASE_ARGS=""
@@ -97,7 +104,7 @@ else
     echo "Warning: Secret key for '$GPG_KEY_NAME' not found. InRelease and Release.gpg were not signed."
 fi
 
-# 6. Generate One-Line Installer script (install.sh)
+# 7. Generate One-Line Installer script (install.sh)
 cat << 'EOF' > "$PUBLIC_DIR/install.sh"
 #!/bin/bash
 set -e
@@ -164,14 +171,14 @@ echo -e "To run background service:  ${BOLD}systemctl --user enable --now lunifi
 EOF
 chmod +x "$PUBLIC_DIR/install.sh"
 
-# 7. Generate Web landing page with Copy buttons (index.html)
+# 8. Generate Web landing page (index.html)
 cat << 'EOF' > "$PUBLIC_DIR/index.html"
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lunifier — Official APT Repository</title>
+  <title>Lunifier — Seamless Logitech Flow for Windows & Linux</title>
   <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg">
   <style>
     :root {
@@ -192,7 +199,7 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
     * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      max-width: 820px;
+      max-width: 860px;
       margin: 40px auto;
       padding: 0 20px;
       line-height: 1.6;
@@ -206,31 +213,30 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
       margin-bottom: 24px;
     }
     .header img {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
+      width: 54px;
+      height: 54px;
     }
     h1 {
       color: var(--text-bright);
       margin: 0;
-      font-size: 28px;
+      font-size: 26px;
+      font-weight: 700;
     }
     .subtitle {
       color: var(--text-muted);
       margin-top: 4px;
-      font-size: 15px;
+      font-size: 14.5px;
     }
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 24px 28px;
+      border-radius: 10px;
+      padding: 22px 26px;
       margin-bottom: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     h2 {
       color: var(--text-bright);
-      font-size: 19px;
+      font-size: 17px;
       margin-top: 0;
       margin-bottom: 12px;
       display: flex;
@@ -238,7 +244,6 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
       gap: 8px;
     }
     .badge {
-      display: inline-block;
       font-size: 11px;
       font-weight: 600;
       padding: 2px 8px;
@@ -256,21 +261,21 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
     pre {
       background: var(--code-bg);
       color: #e6edf3;
-      padding: 16px 20px;
+      padding: 14px 18px;
       border-radius: 8px;
       border: 1px solid var(--card-border);
       overflow-x: auto;
-      font-size: 13.5px;
+      font-size: 13px;
       margin: 0;
       line-height: 1.5;
     }
     code {
-      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     }
     .copy-btn {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: 8px;
+      right: 8px;
       background: var(--btn-bg);
       border: 1px solid var(--btn-border);
       color: var(--text);
@@ -282,7 +287,7 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
     }
     .copy-btn:hover {
       background: var(--btn-hover);
@@ -295,9 +300,38 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
       border-color: rgba(63, 185, 80, 0.4);
     }
     .copy-btn svg {
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
       fill: currentColor;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    @media (max-width: 640px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    .feature-item {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+    }
+    .feature-item strong {
+      color: var(--text-bright);
+      display: block;
+      margin-bottom: 4px;
+    }
+    .diagram-img {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      margin: 10px 0;
+      display: block;
     }
     a {
       color: var(--accent);
@@ -314,30 +348,50 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
     li {
       margin-bottom: 6px;
     }
+    details {
+      margin-top: 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    details summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 500;
+      font-size: 13.5px;
+    }
+    details summary:hover {
+      color: var(--accent-hover);
+    }
+    details .code-block {
+      margin-top: 10px;
+    }
     .footer {
       text-align: center;
-      margin-top: 32px;
+      margin-top: 28px;
       color: var(--text-muted);
-      font-size: 13px;
+      font-size: 12.5px;
     }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <img src="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg" alt="Lunifier Logo" onerror="this.style.display='none'">
+    <img src="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg" alt="Lunifier Logo">
     <div>
       <h1>Lunifier APT Repository</h1>
-      <div class="subtitle">Official Debian / Ubuntu repository for Logitech Easy-Switch cross-screen flow</div>
+      <div class="subtitle">Seamless Logitech Easy-Switch keyboard &amp; mouse switching across Windows &amp; Linux</div>
     </div>
   </div>
 
+  <!-- Quick Install Card -->
   <div class="card">
     <h2>
-      One-Line Quick Install
+      Ubuntu / Debian Quick Install
       <span class="badge">Recommended</span>
     </h2>
-    <p>Run this command in your Ubuntu / Debian terminal to add the repository and install Lunifier in one step:</p>
+    <p style="margin: 0 0 8px 0; font-size: 13.5px;">Run this command in your terminal to configure the APT repository and install Lunifier in one step:</p>
     <div class="code-block">
       <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
         <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
@@ -345,35 +399,62 @@ cat << 'EOF' > "$PUBLIC_DIR/index.html"
       </button>
       <pre><code>curl -fsSL https://silviuk.github.io/Lunifier/install.sh | sudo bash</code></pre>
     </div>
-  </div>
 
-  <div class="card">
-    <h2>Manual Step-by-Step Installation</h2>
-    <p>If you prefer to configure APT sources manually:</p>
-    <div class="code-block">
-      <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
-        <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
-        <span>Copy</span>
-      </button>
-      <pre><code># 1. Add repository GPG signing key
+    <details>
+      <summary>Manual Step-by-Step APT Configuration</summary>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+          <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+          <span>Copy</span>
+        </button>
+        <pre><code># 1. Add repository GPG signing key
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://silviuk.github.io/Lunifier/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/lunifier.gpg
 
-# 2. Add Lunifier repository to APT sources
+# 2. Add repository to sources list
 echo "deb [signed-by=/etc/apt/keyrings/lunifier.gpg] https://silviuk.github.io/Lunifier stable main" | sudo tee /etc/apt/sources.list.d/lunifier.list
 
-# 3. Update & install Lunifier
+# 3. Update &amp; install Lunifier
 sudo apt update
 sudo apt install lunifier</code></pre>
+      </div>
+    </details>
+  </div>
+
+  <!-- Architecture & Overview Card -->
+  <div class="card">
+    <h2>Multi-Border 3-Channel Architecture</h2>
+    <p style="margin: 0 0 8px 0; font-size: 13.5px;">Lunifier transfers your Logitech peripherals simultaneously when the cursor dwells against any configured screen edge:</p>
+    
+    <img src="architecture.svg" alt="Lunifier Multi-Border Architecture" class="diagram-img">
+
+    <div class="grid-2">
+      <div class="feature-item">
+        <strong>⚡ Zero LAN / Wi-Fi Dependency</strong>
+        Operates autonomously on each host over direct Bluetooth, Logi Bolt, and Unifying receivers. Works seamlessly over VPNs and guest networks.
+      </div>
+      <div class="feature-item">
+        <strong>🎛️ Logitech HID++ 2.0 Feature 0x1814</strong>
+        Transmits hardware <code>CHANGE_HOST</code> commands simultaneously to all connected Easy-Switch peripherals for sub-second switching.
+      </div>
+      <div class="feature-item">
+        <strong>🖥️ Multi-Border Screen Routing</strong>
+        Independently assign Left, Right, Top, or Bottom screen edges to distinct channels (Channel 1, 2, or 3) for 2-PC or 3-PC desk layouts.
+      </div>
+      <div class="feature-item">
+        <strong>🐧 Cross-Platform (Linux &amp; Windows)</strong>
+        Full support for Ubuntu, Debian, and Windows 10/11 with system tray controls, desktop integration, and systemd service autostart.
+      </div>
     </div>
   </div>
 
+  <!-- Resources Card -->
   <div class="card">
-    <h2>Project Links & Resources</h2>
+    <h2>Project Links &amp; Downloads</h2>
     <ul>
-      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository (silviuk/Lunifier)</a></li>
-      <li><a href="https://github.com/silviuk/Lunifier/releases">Release Downloads & Checksums</a></li>
-      <li><a href="install.sh">One-Line Installer Script (install.sh)</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository (Source Code)</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier/releases">Releases &amp; Checksums (Windows .exe, MSIX, Linux .deb)</a></li>
+      <li><a href="install.sh">One-Line Shell Installer (install.sh)</a></li>
       <li><a href="key.gpg">Repository GPG Public Key (key.gpg)</a></li>
     </ul>
   </div>
