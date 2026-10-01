@@ -25,7 +25,19 @@ Official Logitech Flow has significant limitations:
 
 ## Multi-Border 3-Channel Architecture
 
-Configure your desk layout visually:
+<p align="center">
+  <img src="docs/architecture.svg" alt="Lunifier Multi-Border Architecture" width="100%">
+</p>
+
+When the cursor dwells against a configured screen border:
+- **Host 1 Right Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 2**.
+- **Host 2 Left Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 1**.
+- **Host 2 Right Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 3**.
+- **Host 3 Left Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 2**.
+
+<details>
+<summary>ASCII Layout Schematic</summary>
+
 ```
 +---------------------------+   +---------------------------+   +---------------------------+
 |          Host 1           |   |          Host 2           |   |          Host 3           |
@@ -38,10 +50,7 @@ Configure your desk layout visually:
 |                           |   |      (Switch to Ch 3)     |   |   (Switch to Ch 2)        |
 +---------------------------+   +---------------------------+   +---------------------------+
 ```
-
-When cursor dwells against the border:
-- **Host 2 Left Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 1**.
-- **Host 2 Right Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 3**.
+</details>
 
 ---
 
