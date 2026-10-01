@@ -3,35 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lunifier — Seamless Logitech Flow for Windows & Linux</title>
+  <title>Lunifier — Seamless Logitech Flow for Windows &amp; Linux</title>
   <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg">
   <style>
+    /* ----------------------------------------------------------------------- */
+    /* Light Theme (Default)                                                  */
+    /* ----------------------------------------------------------------------- */
     :root {
-      --bg: #0d1117;
-      --card-bg: #161b22;
-      --card-border: #30363d;
-      --text: #c9d1d9;
-      --text-bright: #f0f6fc;
-      --text-muted: #8b949e;
-      --accent: #58a6ff;
-      --accent-hover: #79c0ff;
-      --code-bg: #0b0e14;
-      --btn-bg: #21262d;
-      --btn-border: #363b42;
-      --btn-hover: #30363d;
-      --success: #3fb950;
-      --orange: #ff5722;
-      --purple: #a371f7;
+      color-scheme: light dark;
+      --bg: #f6f8fa;
+      --card-bg: #ffffff;
+      --card-border: #d0d7de;
+      --text: #1f2328;
+      --text-bright: #1f2328;
+      --text-muted: #656d76;
+      --accent: #0969da;
+      --accent-hover: #0550ae;
+      --code-bg: #f6f8fa;
+      --code-border: #d0d7de;
+      --code-text: #1f2328;
+      --btn-bg: #ffffff;
+      --btn-border: #d0d7de;
+      --btn-hover: #f3f4f6;
+      --pill-bg: #eaeef2;
+      --pill-border: #d0d7de;
+      --pill-accent-bg: #ddf4ff;
+      --pill-accent-border: #54aeff;
+      --pill-accent-text: #0969da;
+      --badge-bg: #ddf4ff;
+      --badge-border: #54aeff;
+      --badge-text: #0969da;
+      --success: #1a7f37;
+      --item-bg: #f6f8fa;
     }
+
+    /* ----------------------------------------------------------------------- */
+    /* Automatic Dark Theme Switch (System-Driven)                            */
+    /* ----------------------------------------------------------------------- */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --card-bg: #161b22;
+        --card-border: #30363d;
+        --text: #e6edf3;
+        --text-bright: #f0f6fc;
+        --text-muted: #8b949e;
+        --accent: #4493f8;
+        --accent-hover: #58a6ff;
+        --code-bg: #0d1117;
+        --code-border: #30363d;
+        --code-text: #e6edf3;
+        --btn-bg: #21262d;
+        --btn-border: #30363d;
+        --btn-hover: #30363d;
+        --pill-bg: #21262d;
+        --pill-border: #30363d;
+        --pill-accent-bg: rgba(56, 139, 253, 0.15);
+        --pill-accent-border: rgba(56, 139, 253, 0.4);
+        --pill-accent-text: #58a6ff;
+        --badge-bg: rgba(56, 139, 253, 0.15);
+        --badge-border: rgba(56, 139, 253, 0.4);
+        --badge-text: #58a6ff;
+        --success: #3fb950;
+        --item-bg: #0d1117;
+      }
+    }
+
     * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      max-width: 880px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      max-width: 860px;
       margin: 40px auto;
       padding: 0 20px;
       line-height: 1.6;
       color: var(--text);
       background: var(--bg);
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
     .header {
       display: flex;
@@ -40,8 +87,8 @@
       margin-bottom: 24px;
     }
     .header img {
-      width: 56px;
-      height: 56px;
+      width: 52px;
+      height: 52px;
     }
     h1 {
       color: var(--text-bright);
@@ -65,25 +112,26 @@
       font-weight: 600;
       padding: 3px 10px;
       border-radius: 20px;
-      background: var(--btn-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-bright);
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      color: var(--text);
     }
     .pill.accent {
-      background: rgba(88, 166, 255, 0.12);
-      border-color: rgba(88, 166, 255, 0.35);
-      color: var(--accent);
+      background: var(--pill-accent-bg);
+      border-color: var(--pill-accent-border);
+      color: var(--pill-accent-text);
     }
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 22px 26px;
-      margin-bottom: 22px;
+      border-radius: 8px;
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     h2 {
       color: var(--text-bright);
-      font-size: 18px;
+      font-size: 17.5px;
       margin-top: 0;
       margin-bottom: 14px;
       display: flex;
@@ -91,7 +139,7 @@
       gap: 10px;
     }
     .section-title {
-      font-size: 14.5px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text-bright);
       margin-top: 16px;
@@ -105,9 +153,9 @@
       font-weight: 600;
       padding: 2px 8px;
       border-radius: 20px;
-      background: rgba(88, 166, 255, 0.15);
-      color: var(--accent);
-      border: 1px solid rgba(88, 166, 255, 0.3);
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      border: 1px solid var(--badge-border);
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -117,10 +165,10 @@
     }
     pre {
       background: var(--code-bg);
-      color: #e6edf3;
+      color: var(--code-text);
       padding: 14px 18px;
-      border-radius: 8px;
-      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      border: 1px solid var(--code-border);
       overflow-x: auto;
       font-size: 13px;
       margin: 0;
@@ -138,23 +186,21 @@
       color: var(--text);
       font-size: 12px;
       font-weight: 500;
-      padding: 5px 10px;
-      border-radius: 6px;
+      padding: 4px 9px;
+      border-radius: 4px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.15s ease;
     }
     .copy-btn:hover {
       background: var(--btn-hover);
       color: var(--text-bright);
-      border-color: var(--text-muted);
     }
     .copy-btn.copied {
-      background: rgba(63, 185, 80, 0.15);
       color: var(--success);
-      border-color: rgba(63, 185, 80, 0.4);
+      border-color: var(--success);
     }
     .copy-btn svg {
       width: 13px;
@@ -164,17 +210,17 @@
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 14px;
       margin-top: 14px;
     }
     @media (max-width: 680px) {
       .grid-2 { grid-template-columns: 1fr; }
     }
     .feature-item {
-      background: var(--code-bg);
+      background: var(--item-bg);
       border: 1px solid var(--card-border);
-      border-radius: 8px;
-      padding: 14px 16px;
+      border-radius: 6px;
+      padding: 12px 14px;
       font-size: 13px;
     }
     .feature-item strong {
@@ -185,16 +231,16 @@
     .diagram-img {
       width: 100%;
       height: auto;
-      border-radius: 8px;
+      border-radius: 6px;
       border: 1px solid var(--card-border);
-      margin: 12px 0 16px 0;
+      margin: 10px 0 14px 0;
       display: block;
     }
     .download-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      margin-top: 12px;
+      margin-top: 10px;
     }
     @media (max-width: 600px) {
       .download-grid { grid-template-columns: 1fr; }
@@ -203,21 +249,20 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      background: var(--code-bg);
+      background: var(--item-bg);
       border: 1px solid var(--card-border);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 12px 14px;
       color: var(--text-bright);
       text-decoration: none;
-      transition: all 0.2s ease;
+      transition: border-color 0.15s ease;
     }
     .download-btn:hover {
       border-color: var(--accent);
-      background: var(--btn-bg);
       text-decoration: none;
     }
     .download-btn .icon {
-      font-size: 22px;
+      font-size: 20px;
     }
     .download-btn .label {
       font-size: 13px;
@@ -244,9 +289,9 @@
     }
     details {
       margin-top: 10px;
-      background: var(--code-bg);
+      background: var(--item-bg);
       border: 1px solid var(--card-border);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 10px 14px;
     }
     details summary {
@@ -264,9 +309,9 @@
     }
     .footer {
       text-align: center;
-      margin-top: 32px;
+      margin-top: 28px;
       color: var(--text-muted);
-      font-size: 12.5px;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -296,7 +341,7 @@
       Option 1: One-Line APT Install (Recommended — Automatic Updates)
       <span class="badge">Easiest</span>
     </div>
-    <p style="margin: 0 0 6px 0; font-size: 13px; color: var(--text-muted);">Configures the repository keyring, adds the source list, and installs Lunifier with automated updates via standard <code>apt upgrade</code>:</p>
+    <p style="margin: 0 0 6px 0; font-size: 13px; color: var(--text-muted);">Configures repository keyring and sources list, then installs Lunifier with automatic updates via standard <code>apt upgrade</code>:</p>
     <div class="code-block">
       <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
         <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
@@ -361,7 +406,7 @@ sudo apt install lunifier</code></pre>
     <div class="section-title">
       Option 2: Windows Setup Installer (.exe) &amp; MSIX Packages
     </div>
-    <p style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">Download clean standalone installers including Start Menu shortcuts, tray integration, uninstaller, and silent install support:</p>
+    <p style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">Download standalone installers with Start Menu shortcuts, tray integration, uninstaller, and silent install support:</p>
     
     <div class="download-grid">
       <a href="https://github.com/silviuk/Lunifier/releases/latest" class="download-btn">
