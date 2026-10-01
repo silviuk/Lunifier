@@ -10,9 +10,13 @@ set -e
 # -----------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POOL_DIR="${1:-$SCRIPT_DIR/../dist}"
-PUBLIC_DIR="${2:-$SCRIPT_DIR/../public}"
+RAW_POOL="${1:-$SCRIPT_DIR/../dist}"
+RAW_PUBLIC="${2:-$SCRIPT_DIR/../public}"
 GPG_KEY_NAME="${3:-Lunifier Package Archive}"
+
+mkdir -p "$RAW_POOL" "$RAW_PUBLIC"
+POOL_DIR="$(cd "$RAW_POOL" && pwd)"
+PUBLIC_DIR="$(cd "$RAW_PUBLIC" && pwd)"
 
 echo "=== Generating APT Repository ==="
 echo "Pool source: $POOL_DIR"
@@ -62,7 +66,7 @@ cp dists/stable/main/binary-all/Packages.gz dists/stable/main/binary-arm64/Packa
 
 # 4. Generate Release manifest
 echo "Generating Release manifest..."
-cd dists/stable
+cd "$PUBLIC_DIR/dists/stable"
 
 cat << 'EOF' > apt-ftparchive.conf
 APT::FTPArchive::Release {
