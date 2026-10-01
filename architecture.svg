@@ -8,17 +8,21 @@
       .sub-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; fill: #656d76; }
       .channel-pill { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1; }
       .channel-text { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; font-weight: 600; fill: #0969da; }
-      .edge-strip { fill: #0969da; fill-opacity: 0.15; stroke: #0969da; stroke-width: 1.5; }
-      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 500; fill: #1f2328; }
+      
+      /* Lunifier Vibrant Orange Active Border Zone (#FF5722) */
+      .edge-strip-orange { fill: rgba(255, 87, 34, 0.18); stroke: #FF5722; stroke-width: 2.5; }
+      
+      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; fill: #c2410c; }
       .footer-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; fill: #57606a; }
       .footer-code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; fill: #1f2328; }
+      .orange-highlight { fill: #FF5722; font-weight: 600; }
     </style>
 
-    <marker id="arrow" viewBox="0 0 8 8" refX="5" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 6 4 L 0 7 z" fill="#0969da" />
+    <marker id="arrow-orange" viewBox="0 0 8 8" refX="5" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 6 4 L 0 7 z" fill="#FF5722" />
     </marker>
-    <marker id="arrow-left" viewBox="0 0 8 8" refX="1" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 6 1 L 0 4 L 6 7 z" fill="#0969da" />
+    <marker id="arrow-orange-left" viewBox="0 0 8 8" refX="1" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 6 1 L 0 4 L 6 7 z" fill="#FF5722" />
     </marker>
   </defs>
 
@@ -43,8 +47,8 @@
     <rect x="128" y="6" width="80" height="18" rx="4" class="channel-pill" />
     <text x="168" y="19" text-anchor="middle" class="channel-text">Channel 1</text>
 
-    <!-- Right Edge Zone -->
-    <rect x="204" y="30" width="16" height="110" class="edge-strip" />
+    <!-- Right Orange Active Dwell Border -->
+    <rect x="206" y="30" width="14" height="110" class="edge-strip-orange" />
 
     <text x="105" y="85" text-anchor="middle" class="sub-text">Windows / Linux</text>
   </g>
@@ -54,11 +58,11 @@
   <!-- ===================================================================== -->
   <g transform="translate(250, 24)">
     <!-- Right arrow (Ch 1 -> Ch 2) -->
-    <line x1="8" y1="62" x2="82" y2="62" stroke="#0969da" stroke-width="1.5" marker-end="url(#arrow)" />
+    <line x1="8" y1="62" x2="82" y2="62" stroke="#FF5722" stroke-width="1.5" marker-end="url(#arrow-orange)" />
     <text x="45" y="54" text-anchor="middle" class="arrow-text">Ch 2 ➔</text>
 
     <!-- Left arrow (Ch 2 -> Ch 1) -->
-    <line x1="8" y1="98" x2="82" y2="98" stroke="#0969da" stroke-width="1.5" marker-start="url(#arrow-left)" />
+    <line x1="8" y1="98" x2="82" y2="98" stroke="#FF5722" stroke-width="1.5" marker-start="url(#arrow-orange-left)" />
     <text x="45" y="114" text-anchor="middle" class="arrow-text">⬅ Ch 1</text>
   </g>
 
@@ -80,11 +84,11 @@
     <rect x="128" y="6" width="80" height="18" rx="4" class="channel-pill" />
     <text x="168" y="19" text-anchor="middle" class="channel-text">Channel 2</text>
 
-    <!-- Left Edge Zone -->
-    <rect x="0" y="30" width="16" height="110" class="edge-strip" />
+    <!-- Left Orange Active Dwell Border -->
+    <rect x="0" y="30" width="14" height="110" class="edge-strip-orange" />
 
-    <!-- Right Edge Zone -->
-    <rect x="204" y="30" width="16" height="110" class="edge-strip" />
+    <!-- Right Orange Active Dwell Border -->
+    <rect x="206" y="30" width="14" height="110" class="edge-strip-orange" />
 
     <text x="110" y="85" text-anchor="middle" class="sub-text">Windows / Linux</text>
   </g>
@@ -94,11 +98,11 @@
   <!-- ===================================================================== -->
   <g transform="translate(560, 24)">
     <!-- Right arrow (Ch 2 -> Ch 3) -->
-    <line x1="8" y1="62" x2="82" y2="62" stroke="#0969da" stroke-width="1.5" marker-end="url(#arrow)" />
+    <line x1="8" y1="62" x2="82" y2="62" stroke="#FF5722" stroke-width="1.5" marker-end="url(#arrow-orange)" />
     <text x="45" y="54" text-anchor="middle" class="arrow-text">Ch 3 ➔</text>
 
     <!-- Left arrow (Ch 3 -> Ch 2) -->
-    <line x1="8" y1="98" x2="82" y2="98" stroke="#0969da" stroke-width="1.5" marker-start="url(#arrow-left)" />
+    <line x1="8" y1="98" x2="82" y2="98" stroke="#FF5722" stroke-width="1.5" marker-start="url(#arrow-orange-left)" />
     <text x="45" y="114" text-anchor="middle" class="arrow-text">⬅ Ch 2</text>
   </g>
 
@@ -120,8 +124,8 @@
     <rect x="108" y="6" width="80" height="18" rx="4" class="channel-pill" />
     <text x="148" y="19" text-anchor="middle" class="channel-text">Channel 3</text>
 
-    <!-- Left Edge Zone -->
-    <rect x="0" y="30" width="16" height="110" class="edge-strip" />
+    <!-- Left Orange Active Dwell Border -->
+    <rect x="0" y="30" width="14" height="110" class="edge-strip-orange" />
 
     <text x="100" y="85" text-anchor="middle" class="sub-text">Windows / Linux</text>
   </g>
@@ -132,7 +136,7 @@
   <g transform="translate(30, 205)">
     <line x1="0" y1="0" x2="820" y2="0" stroke="#eaeef2" stroke-width="1" />
     <text x="410" y="24" text-anchor="middle" class="footer-text">
-      Cursor edge dwell triggers Logitech HID++ 2.0 <tspan class="footer-code">CHANGE_HOST (0x1814)</tspan> hardware switching across Bluetooth, Bolt, &amp; Unifying.
+      Cursor dwell against active <tspan class="orange-highlight">orange border</tspan> triggers Logitech HID++ 2.0 <tspan class="footer-code">CHANGE_HOST (0x1814)</tspan> hardware switching.
     </text>
   </g>
 </svg>
