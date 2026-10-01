@@ -1,40 +1,40 @@
 Architectures: all amd64 arm64
 Codename: stable
 Components: main
-Date: Thu, 01 Oct 2026 10:33:54 +0000
+Date: Thu, 01 Oct 2026 10:43:35 +0000
 Description: Lunifier Logitech Easy-Switch Coordinate Utility Repository
 Label: Lunifier
 Origin: Lunifier Archive
 Suite: stable
 MD5Sum:
- e92c5a08b5b3ac709eb964cf502f922b              231 Release
+ 3c89063c4cf6532c7a4a698733b3d7bf              231 Release
  29291b08e2db9d956cced6c13dcc1535             2342 main/binary-all/Packages
- adb43628e740bfa4490ecec31419af64              932 main/binary-all/Packages.gz
+ a2eea8e3657f941d8a318dc00fd40d43              932 main/binary-all/Packages.gz
  29291b08e2db9d956cced6c13dcc1535             2342 main/binary-amd64/Packages
- adb43628e740bfa4490ecec31419af64              932 main/binary-amd64/Packages.gz
+ a2eea8e3657f941d8a318dc00fd40d43              932 main/binary-amd64/Packages.gz
  29291b08e2db9d956cced6c13dcc1535             2342 main/binary-arm64/Packages
- adb43628e740bfa4490ecec31419af64              932 main/binary-arm64/Packages.gz
+ a2eea8e3657f941d8a318dc00fd40d43              932 main/binary-arm64/Packages.gz
 SHA1:
- ef369fa8fa7a29d42e1bbd5dd25027773c605731              231 Release
+ efa0f69f761baa236767a4c07631625fa64f3dbb              231 Release
  3da4bcf745f2a2cdd562e56271dd60a1f3da6c49             2342 main/binary-all/Packages
- 51121706e929c734982e48d8e04d20d5642e4a56              932 main/binary-all/Packages.gz
+ 20232afc53b7a45f1085b5651cd834cc2c2ed7dd              932 main/binary-all/Packages.gz
  3da4bcf745f2a2cdd562e56271dd60a1f3da6c49             2342 main/binary-amd64/Packages
- 51121706e929c734982e48d8e04d20d5642e4a56              932 main/binary-amd64/Packages.gz
+ 20232afc53b7a45f1085b5651cd834cc2c2ed7dd              932 main/binary-amd64/Packages.gz
  3da4bcf745f2a2cdd562e56271dd60a1f3da6c49             2342 main/binary-arm64/Packages
- 51121706e929c734982e48d8e04d20d5642e4a56              932 main/binary-arm64/Packages.gz
+ 20232afc53b7a45f1085b5651cd834cc2c2ed7dd              932 main/binary-arm64/Packages.gz
 SHA256:
- da52b5ff25ae4a9e0c9148c5774fb9a6dab9abf134283b02a3148176dab93e78              231 Release
+ a00ca6f963d217ec3614eb2bc82e7551f4b1dabf59df44f4fa50d1efa8f7e7dc              231 Release
  89890f9a066182061644c6b56c0b27b52c25515e75e9ba21218881700d37a7f4             2342 main/binary-all/Packages
- 168f82ea9bd43c981c35605ee2ae4b208d2e7aeb09889567db17a5989fd21e6e              932 main/binary-all/Packages.gz
+ a30e0f101a201fa0b442ee9b01da4f541f8c7cd26647c88488ca434b0769d6b9              932 main/binary-all/Packages.gz
  89890f9a066182061644c6b56c0b27b52c25515e75e9ba21218881700d37a7f4             2342 main/binary-amd64/Packages
- 168f82ea9bd43c981c35605ee2ae4b208d2e7aeb09889567db17a5989fd21e6e              932 main/binary-amd64/Packages.gz
+ a30e0f101a201fa0b442ee9b01da4f541f8c7cd26647c88488ca434b0769d6b9              932 main/binary-amd64/Packages.gz
  89890f9a066182061644c6b56c0b27b52c25515e75e9ba21218881700d37a7f4             2342 main/binary-arm64/Packages
- 168f82ea9bd43c981c35605ee2ae4b208d2e7aeb09889567db17a5989fd21e6e              932 main/binary-arm64/Packages.gz
+ a30e0f101a201fa0b442ee9b01da4f541f8c7cd26647c88488ca434b0769d6b9              932 main/binary-arm64/Packages.gz
 SHA512:
- 90f1057ae8b797f8bdb7613e2229ea532e290f6fcd38d454243f810a1f677292db7a9aba18c675710d8cf1973b0bac20f96817842ab3bffa2885f1752a64ab67              231 Release
+ bc94513245b5e5dcc8fa8ee46782d92a49ed654c26bda8dc730c1c371849c2dd9eb9fa6115fc33ce3021cb429e9d06413e55785c4268f9d227160fd168cd86bc              231 Release
  8b75af2f95c3d971d6410318ad5392804ee738d13524be907c3f2a95d3bdf2d143551420c357826a4254370485910771eafae901dbe304b84fe2afc9ece0e0f5             2342 main/binary-all/Packages
- 1e5056ebe3677d678c88609860077db36105183ad054b37b04026697516fc7d6ddcb1d1b68c35437cc76aa3fe4c7329be9ff0677d0fd9a73172b05b393916309              932 main/binary-all/Packages.gz
+ 7f2f2a38fc90f9bacb0d2564b17169b5f6ae0f7adc8f8c1cb8fd79fac9c3ea7f97bbb6ed13b0ff5fc989a96ae44e1bbafcb22c7ab5b52c5616ad9e3f297bda92              932 main/binary-all/Packages.gz
  8b75af2f95c3d971d6410318ad5392804ee738d13524be907c3f2a95d3bdf2d143551420c357826a4254370485910771eafae901dbe304b84fe2afc9ece0e0f5             2342 main/binary-amd64/Packages
- 1e5056ebe3677d678c88609860077db36105183ad054b37b04026697516fc7d6ddcb1d1b68c35437cc76aa3fe4c7329be9ff0677d0fd9a73172b05b393916309              932 main/binary-amd64/Packages.gz
+ 7f2f2a38fc90f9bacb0d2564b17169b5f6ae0f7adc8f8c1cb8fd79fac9c3ea7f97bbb6ed13b0ff5fc989a96ae44e1bbafcb22c7ab5b52c5616ad9e3f297bda92              932 main/binary-amd64/Packages.gz
  8b75af2f95c3d971d6410318ad5392804ee738d13524be907c3f2a95d3bdf2d143551420c357826a4254370485910771eafae901dbe304b84fe2afc9ece0e0f5             2342 main/binary-arm64/Packages
- 1e5056ebe3677d678c88609860077db36105183ad054b37b04026697516fc7d6ddcb1d1b68c35437cc76aa3fe4c7329be9ff0677d0fd9a73172b05b393916309              932 main/binary-arm64/Packages.gz
+ 7f2f2a38fc90f9bacb0d2564b17169b5f6ae0f7adc8f8c1cb8fd79fac9c3ea7f97bbb6ed13b0ff5fc989a96ae44e1bbafcb22c7ab5b52c5616ad9e3f297bda92              932 main/binary-arm64/Packages.gz

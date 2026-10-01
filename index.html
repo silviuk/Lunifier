@@ -20,11 +20,13 @@
       --btn-border: #363b42;
       --btn-hover: #30363d;
       --success: #3fb950;
+      --orange: #ff5722;
+      --purple: #a371f7;
     }
     * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      max-width: 860px;
+      max-width: 880px;
       margin: 40px auto;
       padding: 0 20px;
       line-height: 1.6;
@@ -38,8 +40,8 @@
       margin-bottom: 24px;
     }
     .header img {
-      width: 54px;
-      height: 54px;
+      width: 56px;
+      height: 56px;
     }
     h1 {
       color: var(--text-bright);
@@ -52,21 +54,51 @@
       margin-top: 4px;
       font-size: 14.5px;
     }
+    .pill-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--btn-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-bright);
+    }
+    .pill.accent {
+      background: rgba(88, 166, 255, 0.12);
+      border-color: rgba(88, 166, 255, 0.35);
+      color: var(--accent);
+    }
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 10px;
       padding: 22px 26px;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     h2 {
       color: var(--text-bright);
-      font-size: 17px;
+      font-size: 18px;
       margin-top: 0;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+    }
+    .section-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-top: 16px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .badge {
       font-size: 11px;
@@ -81,7 +113,7 @@
     }
     .code-block {
       position: relative;
-      margin: 12px 0;
+      margin: 10px 0 14px 0;
     }
     pre {
       background: var(--code-bg);
@@ -135,14 +167,14 @@
       gap: 16px;
       margin-top: 14px;
     }
-    @media (max-width: 640px) {
+    @media (max-width: 680px) {
       .grid-2 { grid-template-columns: 1fr; }
     }
     .feature-item {
       background: var(--code-bg);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 14px 16px;
       font-size: 13px;
     }
     .feature-item strong {
@@ -155,8 +187,45 @@
       height: auto;
       border-radius: 8px;
       border: 1px solid var(--card-border);
-      margin: 10px 0;
+      margin: 12px 0 16px 0;
       display: block;
+    }
+    .download-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 600px) {
+      .download-grid { grid-template-columns: 1fr; }
+    }
+    .download-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text-bright);
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .download-btn:hover {
+      border-color: var(--accent);
+      background: var(--btn-bg);
+      text-decoration: none;
+    }
+    .download-btn .icon {
+      font-size: 22px;
+    }
+    .download-btn .label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .download-btn .desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
     }
     a {
       color: var(--accent);
@@ -174,7 +243,7 @@
       margin-bottom: 6px;
     }
     details {
-      margin-top: 12px;
+      margin-top: 10px;
       background: var(--code-bg);
       border: 1px solid var(--card-border);
       border-radius: 8px;
@@ -191,10 +260,11 @@
     }
     details .code-block {
       margin-top: 10px;
+      margin-bottom: 0;
     }
     .footer {
       text-align: center;
-      margin-top: 28px;
+      margin-top: 32px;
       color: var(--text-muted);
       font-size: 12.5px;
     }
@@ -205,18 +275,28 @@
   <div class="header">
     <img src="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg" alt="Lunifier Logo">
     <div>
-      <h1>Lunifier APT Repository</h1>
-      <div class="subtitle">Seamless Logitech Easy-Switch keyboard &amp; mouse switching across Windows &amp; Linux</div>
+      <h1>Lunifier</h1>
+      <div class="subtitle">Seamless multi-border screen switching for Logitech Easy-Switch keyboards and mice across Windows &amp; Linux</div>
+      <div class="pill-group">
+        <span class="pill accent">🐧 Linux (Ubuntu / Debian)</span>
+        <span class="pill accent">🪟 Windows 10 / 11</span>
+        <span class="pill">⚡ Zero LAN/Wi-Fi Req.</span>
+        <span class="pill">🖱️ Logitech Flow Alternative</span>
+      </div>
     </div>
   </div>
 
-  <!-- Quick Install Card -->
+  <!-- Linux Installation Card -->
   <div class="card">
     <h2>
-      Ubuntu / Debian Quick Install
-      <span class="badge">Recommended</span>
+      🐧 Linux Installation (Ubuntu, Debian &amp; Derivatives)
     </h2>
-    <p style="margin: 0 0 8px 0; font-size: 13.5px;">Run this command in your terminal to configure the APT repository and install Lunifier in one step:</p>
+
+    <div class="section-title">
+      Option 1: One-Line APT Install (Recommended — Automatic Updates)
+      <span class="badge">Easiest</span>
+    </div>
+    <p style="margin: 0 0 6px 0; font-size: 13px; color: var(--text-muted);">Configures the repository keyring, adds the source list, and installs Lunifier with automated updates via standard <code>apt upgrade</code>:</p>
     <div class="code-block">
       <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
         <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
@@ -225,8 +305,21 @@
       <pre><code>curl -fsSL https://silviuk.github.io/Lunifier/install.sh | sudo bash</code></pre>
     </div>
 
+    <div class="section-title">
+      Option 2: Standalone Debian Package (.deb)
+    </div>
+    <p style="margin: 0 0 6px 0; font-size: 13px; color: var(--text-muted);">Download and install the standalone deb package directly:</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+        <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+        <span>Copy</span>
+      </button>
+      <pre><code># Download the latest .deb from Releases and install
+sudo apt install ./lunifier_all.deb</code></pre>
+    </div>
+
     <details>
-      <summary>Manual Step-by-Step APT Configuration</summary>
+      <summary>Manual Step-by-Step APT Keyring &amp; Sources Setup</summary>
       <div class="code-block">
         <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
           <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
@@ -246,29 +339,83 @@ sudo apt install lunifier</code></pre>
     </details>
   </div>
 
+  <!-- Windows Installation Card -->
+  <div class="card">
+    <h2>
+      🪟 Windows Installation (Windows 10 / 11)
+    </h2>
+
+    <div class="section-title">
+      Option 1: Windows Package Manager (WinGet — Recommended)
+      <span class="badge">Easiest</span>
+    </div>
+    <p style="margin: 0 0 6px 0; font-size: 13px; color: var(--text-muted);">Install directly via Windows Package Manager in PowerShell or Command Prompt:</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+        <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+        <span>Copy</span>
+      </button>
+      <pre><code>winget install silviuk.Lunifier</code></pre>
+    </div>
+
+    <div class="section-title">
+      Option 2: Windows Setup Installer (.exe) &amp; MSIX Packages
+    </div>
+    <p style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">Download clean standalone installers including Start Menu shortcuts, tray integration, uninstaller, and silent install support:</p>
+    
+    <div class="download-grid">
+      <a href="https://github.com/silviuk/Lunifier/releases/latest" class="download-btn">
+        <div class="icon">📦</div>
+        <div>
+          <div class="label">Windows Installer (.exe)</div>
+          <div class="desc">Standard Inno Setup executable installer</div>
+        </div>
+      </a>
+      <a href="https://github.com/silviuk/Lunifier/releases/latest" class="download-btn">
+        <div class="icon">🪟</div>
+        <div>
+          <div class="label">Store-Compliant MSIX (.msix)</div>
+          <div class="desc">Modern packaged application package</div>
+        </div>
+      </a>
+    </div>
+
+    <details>
+      <summary>Silent / Automated Windows Installation</summary>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+          <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+          <span>Copy</span>
+        </button>
+        <pre><code># Run Windows installer silently in background
+Lunifier-Setup.exe /VERYSILENT /NORESTART</code></pre>
+      </div>
+    </details>
+  </div>
+
   <!-- Architecture & Overview Card -->
   <div class="card">
     <h2>Multi-Border 3-Channel Architecture</h2>
-    <p style="margin: 0 0 8px 0; font-size: 13.5px;">Lunifier transfers your Logitech peripherals simultaneously when the cursor dwells against any configured screen edge:</p>
+    <p style="margin: 0 0 6px 0; font-size: 13.5px;">Lunifier transfers your Logitech peripherals simultaneously when the cursor dwells against any configured screen edge:</p>
     
     <img src="architecture.svg" alt="Lunifier Multi-Border Architecture" class="diagram-img">
 
     <div class="grid-2">
       <div class="feature-item">
         <strong>⚡ Zero LAN / Wi-Fi Dependency</strong>
-        Operates autonomously on each host over direct Bluetooth, Logi Bolt, and Unifying receivers. Works seamlessly over VPNs and guest networks.
+        Operates autonomously on each host over direct Bluetooth, Logi Bolt, and Unifying receivers. Works seamlessly across VPNs, guest networks, and corporate firewalls.
       </div>
       <div class="feature-item">
         <strong>🎛️ Logitech HID++ 2.0 Feature 0x1814</strong>
-        Transmits hardware <code>CHANGE_HOST</code> commands simultaneously to all connected Easy-Switch peripherals for sub-second switching.
+        Transmits hardware <code>CHANGE_HOST</code> commands directly to all connected Easy-Switch keyboards and mice simultaneously for sub-second switching.
       </div>
       <div class="feature-item">
         <strong>🖥️ Multi-Border Screen Routing</strong>
-        Independently assign Left, Right, Top, or Bottom screen edges to distinct channels (Channel 1, 2, or 3) for 2-PC or 3-PC desk layouts.
+        Independently route Left, Right, Top, or Bottom screen edges to distinct channels (Channel 1, 2, or 3) to coordinate 2-PC or 3-PC desk setups.
       </div>
       <div class="feature-item">
-        <strong>🐧 Cross-Platform (Linux &amp; Windows)</strong>
-        Full support for Ubuntu, Debian, and Windows 10/11 with system tray controls, desktop integration, and systemd service autostart.
+        <strong>🐧🪟 Cross-Platform Parity (Linux &amp; Windows)</strong>
+        Full parity with system tray controls, configuration GUI, background services (systemd / Windows startup), and optional Bluetooth RFCOMM entry alignment.
       </div>
     </div>
   </div>
@@ -277,10 +424,10 @@ sudo apt install lunifier</code></pre>
   <div class="card">
     <h2>Project Links &amp; Downloads</h2>
     <ul>
-      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository (Source Code)</a></li>
-      <li><a href="https://github.com/silviuk/Lunifier/releases">Releases &amp; Checksums (Windows .exe, MSIX, Linux .deb)</a></li>
-      <li><a href="install.sh">One-Line Shell Installer (install.sh)</a></li>
-      <li><a href="key.gpg">Repository GPG Public Key (key.gpg)</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository (Source Code &amp; Issues)</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier/releases">Releases &amp; Checksums (Windows .exe, .msix, Linux .deb)</a></li>
+      <li><a href="install.sh">Linux One-Line Shell Installer (install.sh)</a></li>
+      <li><a href="key.gpg">APT Repository GPG Public Key (key.gpg)</a></li>
     </ul>
   </div>
 
