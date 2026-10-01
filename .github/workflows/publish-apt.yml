@@ -1,0 +1,117 @@
+name: Publish APT Repository (Ubuntu / Debian)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to fetch .deb from (leave blank for all/latest)'
+        required: false
+        default: ''
+        type: string
+      download_all_releases:
+        description: 'Download .deb assets from all historical releases to maintain package history in APT pool'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish-apt:
+    name: Build & Publish APT Repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install APT Repository & Packaging Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils gnupg
+
+      - name: Import GPG Signing Key
+        id: gpg_import
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "::warning::APT_GPG_PRIVATE_KEY secret is not configured in this repository. The APT repository Release file will not be signed with GPG."
+            echo "has_gpg=false" >> $GITHUB_OUTPUT
+          else
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
+            echo "has_gpg=true" >> $GITHUB_OUTPUT
+            echo "Successfully imported GPG private key for signing."
+          fi
+
+      - name: Fetch Release .deb Packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          DOWNLOAD_ALL: ${{ inputs.download_all_releases || 'true' }}
+        run: |
+          mkdir -p deb-pool
+
+          # Try checking out existing gh-pages branch pool to preserve existing packages
+          git clone --depth 1 --branch gh-pages "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" existing-gh-pages 2>/dev/null || true
+          if [ -d existing-gh-pages/pool/main ]; then
+            echo "Restoring packages from existing gh-pages pool..."
+            cp -n existing-gh-pages/pool/main/*.deb deb-pool/ 2>/dev/null || true
+          fi
+          rm -rf existing-gh-pages
+
+          # Download release packages
+          if [ "$DOWNLOAD_ALL" = "true" ] || [ "$DOWNLOAD_ALL" = "True" ]; then
+            echo "Fetching .deb assets from all releases..."
+            gh release list --limit 100 --json tagName --jq '.[].tagName' | while read -r rtag; do
+              echo "Checking release $rtag for .deb packages..."
+              gh release download "$rtag" --pattern "*.deb" --dir deb-pool --skip-existing 2>/dev/null || true
+            done
+          elif [ -n "$TAG" ]; then
+            echo "Fetching .deb assets for tag $TAG..."
+            gh release download "$TAG" --pattern "*.deb" --dir deb-pool --skip-existing 2>/dev/null || true
+          else
+            echo "Fetching .deb assets for latest release..."
+            gh release download --pattern "*.deb" --dir deb-pool --skip-existing 2>/dev/null || true
+          fi
+
+          echo "Packages in deb-pool:"
+          ls -lh deb-pool/
+
+      - name: Build APT Repository Metadata
+        env:
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          chmod +x ./scripts/generate_apt_repo.sh
+          ./scripts/generate_apt_repo.sh deb-pool public "Lunifier Package Archive"
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          keep_files: false
+          cname: ''
+
+      - name: Output Summary
+        run: |
+          REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name || 'Lunifier' }}"
+          echo "### 🚀 APT Repository Published Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository URL:** \`$REPO_URL\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Client Installation Command:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "sudo mkdir -p /etc/apt/keyrings" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSL $REPO_URL/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/lunifier.gpg" >> $GITHUB_STEP_SUMMARY
+          echo "echo \"deb [signed-by=/etc/apt/keyrings/lunifier.gpg] $REPO_URL stable main\" | sudo tee /etc/apt/sources.list.d/lunifier.list" >> $GITHUB_STEP_SUMMARY
+          echo "sudo apt update && sudo apt install lunifier" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

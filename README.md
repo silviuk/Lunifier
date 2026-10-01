@@ -68,14 +68,30 @@ winget install silviuk.Lunifier
 
 ### 2. Linux Installation
 
-#### Option A: Debian / Ubuntu Package (`.deb`)
-Download the `.deb` package from [Releases](https://github.com/silviuk/Lunifier/releases):
-```bash
-sudo apt install ./lunifier_1.0.0_all.deb
-```
-This automatically configures udev rules, installs desktop launcher shortcuts, and sets up a systemd user service.
+#### Option A: APT Repository (Recommended — Automatic Updates)
+Add the official Lunifier APT repository to receive automatic updates alongside system upgrades:
 
-#### Option B: Setup Script (Any Linux distribution)
+```bash
+# 1. Add repository GPG signing key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://silviuk.github.io/Lunifier/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/lunifier.gpg
+
+# 2. Add Lunifier repository to APT sources
+echo "deb [signed-by=/etc/apt/keyrings/lunifier.gpg] https://silviuk.github.io/Lunifier stable main" | sudo tee /etc/apt/sources.list.d/lunifier.list
+
+# 3. Update & install
+sudo apt update
+sudo apt install lunifier
+```
+
+#### Option B: Standalone Debian / Ubuntu Package (`.deb`)
+Download the latest `.deb` package directly from [Releases](https://github.com/silviuk/Lunifier/releases):
+```bash
+sudo apt install ./lunifier_2.2.2_all.deb
+```
+This automatically configures udev permissions, desktop shortcuts, and systemd user services.
+
+#### Option C: Setup Script (Any Linux distribution)
 1. Open a terminal in the cloned repository:
    ```bash
    chmod +x setup_linux.sh
@@ -83,8 +99,6 @@ This automatically configures udev rules, installs desktop launcher shortcuts, a
    ```
 2. Launch the settings GUI:
    ```bash
-   python3 -m lunifier.app --gui
-   # or simply
    lunifier --gui
    ```
 3. Enable autostart on login:
