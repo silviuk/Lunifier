@@ -1,5 +1,9 @@
 # Lunifier
 
+[![Release](https://img.shields.io/github/v/release/silviuk/Lunifier?color=blue)](https://github.com/silviuk/Lunifier/releases)
+[![APT Repository](https://img.shields.io/badge/APT%20Repo-GitHub%20Pages-informational?logo=debian)](https://silviuk.github.io/Lunifier/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Seamless cross-platform (Windows & Linux) software that transfers your **Logitech Easy-Switch keyboards and mice** (MX Keys, MX Master series, M720 Triathlon, POP, etc.) between computers when the mouse cursor hits the edge of your screen—just like **Logitech Flow**, but operating **autonomously over direct Bluetooth, Unifying, and Logi Bolt receivers** without requiring any local network!
 
 ---
@@ -69,12 +73,15 @@ winget install silviuk.Lunifier
 ### 2. Linux Installation
 
 #### Option A: APT Repository (Recommended — Automatic Updates)
-Add the official Lunifier APT repository to receive automatic updates alongside system upgrades.
+Lunifier maintains an official APT repository hosted directly on **[GitHub Pages](https://silviuk.github.io/Lunifier/)**. Adding this repository allows your Ubuntu or Debian system to receive and install new versions automatically whenever you run standard system upgrades (`sudo apt update && sudo apt upgrade`).
 
 **One-Line Quick Install:**
 ```bash
 curl -fsSL https://silviuk.github.io/Lunifier/install.sh | sudo bash
 ```
+
+> [!TIP]
+> You can also browse the repository landing page with one-click copy commands at **[silviuk.github.io/Lunifier](https://silviuk.github.io/Lunifier/)**.
 
 <details>
 <summary>Manual Step-by-Step Installation</summary>
