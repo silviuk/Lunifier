@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lunifier APT Repository</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #24292f; background: #f6f8fa; }
+    .card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 24px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    h1 { color: #0969da; margin-top: 0; }
+    pre { background: #24292e; color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
+    code { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace; }
+    p code { background: #eff1f3; padding: 2px 6px; border-radius: 4px; color: #cf222e; }
+    a { color: #0969da; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Lunifier APT Repository</h1>
+    <p>Official Debian / Ubuntu repository for <strong>Lunifier</strong> (Logitech Easy-Switch cross-platform coordinate utility).</p>
+    
+    <h2>Installation</h2>
+    <p>Run the following commands to add the repository and install Lunifier with automatic updates:</p>
+    <pre><code># 1. Add repository GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://silviuk.github.io/Lunifier/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/lunifier.gpg
+
+# 2. Add repository to sources list
+echo "deb [signed-by=/etc/apt/keyrings/lunifier.gpg] https://silviuk.github.io/Lunifier stable main" | sudo tee /etc/apt/sources.list.d/lunifier.list
+
+# 3. Update & install
+sudo apt update
+sudo apt install lunifier</code></pre>
+
+    <h2>Project Links</h2>
+    <ul>
+      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier/releases">GitHub Releases</a></li>
+      <li><a href="key.gpg">Repository GPG Public Key</a></li>
+    </ul>
+  </div>
+</body>
+</html>

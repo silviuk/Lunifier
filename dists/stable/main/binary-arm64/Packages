@@ -1,0 +1,53 @@
+Package: lunifier
+Version: 2.2.2
+Architecture: all
+Maintainer: Silviu Vlasceanu <silviuk@users.noreply.github.com>
+Depends: python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, libadwaita-1-0
+Recommends: solaar, xdotool, wl-clipboard, xclip, python3-evdev, bluez
+Filename: pool/main/lunifier_2.2.2_all.deb
+Size: 178640
+MD5sum: 0bf514fd96d04620d94e5c9fa98d665d
+SHA1: 2a4a4ea6fe405b57c2d3f425cd53fce30c7c7857
+SHA256: 30732c0c7234d5c9e739e9a11bba67eca63a20dfb700be15a8c778fb4d5ea667
+Section: utils
+Priority: optional
+Homepage: https://github.com/silviuk/Lunifier
+Description: Seamless Logitech Easy-Switch flow across Windows and Linux
+ Lunifier coordinates Logitech Easy-Switch keyboards and mice
+ (MX Keys, MX Master series, M720 Triathlon, POP, etc.) across
+ screens natively with GTK4 + Libadwaita without requiring Wi-Fi/LAN.
+ .
+ Features:
+  - Hardware-level switching under 20ms using Logitech HID++ 2.0
+  - Autonomous switching across Bluetooth, Unifying, and Logi Bolt
+  - Multi-monitor border triggers and configurable dwell zones
+  - Modern GTK4 + Libadwaita interface with GNOME tray integration
+
+Package: lunifier-nobtsync
+Version: 2.2.2
+Architecture: all
+Maintainer: Silviu Vlasceanu <silviuk@users.noreply.github.com>
+Depends: python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, libadwaita-1-0
+Recommends: solaar, xdotool, wl-clipboard, xclip, python3-evdev
+Conflicts: lunifier
+Replaces: lunifier
+Provides: lunifier
+Filename: pool/main/lunifier_2.2.2-nobtsync_all.deb
+Size: 178958
+MD5sum: 9984f7b98ec9cb440622b0edff07cad0
+SHA1: 680d3be2aab2632ca39fc0ef70cf8005f20e0ee2
+SHA256: 1ca73f3fe0190929a2288ec4a87ae69761d0ec2c7a31ef71bb81d9bb2e69624d
+Section: utils
+Priority: optional
+Homepage: https://github.com/silviuk/Lunifier
+Description: Seamless Logitech Easy-Switch flow across Windows and Linux (Standalone No-BtSync Edition without inter-host Bluetooth RFCOMM)
+ Lunifier coordinates Logitech Easy-Switch keyboards and mice
+ (MX Keys, MX Master series, M720 Triathlon, POP, etc.) across
+ screens natively with GTK4 + Libadwaita without requiring Wi-Fi/LAN.
+ .
+ Features:
+  - Hardware-level switching under 20ms using Logitech HID++ 2.0
+  - Autonomous switching across Bluetooth, Unifying, and Logi Bolt
+  - Multi-monitor border triggers and configurable dwell zones
+  - Modern GTK4 + Libadwaita interface with GNOME tray integration
+
