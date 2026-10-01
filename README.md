@@ -69,7 +69,15 @@ winget install silviuk.Lunifier
 ### 2. Linux Installation
 
 #### Option A: APT Repository (Recommended — Automatic Updates)
-Add the official Lunifier APT repository to receive automatic updates alongside system upgrades:
+Add the official Lunifier APT repository to receive automatic updates alongside system upgrades.
+
+**One-Line Quick Install:**
+```bash
+curl -fsSL https://silviuk.github.io/Lunifier/install.sh | sudo bash
+```
+
+<details>
+<summary>Manual Step-by-Step Installation</summary>
 
 ```bash
 # 1. Add repository GPG signing key
@@ -83,6 +91,7 @@ echo "deb [signed-by=/etc/apt/keyrings/lunifier.gpg] https://silviuk.github.io/L
 sudo apt update
 sudo apt install lunifier
 ```
+</details>
 
 #### Option B: Standalone Debian / Ubuntu Package (`.deb`)
 Download the latest `.deb` package directly from [Releases](https://github.com/silviuk/Lunifier/releases):

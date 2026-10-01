@@ -97,50 +97,307 @@ else
     echo "Warning: Secret key for '$GPG_KEY_NAME' not found. InRelease and Release.gpg were not signed."
 fi
 
-# 6. Add a simple web landing page at index.html for users browsing the repo
+# 6. Generate One-Line Installer script (install.sh)
+cat << 'EOF' > "$PUBLIC_DIR/install.sh"
+#!/bin/bash
+set -e
+
+# =============================================================================
+# Lunifier One-Line APT Installer for Ubuntu & Debian
+# https://silviuk.github.io/Lunifier/
+# =============================================================================
+
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo -e "${BLUE}${BOLD}=== Lunifier APT Installer ===${NC}"
+
+# Check for root / sudo
+if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+        SUDO="sudo"
+    else
+        echo -e "${RED}Error: This installer must be run as root or with sudo.${NC}"
+        exit 1
+    fi
+else
+    SUDO=""
+fi
+
+if ! command -v apt-get >/dev/null 2>&1; then
+    echo -e "${RED}Error: apt-get was not found. This installer requires Ubuntu or Debian.${NC}"
+    exit 1
+fi
+
+echo -e "-> Installing required dependencies (curl, gpg)..."
+$SUDO apt-get update -qq || true
+$SUDO apt-get install -y -qq curl gnupg >/dev/null 2>&1 || true
+
+echo -e "-> Configuring Lunifier repository keyring..."
+$SUDO mkdir -p /etc/apt/keyrings
+
+if curl -fsSL https://silviuk.github.io/Lunifier/key.gpg > /tmp/lunifier-key.gpg 2>/dev/null && [ -s /tmp/lunifier-key.gpg ]; then
+    $SUDO gpg --dearmor --yes -o /etc/apt/keyrings/lunifier.gpg /tmp/lunifier-key.gpg 2>/dev/null || true
+    rm -f /tmp/lunifier-key.gpg
+fi
+
+echo -e "-> Adding Lunifier repository to /etc/apt/sources.list.d/lunifier.list..."
+if [ -f /etc/apt/keyrings/lunifier.gpg ] && [ -s /etc/apt/keyrings/lunifier.gpg ]; then
+    echo "deb [signed-by=/etc/apt/keyrings/lunifier.gpg] https://silviuk.github.io/Lunifier stable main" | $SUDO tee /etc/apt/sources.list.d/lunifier.list >/dev/null
+else
+    echo "deb [trusted=yes] https://silviuk.github.io/Lunifier stable main" | $SUDO tee /etc/apt/sources.list.d/lunifier.list >/dev/null
+fi
+
+echo -e "-> Updating package indices..."
+$SUDO apt-get update -o Dir::Etc::sourcelist="sources.list.d/lunifier.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" 2>/dev/null || $SUDO apt-get update
+
+echo -e "-> Installing Lunifier..."
+$SUDO apt-get install -y lunifier
+
+echo -e ""
+echo -e "${GREEN}${BOLD}✓ Lunifier installed successfully!${NC}"
+echo -e "To configure & launch:      ${BOLD}lunifier --gui${NC}"
+echo -e "To run background service:  ${BOLD}systemctl --user enable --now lunifier.service${NC}"
+EOF
+chmod +x "$PUBLIC_DIR/install.sh"
+
+# 7. Generate Web landing page with Copy buttons (index.html)
 cat << 'EOF' > "$PUBLIC_DIR/index.html"
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lunifier APT Repository</title>
+  <title>Lunifier — Official APT Repository</title>
+  <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #24292f; background: #f6f8fa; }
-    .card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 24px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    h1 { color: #0969da; margin-top: 0; }
-    pre { background: #24292e; color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
-    code { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace; }
-    p code { background: #eff1f3; padding: 2px 6px; border-radius: 4px; color: #cf222e; }
-    a { color: #0969da; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --code-bg: #0b0e14;
+      --btn-bg: #21262d;
+      --btn-border: #363b42;
+      --btn-hover: #30363d;
+      --success: #3fb950;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      max-width: 820px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .header img {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+    }
+    h1 {
+      color: var(--text-bright);
+      margin: 0;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-size: 15px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    h2 {
+      color: var(--text-bright);
+      font-size: 19px;
+      margin-top: 0;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .code-block {
+      position: relative;
+      margin: 12px 0;
+    }
+    pre {
+      background: var(--code-bg);
+      color: #e6edf3;
+      padding: 16px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      overflow-x: auto;
+      font-size: 13.5px;
+      margin: 0;
+      line-height: 1.5;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .copy-btn:hover {
+      background: var(--btn-hover);
+      color: var(--text-bright);
+      border-color: var(--text-muted);
+    }
+    .copy-btn.copied {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--success);
+      border-color: rgba(63, 185, 80, 0.4);
+    }
+    .copy-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }
+    ul {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 32px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
+
+  <div class="header">
+    <img src="https://raw.githubusercontent.com/silviuk/Lunifier/master/lunifier/resources/icon.svg" alt="Lunifier Logo" onerror="this.style.display='none'">
+    <div>
+      <h1>Lunifier APT Repository</h1>
+      <div class="subtitle">Official Debian / Ubuntu repository for Logitech Easy-Switch cross-screen flow</div>
+    </div>
+  </div>
+
   <div class="card">
-    <h1>Lunifier APT Repository</h1>
-    <p>Official Debian / Ubuntu repository for <strong>Lunifier</strong> (Logitech Easy-Switch cross-platform coordinate utility).</p>
-    
-    <h2>Installation</h2>
-    <p>Run the following commands to add the repository and install Lunifier with automatic updates:</p>
-    <pre><code># 1. Add repository GPG key
+    <h2>
+      One-Line Quick Install
+      <span class="badge">Recommended</span>
+    </h2>
+    <p>Run this command in your Ubuntu / Debian terminal to add the repository and install Lunifier in one step:</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+        <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+        <span>Copy</span>
+      </button>
+      <pre><code>curl -fsSL https://silviuk.github.io/Lunifier/install.sh | sudo bash</code></pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Manual Step-by-Step Installation</h2>
+    <p>If you prefer to configure APT sources manually:</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+        <svg viewBox="0 0 16 16"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+        <span>Copy</span>
+      </button>
+      <pre><code># 1. Add repository GPG signing key
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://silviuk.github.io/Lunifier/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/lunifier.gpg
 
-# 2. Add repository to sources list
+# 2. Add Lunifier repository to APT sources
 echo "deb [signed-by=/etc/apt/keyrings/lunifier.gpg] https://silviuk.github.io/Lunifier stable main" | sudo tee /etc/apt/sources.list.d/lunifier.list
 
-# 3. Update & install
+# 3. Update & install Lunifier
 sudo apt update
 sudo apt install lunifier</code></pre>
+    </div>
+  </div>
 
-    <h2>Project Links</h2>
+  <div class="card">
+    <h2>Project Links & Resources</h2>
     <ul>
-      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository</a></li>
-      <li><a href="https://github.com/silviuk/Lunifier/releases">GitHub Releases</a></li>
-      <li><a href="key.gpg">Repository GPG Public Key</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier">GitHub Repository (silviuk/Lunifier)</a></li>
+      <li><a href="https://github.com/silviuk/Lunifier/releases">Release Downloads & Checksums</a></li>
+      <li><a href="install.sh">One-Line Installer Script (install.sh)</a></li>
+      <li><a href="key.gpg">Repository GPG Public Key (key.gpg)</a></li>
     </ul>
   </div>
+
+  <div class="footer">
+    Lunifier is open source under the MIT License.
+  </div>
+
+  <script>
+    function copyCode(btn) {
+      const pre = btn.parentElement.querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('copied');
+        btn.querySelector('span').innerText = 'Copied!';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.querySelector('span').innerText = 'Copy';
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+    }
+  </script>
 </body>
 </html>
 EOF
