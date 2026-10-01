@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" width="100%" height="100%">
+  <defs>
+    <!-- Simple theme variables -->
+    <style>
+      .bg { fill: #0d1117; }
+      .screen-bg { fill: #161b22; stroke: #30363d; stroke-width: 1.5; }
+      .screen-active-edge-blue { stroke: #2f81f7; stroke-width: 3; fill: rgba(47, 129, 247, 0.12); }
+      .screen-active-edge-purple { stroke: #a371f7; stroke-width: 3; fill: rgba(163, 113, 247, 0.12); }
+      .screen-active-edge-green { stroke: #3fb950; stroke-width: 3; fill: rgba(63, 185, 80, 0.12); }
+      .stand { fill: #21262d; stroke: #30363d; stroke-width: 1; }
+      .header-bg { fill: #21262d; stroke: #30363d; stroke-width: 1; }
+      .text-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; fill: #f0f6fc; }
+      .text-channel { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; font-weight: 600; }
+      .text-arrow { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 500; fill: #8b949e; }
+      .text-badge { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; font-weight: 600; fill: #f0f6fc; }
+      .arrow-line { stroke-width: 1.5; stroke-dasharray: 4,3; }
+      .legend-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; fill: #8b949e; }
+      .legend-mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; fill: #58a6ff; }
+    </style>
+
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 8 5 L 0 8 z" fill="#2f81f7" />
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 8 5 L 0 8 z" fill="#a371f7" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 8 5 L 0 8 z" fill="#3fb950" />
+    </marker>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="900" height="320" rx="8" class="bg" stroke="#30363d" stroke-width="1" />
+
+  <!-- ===================================================================== -->
+  <!-- SCREEN 1: Host 1 (Channel 1) -->
+  <!-- ===================================================================== -->
+  <g transform="translate(35, 25)">
+    <!-- Stand -->
+    <rect x="85" y="190" width="70" height="12" rx="2" class="stand" />
+    <rect x="114" y="172" width="12" height="20" class="stand" />
+
+    <!-- Screen Bezel -->
+    <rect x="0" y="0" width="240" height="175" rx="6" class="screen-bg" />
+
+    <!-- Title Bar -->
+    <rect x="0" y="0" width="240" height="32" rx="6" class="header-bg" />
+    <text x="14" y="21" class="text-title">Host 1</text>
+    <rect x="145" y="6" width="82" height="20" rx="4" fill="#1f6feb" fill-opacity="0.2" stroke="#2f81f7" stroke-width="1" />
+    <text x="186" y="20" text-anchor="middle" class="text-channel" fill="#58a6ff">Channel 1</text>
+
+    <!-- Right Edge Trigger Zone -->
+    <rect x="216" y="32" width="24" height="143" class="screen-active-edge-blue" />
+    <line x1="240" y1="32" x2="240" y2="175" stroke="#2f81f7" stroke-width="2.5" />
+
+    <!-- Center Label -->
+    <text x="110" y="105" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">Windows / Linux</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- TRANSITION 1: Host 1 <--> Host 2 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(275, 45)">
+    <!-- Right switch arrow (Ch 1 -> Ch 2) -->
+    <path d="M 5 45 L 80 45" stroke="#2f81f7" class="arrow-line" marker-end="url(#arrow-blue)" />
+    <rect x="15" y="25" width="60" height="17" rx="3" fill="#161b22" stroke="#30363d" stroke-width="1" />
+    <text x="45" y="37" text-anchor="middle" class="text-arrow">Ch 2 ➔</text>
+
+    <!-- Left switch arrow (Ch 2 -> Ch 1) -->
+    <path d="M 80 85 L 5 85" stroke="#a371f7" class="arrow-line" marker-end="url(#arrow-purple)" />
+    <rect x="15" y="93" width="60" height="17" rx="3" fill="#161b22" stroke="#30363d" stroke-width="1" />
+    <text x="45" y="105" text-anchor="middle" class="text-arrow">⬅ Ch 1</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- SCREEN 2: Host 2 (Channel 2) -->
+  <!-- ===================================================================== -->
+  <g transform="translate(365, 25)">
+    <!-- Stand -->
+    <rect x="85" y="190" width="70" height="12" rx="2" class="stand" />
+    <rect x="114" y="172" width="12" height="20" class="stand" />
+
+    <!-- Screen Bezel -->
+    <rect x="0" y="0" width="240" height="175" rx="6" class="screen-bg" />
+
+    <!-- Title Bar -->
+    <rect x="0" y="0" width="240" height="32" rx="6" class="header-bg" />
+    <text x="14" y="21" class="text-title">Host 2</text>
+    <rect x="145" y="6" width="82" height="20" rx="4" fill="#8957e5" fill-opacity="0.2" stroke="#a371f7" stroke-width="1" />
+    <text x="186" y="20" text-anchor="middle" class="text-channel" fill="#d2a8ff">Channel 2</text>
+
+    <!-- Left Edge Trigger Zone -->
+    <rect x="0" y="32" width="24" height="143" class="screen-active-edge-purple" />
+    <line x1="0" y1="32" x2="0" y2="175" stroke="#a371f7" stroke-width="2.5" />
+
+    <!-- Right Edge Trigger Zone -->
+    <rect x="216" y="32" width="24" height="143" class="screen-active-edge-purple" />
+    <line x1="240" y1="32" x2="240" y2="175" stroke="#a371f7" stroke-width="2.5" />
+
+    <!-- Center Label -->
+    <text x="120" y="105" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">Windows / Linux</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- TRANSITION 2: Host 2 <--> Host 3 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(605, 45)">
+    <!-- Right switch arrow (Ch 2 -> Ch 3) -->
+    <path d="M 5 45 L 80 45" stroke="#a371f7" class="arrow-line" marker-end="url(#arrow-purple)" />
+    <rect x="15" y="25" width="60" height="17" rx="3" fill="#161b22" stroke="#30363d" stroke-width="1" />
+    <text x="45" y="37" text-anchor="middle" class="text-arrow">Ch 3 ➔</text>
+
+    <!-- Left switch arrow (Ch 3 -> Ch 2) -->
+    <path d="M 80 85 L 5 85" stroke="#3fb950" class="arrow-line" marker-end="url(#arrow-green)" />
+    <rect x="15" y="93" width="60" height="17" rx="3" fill="#161b22" stroke="#30363d" stroke-width="1" />
+    <text x="45" y="105" text-anchor="middle" class="text-arrow">⬅ Ch 2</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- SCREEN 3: Host 3 (Channel 3) -->
+  <!-- ===================================================================== -->
+  <g transform="translate(695, 25)">
+    <!-- Stand -->
+    <rect x="85" y="190" width="70" height="12" rx="2" class="stand" />
+    <rect x="114" y="172" width="12" height="20" class="stand" />
+
+    <!-- Screen Bezel -->
+    <rect x="0" y="0" width="170" height="175" rx="6" class="screen-bg" />
+
+    <!-- Title Bar -->
+    <rect x="0" y="0" width="170" height="32" rx="6" class="header-bg" />
+    <text x="14" y="21" class="text-title">Host 3</text>
+    <rect x="75" y="6" width="82" height="20" rx="4" fill="#238636" fill-opacity="0.2" stroke="#3fb950" stroke-width="1" />
+    <text x="116" y="20" text-anchor="middle" class="text-channel" fill="#7ee787">Channel 3</text>
+
+    <!-- Left Edge Trigger Zone -->
+    <rect x="0" y="32" width="24" height="143" class="screen-active-edge-green" />
+    <line x1="0" y1="32" x2="0" y2="175" stroke="#3fb950" stroke-width="2.5" />
+
+    <!-- Center Label -->
+    <text x="95" y="105" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">Windows / Linux</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- TECHNICAL FOOTER -->
+  <!-- ===================================================================== -->
+  <g transform="translate(35, 248)">
+    <rect width="830" height="48" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1" />
+    
+    <text x="20" y="28" class="legend-text">
+      Protocol: <tspan class="legend-mono">Logitech HID++ 2.0 (0x1814 CHANGE_HOST)</tspan>
+    </text>
+    <text x="445" y="28" class="legend-text">
+      Transport: <tspan fill="#f0f6fc">Direct Bluetooth, Logi Bolt &amp; Unifying Receivers</tspan>
+    </text>
+  </g>
+</svg>
