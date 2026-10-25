@@ -1,120 +1,49 @@
-# Lunifier 2.0 Native
+[**Website & downloads ↗**](https://silviuk.github.io/Lunifier/) · [Latest release](https://github.com/silviuk/Lunifier/releases/latest)
 
-Seamless cross-platform software that transfers your **Logitech Easy-Switch keyboards and mice** (MX Keys, MX Master series, M720 Triathlon, POP, etc.) between computers when the mouse cursor hits the edge of your screen—just like **Logitech Flow**, but operating **autonomously over direct Bluetooth, Unifying, and Logi Bolt receivers** without requiring any local network!
+[![Support on Ko-fi](docs/assets/ko-fi.svg)](https://ko-fi.com/silviuvlasceanu)
 
-Lunifier 2.0 is written from scratch in native code using modern APIs:
-- **Windows 11**: Modern C# (.NET 9) with Windows 11 Fluent UI + direct Win32 APIs (`SetupAPI`, `hid.dll`, `user32.dll`, Winsock Bluetooth RFCOMM).
-- **Ubuntu 24.04+**: Modern native GNOME application using **GTK4 + Libadwaita** (`Adw.Application`, `Adw.PreferencesWindow`, `Adw.ActionRow`, `Adw.SwitchRow`) with direct Linux `/dev/hidraw`, `libudev`, BlueZ RFCOMM sockets, and X11/Wayland coordinate monitoring.
+# Lunifier
 
----
+Move your Logitech keyboard and mouse between computers by touching a screen edge. Your Easy-Switch devices change hardware channels together, without needing a shared Wi-Fi or LAN.
+
+**Windows + Linux · Logitech Easy-Switch**
 
 ## Why Lunifier?
 
-Official Logitech Flow has significant limitations:
-1. **No Linux Support**: Logitech Options+ is not available on Linux.
-2. **Network Dependency**: Official Flow mandates that all computers share the same Wi-Fi/LAN subnet with open ports, which fails on VPNs, guest networks, corporate firewalls, or isolated PCs.
-3. **Multi-Channel Border Routing**: Lunifier lets you route each screen edge (**Left**, **Right**, **Top**, **Bottom**) per monitor to distinct Easy-Switch channels (**Channel 1**, **Channel 2**, **Channel 3**), effortlessly coordinating 2-PC or 3-PC setups.
+- **Choose your edges.** Map the left, right, top, and bottom edges to Easy-Switch channels 1, 2, or 3.
+- **Switch your way.** Use screen edges, global hotkeys, or the tray menu. Tune dwell and cooldown to suit your desk.
+- **Keep the connection local.** Hardware switching works independently on each host. Optional Bluetooth peer features add cursor alignment and text clipboard sync.
 
-**Lunifier 2.0** solves all of these:
-- **Autonomous Multi-Protocol Support**: Automatically detects and switches your Logitech devices whether connected via **Direct Bluetooth**, **Unifying Receivers**, **Logi Bolt Receivers**, or mixed transports.
-- **Logitech HID++ 2.0 Feature `0x1814` (`CHANGE_HOST`)**: Issues hardware channel switch commands directly to all connected Easy-Switch peripherals simultaneously (<20ms execution).
-- **Per-Monitor Border Routing**: Configure borders independently per physical monitor, correctly handling mixed resolutions and monitor alignments.
-- **Configurable Active Border Zone**: Select the active middle percentage of each border (10% to 100%) with live visual feedback overlay.
-- **Border Knock Activation**: Optional double-touch gesture to switch channels, preventing accidental triggers when working near boundaries.
-- **Dual Operating Modes**: Operates completely autonomously on each host with **zero inter-PC connection**, or links peers over **Bluetooth RFCOMM** for cursor entry coordinate alignment and clipboard sync without any LAN/Wi-Fi connection.
+## See it in action
 
----
+<img src="docs/assets/screen-switching.png" alt="Configure screen edges, host channels, and switching shortcuts." width="350">
 
-## Multi-Border 3-Channel Architecture
+*Configure screen edges, host channels, and switching shortcuts.*
 
-Configure your desk layout visually:
-```
-+---------------------------+   +---------------------------+   +---------------------------+
-|          Host 1           |   |          Host 2           |   |          Host 3           |
-|        (Channel 1)        |   |        (Channel 2)        |   |        (Channel 3)        |
-|                           |   |                           |   |                           |
-|       Right Border ===>   |   |   <=== Left Border        |   |                           |
-|      (Switch to Ch 2)     |   |   (Switch to Ch 1)        |   |                           |
-|                           |   |                           |   |                           |
-|                           |   |       Right Border ===>   |   |   <=== Left Border        |
-|                           |   |      (Switch to Ch 3)     |   |   (Switch to Ch 2)        |
-+---------------------------+   +---------------------------+   +---------------------------+
-```
+<img src="docs/assets/advanced.png" alt="Detect devices and adjust switching behavior." width="350">
 
-When cursor dwells against the border:
-- **Host 2 Left Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 1**.
-- **Host 2 Right Border** $\rightarrow$ Instantly switches keyboard & mouse to **Channel 3**.
+*Detect devices and adjust switching behavior.*
 
----
+## Get started
 
-## Installation & Quick Start
+1. Pair your compatible keyboard and mouse with each computer on its own Easy-Switch channel.
+2. Install Lunifier on each host and select that computer’s channel.
+3. Assign screen edges to the other channels, then move to an edge to switch.
 
-### 1. Windows 11 Native Setup
-1. Clone or extract the repository.
-2. Run `setup_windows.bat` (builds the native .NET 9 solution and publishes single-file `Lunifier.Windows.exe` to `dist\windows\`).
-3. Run `run_gui.bat` to open the Windows 11 Fluent settings UI, or `install_windows.ps1` to install shortcuts and startup integration.
+### Debian / Ubuntu
 
-### 2. Ubuntu 24.04+ Native Setup (GTK4 + Libadwaita)
-1. Open a terminal in the repository:
-   ```bash
-   chmod +x setup_linux.sh
-   ./setup_linux.sh
-   ```
-2. Launch the native Libadwaita GUI:
-   ```bash
-   python3 src/linux/lunifier-adwaita/run_lunifier.py --gui
-   ```
-3. Or run the daemon headless:
-   ```bash
-   python3 src/linux/lunifier-adwaita/run_lunifier.py --daemon
-   ```
-4. Enable autostart on login:
-   ```bash
-   systemctl --user enable --now lunifier.service
-   ```
+Download the latest `.deb` from Releases, or use the [APT installation instructions](https://silviuk.github.io/Lunifier/#installation).
 
----
+## Requirements & limits
 
-## Configuration (`config.json`)
+A Windows or Linux computer for each host, compatible Logitech Easy-Switch peripherals, and Bluetooth, Unifying, or Logi Bolt connections supported by your devices. Pair the devices with every host before configuring Lunifier.
 
-Settings can be modified via the UI or by editing `config.json`:
-- **Windows location**: `%APPDATA%\Lunifier\config.json`
-- **Linux location**: `~/.config/lunifier/config.json`
+Hardware support depends on the device’s HID++ Easy-Switch features. Bluetooth peer features are optional and off by default. Lunifier is an independent project, unaffiliated with Logitech.
 
-Schema specification: `src/common/config.schema.json`.
+## Documentation & contributing
 
-```json
-{
-  "host_name": "Host",
-  "my_channel": 1,
-  "target_channel": 2,
-  "hold_delay_ms": 250,
-  "cooldown_ms": 2500,
-  "border_active_zone_pct": 50,
-  "knock_enabled": false,
-  "knock_timeout_ms": 1000,
-  "monitor_configs": {
-    "0": {
-      "enabled": true,
-      "edges": {
-        "left": null,
-        "right": 2,
-        "top": null,
-        "bottom": null
-      }
-    }
-  },
-  "switch_backend": "auto",
-  "connection_support": "both",
-  "log_level": "normal",
-  "bt_p2p_enabled": false,
-  "sync_cursor_position": true,
-  "sync_clipboard": false
-}
-```
+[Configuration reference](docs/CONFIGURATION.md) and [source build instructions](docs/DEVELOPMENT.md). The current native Windows source is maintained on the [2.0 branch](https://github.com/silviuk/Lunifier/tree/2.0).
 
----
+Found a problem or have an idea? [Open an issue](https://github.com/silviuk/Lunifier/issues). If the app helps you, [support its development on Ko-fi](https://ko-fi.com/silviuvlasceanu).
 
-## Author & License
-- **Author**: Silviu Vlasceanu ([@silviuk](https://github.com/silviuk))
-- **License**: MIT
+© 2026 Silviu Vlasceanu. [License](LICENSE).

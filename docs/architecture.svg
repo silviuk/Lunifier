@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 260" width="100%" height="100%">
+  <defs>
+    <style>
+      /* Base Light Theme */
+      .card-bg { fill: #ffffff; stroke: #d0d7de; stroke-width: 1; }
+      .screen-box { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.5; }
+      .screen-header { fill: #eaeef2; stroke: #d0d7de; stroke-width: 1; }
+      .title-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; fill: #1f2328; }
+      .sub-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; fill: #656d76; }
+      .channel-pill { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1; }
+      .channel-text { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; font-weight: 600; fill: #0969da; }
+      .stand-base { fill: #d0d7de; }
+      .stand-neck { fill: #e2e8f0; }
+      .divider-line { stroke: #eaeef2; stroke-width: 1; }
+
+      /* Lunifier Orange Active Border (#FF5722) */
+      .edge-line-orange { stroke: #FF5722; stroke-width: 4; stroke-linecap: square; }
+      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; fill: #c2410c; }
+      .footer-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; fill: #57606a; }
+      .footer-code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; fill: #1f2328; }
+      .orange-highlight { fill: #FF5722; font-weight: 600; }
+
+      /* Automatic Dark Theme Switch */
+      @media (prefers-color-scheme: dark) {
+        .card-bg { fill: #161b22; stroke: #30363d; }
+        .screen-box { fill: #0d1117; stroke: #30363d; }
+        .screen-header { fill: #21262d; stroke: #30363d; }
+        .title-text { fill: #f0f6fc; }
+        .sub-text { fill: #8b949e; }
+        .channel-pill { fill: rgba(56, 139, 253, 0.15); stroke: rgba(56, 139, 253, 0.4); }
+        .channel-text { fill: #58a6ff; }
+        .stand-base { fill: #30363d; }
+        .stand-neck { fill: #21262d; }
+        .divider-line { stroke: #30363d; }
+        .arrow-text { fill: #fb923c; }
+        .footer-text { fill: #8b949e; }
+        .footer-code { fill: #e6edf3; }
+      }
+    </style>
+
+    <marker id="arrow-orange" viewBox="0 0 8 8" refX="5" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 6 4 L 0 7 z" fill="#FF5722" />
+    </marker>
+    <marker id="arrow-orange-left" viewBox="0 0 8 8" refX="1" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 6 1 L 0 4 L 6 7 z" fill="#FF5722" />
+    </marker>
+  </defs>
+
+  <!-- Outer container card -->
+  <rect width="880" height="260" rx="8" class="card-bg" />
+
+  <!-- ===================================================================== -->
+  <!-- MONITOR 1: Host 1 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(30, 24)">
+    <!-- Stand -->
+    <rect x="80" y="152" width="60" height="6" rx="2" class="stand-base" />
+    <rect x="104" y="140" width="12" height="12" class="stand-neck" />
+
+    <!-- Screen Box -->
+    <rect x="0" y="0" width="220" height="140" rx="6" class="screen-box" />
+
+    <!-- Header -->
+    <path d="M 0 6 Q 0 0 6 0 L 214 0 Q 220 0 220 6 L 220 30 L 0 30 Z" class="screen-header" />
+    <text x="12" y="20" class="title-text">Host 1</text>
+
+    <rect x="128" y="6" width="80" height="18" rx="4" class="channel-pill" />
+    <text x="168" y="19" text-anchor="middle" class="channel-text">Channel 1</text>
+
+    <!-- Right Orange Active Dwell Border (Sleek line) -->
+    <line x1="218" y1="30" x2="218" y2="139" class="edge-line-orange" />
+
+    <text x="105" y="85" text-anchor="middle" class="sub-text">Windows / Linux</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- TRANSITION 1: Host 1 <--> Host 2 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(250, 24)">
+    <!-- Right arrow (Ch 1 -> Ch 2) -->
+    <line x1="8" y1="62" x2="82" y2="62" stroke="#FF5722" stroke-width="1.5" marker-end="url(#arrow-orange)" />
+    <text x="45" y="54" text-anchor="middle" class="arrow-text">Ch 2 ➔</text>
+
+    <!-- Left arrow (Ch 2 -> Ch 1) -->
+    <line x1="8" y1="98" x2="82" y2="98" stroke="#FF5722" stroke-width="1.5" marker-start="url(#arrow-orange-left)" />
+    <text x="45" y="114" text-anchor="middle" class="arrow-text">⬅ Ch 1</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- MONITOR 2: Host 2 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(340, 24)">
+    <!-- Stand -->
+    <rect x="80" y="152" width="60" height="6" rx="2" class="stand-base" />
+    <rect x="104" y="140" width="12" height="12" class="stand-neck" />
+
+    <!-- Screen Box -->
+    <rect x="0" y="0" width="220" height="140" rx="6" class="screen-box" />
+
+    <!-- Header -->
+    <path d="M 0 6 Q 0 0 6 0 L 214 0 Q 220 0 220 6 L 220 30 L 0 30 Z" class="screen-header" />
+    <text x="12" y="20" class="title-text">Host 2</text>
+
+    <rect x="128" y="6" width="80" height="18" rx="4" class="channel-pill" />
+    <text x="168" y="19" text-anchor="middle" class="channel-text">Channel 2</text>
+
+    <!-- Left Orange Active Dwell Border (Sleek line) -->
+    <line x1="2" y1="30" x2="2" y2="139" class="edge-line-orange" />
+
+    <!-- Right Orange Active Dwell Border (Sleek line) -->
+    <line x1="218" y1="30" x2="218" y2="139" class="edge-line-orange" />
+
+    <text x="110" y="85" text-anchor="middle" class="sub-text">Windows / Linux</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- TRANSITION 2: Host 2 <--> Host 3 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(560, 24)">
+    <!-- Right arrow (Ch 2 -> Ch 3) -->
+    <line x1="8" y1="62" x2="82" y2="62" stroke="#FF5722" stroke-width="1.5" marker-end="url(#arrow-orange)" />
+    <text x="45" y="54" text-anchor="middle" class="arrow-text">Ch 3 ➔</text>
+
+    <!-- Left arrow (Ch 3 -> Ch 2) -->
+    <line x1="8" y1="98" x2="82" y2="98" stroke="#FF5722" stroke-width="1.5" marker-start="url(#arrow-orange-left)" />
+    <text x="45" y="114" text-anchor="middle" class="arrow-text">⬅ Ch 2</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- MONITOR 3: Host 3 -->
+  <!-- ===================================================================== -->
+  <g transform="translate(650, 24)">
+    <!-- Stand -->
+    <rect x="70" y="152" width="60" height="6" rx="2" class="stand-base" />
+    <rect x="94" y="140" width="12" height="12" class="stand-neck" />
+
+    <!-- Screen Box -->
+    <rect x="0" y="0" width="200" height="140" rx="6" class="screen-box" />
+
+    <!-- Header -->
+    <path d="M 0 6 Q 0 0 6 0 L 194 0 Q 200 0 200 6 L 200 30 L 0 30 Z" class="screen-header" />
+    <text x="12" y="20" class="title-text">Host 3</text>
+
+    <rect x="108" y="6" width="80" height="18" rx="4" class="channel-pill" />
+    <text x="148" y="19" text-anchor="middle" class="channel-text">Channel 3</text>
+
+    <!-- Left Orange Active Dwell Border (Sleek line) -->
+    <line x1="2" y1="30" x2="2" y2="139" class="edge-line-orange" />
+
+    <text x="100" y="85" text-anchor="middle" class="sub-text">Windows / Linux</text>
+  </g>
+
+  <!-- ===================================================================== -->
+  <!-- FOOTER CAPTION -->
+  <!-- ===================================================================== -->
+  <g transform="translate(30, 205)">
+    <line x1="0" y1="0" x2="820" y2="0" class="divider-line" />
+    <text x="410" y="24" text-anchor="middle" class="footer-text">
+      Cursor dwell against active <tspan class="orange-highlight">orange border</tspan> triggers Logitech HID++ 2.0 <tspan class="footer-code">CHANGE_HOST (0x1814)</tspan> hardware switching.
+    </text>
+  </g>
+</svg>
