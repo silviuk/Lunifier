@@ -174,7 +174,7 @@ chmod +x "$PUBLIC_DIR/install.sh"
 # 8. Publish the maintained project page alongside the generated APT metadata.
 mkdir -p "$PUBLIC_DIR/assets"
 cp -R "$SCRIPT_DIR/../docs/assets/." "$PUBLIC_DIR/assets/"
-cp "$SCRIPT_DIR/../docs/index.html" "$SCRIPT_DIR/../docs/style.css" "$PUBLIC_DIR/"
+cp "$SCRIPT_DIR/../docs/index.html" "$SCRIPT_DIR/../docs/style.css" "$SCRIPT_DIR/../docs/theme-init.js" "$SCRIPT_DIR/../docs/theme.js" "$PUBLIC_DIR/"
 touch "$PUBLIC_DIR/.nojekyll"
 
 echo "=== APT Repository Generation Complete! ==="

@@ -24,6 +24,12 @@ Move your mouse to the edge of the screen to switch your Logitech keyboard and m
 
 *Detect devices and adjust switching behavior.*
 
+## How switching works
+
+![Three computers with Easy-Switch channels 1, 2, and 3. Highlighted screen edges switch to the neighboring computer.](docs/architecture.svg)
+
+Each computer has its own Easy-Switch channel. Move to a highlighted edge to switch your keyboard and mouse to the next computer.
+
 ## Get started
 
 1. Pair your compatible keyboard and mouse with each computer on its own Easy-Switch channel.
